@@ -15,75 +15,14 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [roleTab, setRoleTab] = useState<UserRole>('driver');
+  const initialRole = (searchParams.get('role') as UserRole) || 'driver';
+  const [roleTab, setRoleTab] = useState<UserRole>(initialRole);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showAllDemoAccounts, setShowAllDemoAccounts] = useState(false);
 
   const allUsers = DataStore.getUsers();
   const allDrivers = DataStore.getDrivers();
   const allEmployers = DataStore.getEmployers();
-
-  // 1-Click Login as a specific user
-  const handleLoginAsUser = (targetEmail: string) => {
-    setError(null);
-    const cleanEmail = targetEmail.trim().toLowerCase();
-    const users = DataStore.getUsers();
-    let targetUser = users.find(u => u.email.toLowerCase() === cleanEmail);
-
-    // If not found in users table, find in drivers or employers
-    if (!targetUser) {
-      const driver = allDrivers.find(d => d.email.toLowerCase() === cleanEmail);
-      if (driver) {
-        targetUser = {
-          id: driver.id,
-          email: driver.email,
-          role: 'driver',
-          status: driver.status || 'active',
-          phone: driver.phone,
-          createdAt: '2026-08-15'
-        };
-        DataStore.addUser(targetUser);
-      } else {
-        const employer = allEmployers.find(e => e.email.toLowerCase() === cleanEmail);
-        if (employer) {
-          targetUser = {
-            id: employer.id,
-            email: employer.email,
-            role: 'employer',
-            status: employer.status || 'active',
-            phone: employer.phone,
-            createdAt: '2026-08-10'
-          };
-          DataStore.addUser(targetUser);
-        }
-      }
-    }
-
-    if (!targetUser) {
-      setError(`No account found for "${cleanEmail}".`);
-      return;
-    }
-
-    // Check blocked status
-    if (targetUser.status === 'blocked') {
-      setError(`🚫 Account Suspended: The account "${targetUser.email}" has been blocked by administration. Login access is denied.`);
-      return;
-    }
-
-    // Set as current user
-    DataStore.setCurrentUser(targetUser);
-
-    if (redirect) {
-      navigate(redirect);
-    } else if (targetUser.role === 'admin') {
-      navigate('/admin/dashboard');
-    } else if (targetUser.role === 'employer') {
-      navigate('/employer/dashboard');
-    } else {
-      navigate('/driver/dashboard');
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,52 +116,74 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Clean Production Auth Form (No Demo Names) */}
+        {/* Right Column: Clean Production Auth Form */}
         <div className="lg:col-span-6 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6">
           {/* Header */}
           <div className="space-y-2">
             <Logo size="md" />
             <h1 className="text-2xl sm:text-3xl font-black text-[#08233F] font-display tracking-tight pt-2">
-              Sign In to Driver Hub
+              {roleTab === 'admin' ? 'Admin Portal Sign In' : 'Sign In to Driver Hub'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              Access your driver account, employer dashboard, or administrative portal.
+              {roleTab === 'admin' 
+                ? 'Authorized platform administration, job moderation & verification.'
+                : 'Access your driver account, employer dashboard, or fleet tools.'
+              }
             </p>
           </div>
 
           {/* Credentials Box */}
           <div className="space-y-5">
             {/* Role selector tabs */}
-            <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setRoleTab('driver');
-                  setError(null);
-                }}
-                className={`py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  roleTab === 'driver'
-                    ? 'bg-white text-[#08233F] shadow-sm'
-                    : 'text-slate-600 hover:text-slate-950'
-                }`}
-              >
-                Driver / Candidate
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRoleTab('employer');
-                  setError(null);
-                }}
-                className={`py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  roleTab === 'employer'
-                    ? 'bg-white text-[#08233F] shadow-sm'
-                    : 'text-slate-600 hover:text-slate-950'
-                }`}
-              >
-                Employer / Fleet
-              </button>
-            </div>
+            {roleTab === 'admin' ? (
+              <div className="flex items-center justify-between p-3 bg-slate-900 text-white rounded-xl text-xs shadow-inner">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-amber-400" />
+                  <span className="font-bold">Staff & Admin Mode</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleTab('driver');
+                    setError(null);
+                  }}
+                  className="text-amber-400 hover:underline text-[11px] font-bold cursor-pointer"
+                >
+                  Switch to Driver / Fleet
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleTab('driver');
+                    setError(null);
+                  }}
+                  className={`py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    roleTab === 'driver'
+                      ? 'bg-white text-[#08233F] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-950'
+                  }`}
+                >
+                  Driver / Candidate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleTab('employer');
+                    setError(null);
+                  }}
+                  className={`py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    roleTab === 'employer'
+                      ? 'bg-white text-[#08233F] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-950'
+                  }`}
+                >
+                  Employer / Fleet
+                </button>
+              </div>
+            )}
 
             {error && (
               <div className="flex items-start gap-2 p-3.5 bg-red-50 text-red-800 text-xs rounded-xl border border-red-200 animate-in fade-in">
@@ -241,7 +202,7 @@ export const LoginPage: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@example.com"
+                    placeholder={roleTab === 'admin' ? 'admin@driverhub.in' : 'name@example.com'}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
                   />
                 </div>
@@ -272,15 +233,45 @@ export const LoginPage: React.FC = () => {
                 disabled={loading}
                 className="w-full py-3 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
               >
-                {loading ? 'Authenticating...' : `Sign In as ${roleTab === 'driver' ? 'Driver' : 'Employer'}`}
+                {loading ? 'Authenticating...' : `Sign In as ${roleTab === 'admin' ? 'Admin' : roleTab === 'driver' ? 'Driver' : 'Employer'}`}
               </button>
             </form>
 
-            <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100">
-              Don't have an account?{' '}
-              <Link to={`/register?role=${roleTab}`} className="text-blue-700 font-bold hover:underline">
-                Create an Account
-              </Link>
+            <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100 space-y-2">
+              <div>
+                Don't have an account?{' '}
+                <Link to={`/register?role=${roleTab === 'admin' ? 'driver' : roleTab}`} className="text-blue-700 font-bold hover:underline">
+                  Create an Account
+                </Link>
+              </div>
+
+              {/* Admin Portal Bottom Option */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-center">
+                {roleTab !== 'admin' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRoleTab('admin');
+                      setError(null);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#08233F] transition-colors cursor-pointer"
+                  >
+                    <Shield className="w-3.5 h-3.5 text-amber-500" />
+                    Admin & Staff Portal Sign In →
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRoleTab('driver');
+                      setError(null);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#08233F] transition-colors cursor-pointer"
+                  >
+                    ← Back to Standard Driver & Fleet Login
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

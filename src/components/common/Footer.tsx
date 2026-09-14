@@ -95,7 +95,12 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <Link to="/login" className="hover:text-amber-400 transition-colors">
-                  Employer / Admin Login
+                  Employer Sign In
+                </Link>
+              </li>
+              <li>
+                <Link to="/login?role=admin" className="text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Staff & Admin Portal
                 </Link>
               </li>
               <li>
@@ -138,10 +143,13 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright & attribution */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© {new Date().getFullYear()} Driver Hub Inc. All rights reserved.</p>
-          <div className="flex items-center gap-6 text-xs">
+          <div className="flex items-center gap-5 text-xs">
             <Link to="/about" className="hover:text-slate-400">Privacy Policy</Link>
             <Link to="/about" className="hover:text-slate-400">Terms of Service</Link>
-            <Link to="/contact" className="hover:text-slate-400">Driver Welfare Policy</Link>
+            <Link to="/contact" className="hover:text-slate-400">Driver Welfare</Link>
+            <Link to="/login?role=admin" className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" /> Admin Login
+            </Link>
           </div>
         </div>
       </div>

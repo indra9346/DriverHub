@@ -163,31 +163,22 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-10">
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
         
-        {/* Left Column: 100% Native HD Banner Showcase */}
-        <div className="lg:col-span-6 xl:col-span-7 bg-[#08233F] p-4 sm:p-6 lg:p-8 flex flex-col justify-between h-full min-h-[480px] lg:min-h-[640px]">
-          <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-xl border border-white/10 flex items-center justify-center bg-slate-950">
+        {/* Left Column: 100% Full Uncropped HD Banner */}
+        <div className="lg:col-span-6 bg-[#072038] p-4 sm:p-6 flex flex-col justify-center items-center">
+          <div className="w-full h-full min-h-[320px] sm:min-h-[420px] lg:min-h-[520px] flex items-center justify-center rounded-2xl overflow-hidden">
             <img 
               src="/auth-banner.jpg" 
               alt="Find Driver Jobs Near You - Driver Hub" 
-              className="w-full h-full object-cover object-center"
+              className="w-full h-full object-contain object-center"
             />
-          </div>
-          
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-300 font-medium">
-            <span className="flex items-center gap-1.5 text-amber-400 font-bold">
-              ⭐ India's #1 Commercial Driver Recruitment
-            </span>
-            <span className="hidden sm:inline text-slate-400">
-              12,500+ Verified Drivers
-            </span>
           </div>
         </div>
 
-        {/* Right Column: High-Contrast Auth Form */}
-        <div className="lg:col-span-6 xl:col-span-5 p-6 sm:p-8 lg:p-10 space-y-6">
+        {/* Right Column: Clean Production Auth Form (No Demo Names) */}
+        <div className="lg:col-span-6 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6">
           {/* Header */}
           <div className="space-y-2">
             <Logo size="md" />
@@ -195,123 +186,12 @@ export const LoginPage: React.FC = () => {
               Sign In to Driver Hub
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              Access your verified driver dashboard, fleet vacancies, or admin tools.
+              Access your driver account, employer dashboard, or administrative portal.
             </p>
-          </div>
-
-          {/* 1-Click Interactive Account Tester */}
-          <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-950">
-                <Sparkles className="w-4 h-4 text-amber-600" /> 1-Click Persona Testing Switcher
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAllDemoAccounts(!showAllDemoAccounts)}
-                className="text-[11px] font-bold text-blue-700 hover:underline flex items-center gap-0.5 cursor-pointer"
-              >
-                {showAllDemoAccounts ? 'Compact' : 'View All (11)'} <ChevronDown className={`w-3 h-3 transition-transform ${showAllDemoAccounts ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
-
-            <p className="text-[11px] text-amber-900 leading-tight">
-              Click any individual candidate, fleet employer, or admin account to instantly sign in:
-            </p>
-
-            {!showAllDemoAccounts ? (
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleLoginAsUser('suresh.m@driverhub.in')}
-                  className="p-2 bg-white hover:bg-slate-50 border border-amber-300 text-slate-900 rounded-xl shadow-xs transition-all text-left cursor-pointer"
-                >
-                  <div className="text-xs font-bold flex items-center gap-1 truncate">🚗 Suresh M</div>
-                  <div className="text-[10px] text-slate-500 truncate">LMV Pilot (Active)</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleLoginAsUser('deepa@bharatlogistics.in')}
-                  className="p-2 bg-white hover:bg-slate-50 border border-amber-300 text-slate-900 rounded-xl shadow-xs transition-all text-left cursor-pointer"
-                >
-                  <div className="text-xs font-bold flex items-center gap-1 truncate">🏢 Bharat Fleet</div>
-                  <div className="text-[10px] text-slate-500 truncate">Deepa Nair</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleLoginAsUser('admin@driverhub.in')}
-                  className="p-2 bg-white hover:bg-slate-50 border border-amber-300 text-slate-900 rounded-xl shadow-xs transition-all text-left cursor-pointer"
-                >
-                  <div className="text-xs font-bold flex items-center gap-1 truncate">🛡️ Admin</div>
-                  <div className="text-[10px] text-slate-500 truncate">Superadmin</div>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3 pt-1 max-h-56 overflow-y-auto pr-1">
-                {/* Drivers Section */}
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                    Driver Candidates
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {allDrivers.map(d => {
-                      const isBlocked = d.status === 'blocked';
-                      return (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onClick={() => handleLoginAsUser(d.email)}
-                          className={`p-1.5 bg-white border rounded-lg text-left text-xs transition-all cursor-pointer ${
-                            isBlocked ? 'border-red-300 bg-red-50/50 hover:bg-red-50' : 'border-slate-200 hover:border-amber-400'
-                          }`}
-                        >
-                          <div className="font-bold text-slate-900 truncate flex items-center justify-between">
-                            <span>{d.fullName}</span>
-                            {isBlocked && <span className="text-[9px] bg-red-100 text-red-700 px-1 rounded font-bold">Blocked</span>}
-                          </div>
-                          <div className="text-[10px] text-slate-500 truncate">{d.driverCategory} • {d.city}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Employers Section */}
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                    Fleet Employers
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {allEmployers.map(e => (
-                      <button
-                        key={e.id}
-                        type="button"
-                        onClick={() => handleLoginAsUser(e.email)}
-                        className="p-1.5 bg-white border border-slate-200 hover:border-amber-400 rounded-lg text-left text-xs transition-all cursor-pointer"
-                      >
-                        <div className="font-bold text-slate-900 truncate">{e.companyName}</div>
-                        <div className="text-[10px] text-slate-500 truncate">{e.contactPerson}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Admin */}
-                <button
-                  type="button"
-                  onClick={() => handleLoginAsUser('admin@driverhub.in')}
-                  className="w-full p-2 bg-white border border-amber-400 rounded-lg text-left text-xs font-bold text-[#08233F] flex items-center justify-between cursor-pointer hover:bg-amber-50"
-                >
-                  <span>🛡️ Superadmin Control Center (admin@driverhub.in)</span>
-                  <span className="text-[10px] text-blue-700 font-bold">Sign In →</span>
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Credentials Box */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Role selector tabs */}
             <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl">
               <button
@@ -320,7 +200,7 @@ export const LoginPage: React.FC = () => {
                   setRoleTab('driver');
                   setError(null);
                 }}
-                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   roleTab === 'driver'
                     ? 'bg-white text-[#08233F] shadow-sm'
                     : 'text-slate-600 hover:text-slate-950'
@@ -334,7 +214,7 @@ export const LoginPage: React.FC = () => {
                   setRoleTab('employer');
                   setError(null);
                 }}
-                className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   roleTab === 'employer'
                     ? 'bg-white text-[#08233F] shadow-sm'
                     : 'text-slate-600 hover:text-slate-950'
@@ -361,7 +241,7 @@ export const LoginPage: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={roleTab === 'driver' ? 'suresh.m@driverhub.in' : 'deepa@bharatlogistics.in'}
+                    placeholder="name@example.com"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
                   />
                 </div>
@@ -396,7 +276,7 @@ export const LoginPage: React.FC = () => {
               </button>
             </form>
 
-            <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
+            <div className="pt-3 text-center text-xs text-slate-500 border-t border-slate-100">
               Don't have an account?{' '}
               <Link to={`/register?role=${roleTab}`} className="text-blue-700 font-bold hover:underline">
                 Create an Account

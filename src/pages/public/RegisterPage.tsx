@@ -143,26 +143,17 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-10">
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
         
-        {/* Left Column: 100% Native HD Banner Showcase */}
-        <div className="lg:col-span-5 xl:col-span-6 bg-[#08233F] p-4 sm:p-6 lg:p-8 flex flex-col justify-between h-full min-h-[480px] lg:min-h-[640px]">
-          <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-xl border border-white/10 flex items-center justify-center bg-slate-950">
+        {/* Left Column: 100% Full Uncropped HD Banner */}
+        <div className="lg:col-span-5 xl:col-span-6 bg-[#072038] p-4 sm:p-6 flex flex-col justify-center items-center">
+          <div className="w-full h-full min-h-[320px] sm:min-h-[420px] lg:min-h-[560px] flex items-center justify-center rounded-2xl overflow-hidden">
             <img 
               src="/auth-banner.jpg" 
               alt="Find Driver Jobs Near You - Driver Hub" 
-              className="w-full h-full object-cover object-center"
+              className="w-full h-full object-contain object-center"
             />
-          </div>
-          
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-300 font-medium">
-            <span className="flex items-center gap-1.5 text-amber-400 font-bold">
-              ⭐ Direct Hiring & Zero Agency Fees
-            </span>
-            <span className="hidden sm:inline text-slate-400">
-              Verified Badges
-            </span>
           </div>
         </div>
 

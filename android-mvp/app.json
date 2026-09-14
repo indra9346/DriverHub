@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Driver Hub",
+    "slug": "driver-hub-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "../public/logo-icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "../public/logo-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A2540"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "../public/logo-icon.png",
+        "backgroundColor": "#0A2540"
+      },
+      "package": "com.driverhub.recruitment"
+    },
+    "web": {
+      "favicon": "../public/favicon.png"
+    }
+  }
+}

@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-navy: #08233F;
+    --brand-navy-dark: #051626;
+    --brand-navy-light: #0B2947;
+    --brand-blue: #173E68;
+    --brand-blue-light: #245987;
+    --brand-amber: #F5A800;
+    --brand-amber-light: #FFB51B;
+    --brand-bg: #F5F8FB;
+    --brand-surface: #EEF3F8;
+  }
+
+  body {
+    @apply bg-[#F5F8FB] text-slate-800 antialiased selection:bg-amber-400 selection:text-slate-950;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight text-[#08233F];
+  }
+}
+
+/* Accessible focus ring style */
+:focus-visible {
+  outline: 2px solid #F5A800;
+  outline-offset: 2px;
+}
+
+/* Custom refined scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Clean Corporate Badges */
+.badge-category {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200/70;
+}
+
+.badge-amber {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300/80;
+}
+
+.badge-emerald {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200;
+}
+
+/* Continuous Slow-Sliding Card Marquee */
+@keyframes marquee-smooth {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-smooth {
+  display: flex;
+  width: max-content;
+  animation: marquee-smooth 42s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-smooth:hover,
+.animate-marquee-smooth:focus-within {
+  animation-play-state: paused;
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-smooth,
+  .animate-pulse,
+  .animate-ping,
+  .animate-bounce {
+    animation: none !important;
+  }
+  
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+

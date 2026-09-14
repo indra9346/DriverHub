@@ -140,9 +140,12 @@ export const JobDetailPage: React.FC = () => {
 
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="badge-category text-xs bg-blue-50 text-blue-800 font-semibold">
+                <Link
+                  to={`/jobs?category=${encodeURIComponent(job.category)}`}
+                  className="badge-category text-xs bg-blue-50 text-blue-800 font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                >
                   {job.category}
-                </span>
+                </Link>
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
                   {job.employmentType}
                 </span>
@@ -153,12 +156,15 @@ export const JobDetailPage: React.FC = () => {
                 {job.title}
               </h1>
 
-              <p className="text-sm font-semibold text-slate-600 flex items-center gap-1.5">
+              <Link
+                to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
+                className="text-sm font-semibold text-slate-600 hover:text-blue-700 flex items-center gap-1.5 transition-colors"
+              >
                 {job.companyName}
                 <span title="Verified Fleet Operator">
                   <ShieldCheck className="w-4 h-4 text-blue-600" />
                 </span>
-              </p>
+              </Link>
             </div>
           </div>
 
@@ -333,8 +339,11 @@ export const JobDetailPage: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               About the Employer
             </h3>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-slate-50 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
+            <Link
+              to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
+              className="flex items-center gap-3 p-2 -mx-2 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
+            >
+              <div className="w-12 h-12 rounded-xl bg-slate-50 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0 group-hover:border-amber-400 transition-colors">
                 {job.companyLogo ? (
                   <img src={job.companyLogo} alt={job.companyName} className="w-full h-full object-cover" />
                 ) : (
@@ -342,10 +351,10 @@ export const JobDetailPage: React.FC = () => {
                 )}
               </div>
               <div>
-                <h4 className="text-sm font-bold text-[#08233F]">{job.companyName}</h4>
+                <h4 className="text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors">{job.companyName}</h4>
                 <p className="text-xs text-slate-500">{job.city}, {job.state}</p>
               </div>
-            </div>
+            </Link>
 
             <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
               <div className="flex items-center gap-2 font-medium">

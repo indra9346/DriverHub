@@ -65,19 +65,25 @@ export const CompaniesPage: React.FC = () => {
             >
               <div className="space-y-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-slate-50 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0 shadow-subtle">
+                  <Link
+                    to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                    className="w-14 h-14 rounded-xl bg-slate-50 overflow-hidden border border-slate-200 flex items-center justify-center shrink-0 shadow-subtle hover:border-amber-400 transition-colors cursor-pointer"
+                  >
                     {company.logoUrl ? (
                       <img src={company.logoUrl} alt={company.companyName} className="w-full h-full object-cover" />
                     ) : (
                       <Building2 className="w-7 h-7 text-slate-400" />
                     )}
-                  </div>
+                  </Link>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <h3 className="text-base font-bold text-[#08233F] truncate">
+                      <Link
+                        to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                        className="text-base font-bold text-[#08233F] hover:text-blue-700 transition-colors truncate cursor-pointer"
+                      >
                         {company.companyName}
-                      </h3>
+                      </Link>
                       {company.verified && (
                         <span title="Verified Employer">
                           <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />

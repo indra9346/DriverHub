@@ -40,9 +40,13 @@ import { AdminCandidates } from './pages/admin/AdminCandidates';
 import { AdminEmployers } from './pages/admin/AdminEmployers';
 import { AdminApplications } from './pages/admin/AdminApplications';
 
+import { ScrollToTop } from './components/common/ScrollToTop';
+
 export const App: React.FC = () => {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       {/* Public Routes */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<HomePage />} />
@@ -95,5 +99,6 @@ export const App: React.FC = () => {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 };

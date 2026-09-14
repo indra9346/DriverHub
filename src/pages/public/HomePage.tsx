@@ -92,14 +92,14 @@ export const HomePage: React.FC = () => {
   };
 
   const categories = [
-    { label: 'Heavy Truck (HMV)', icon: '🚛', count: 48, desc: 'Multi-axle, interstate & container transport' },
-    { label: 'LMV Chauffeur', icon: '🚗', count: 92, desc: 'Personal, corporate sedans & luxury fleet' },
-    { label: 'Cab Driver', icon: '🚕', count: 120, desc: 'App-based ride hailing & airport transfers' },
-    { label: 'Delivery Driver', icon: '📦', count: 85, desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
-    { label: 'School / Staff Bus', icon: '🚌', count: 34, desc: 'Passenger transit & student shuttle' },
-    { label: 'Tempo / Ace', icon: '🚚', count: 64, desc: 'Intra-city distribution & cargo logistics' },
-    { label: '40ft Trailer Driver', icon: '🚜', count: 26, desc: 'Port container clearing & heavy haulage' },
-    { label: 'Commercial Driver', icon: '🚐', count: 50, desc: 'Tour operations & outstation rentals' },
+    { label: 'Heavy Truck (HMV)', filter: 'HMV', icon: '🚛', count: 48, desc: 'Multi-axle, interstate & container transport' },
+    { label: 'LMV Chauffeur', filter: 'LMV', icon: '🚗', count: 92, desc: 'Personal, corporate sedans & luxury fleet' },
+    { label: 'Cab Driver', filter: 'Cab Driver', icon: '🚕', count: 120, desc: 'App-based ride hailing & airport transfers' },
+    { label: 'Delivery Driver', filter: 'Delivery Driver', icon: '📦', count: 85, desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
+    { label: 'School / Staff Bus', filter: 'Bus Driver', icon: '🚌', count: 34, desc: 'Passenger transit & student shuttle' },
+    { label: 'Tempo / Ace', filter: 'Tempo Driver', icon: '🚚', count: 64, desc: 'Intra-city distribution & cargo logistics' },
+    { label: '40ft Trailer Driver', filter: 'Trailer Driver', icon: '🚜', count: 26, desc: 'Port container clearing & heavy haulage' },
+    { label: 'Commercial Driver', filter: 'Commercial Driver', icon: '🚐', count: 50, desc: 'Tour operations & outstation rentals' },
   ];
 
   // Professional Featured Recruitment & Platform Showcase Cards
@@ -374,7 +374,7 @@ export const HomePage: React.FC = () => {
           {categories.map((cat, idx) => (
             <Link
               key={idx}
-              to={`/jobs?category=${encodeURIComponent(cat.label.split(' ')[0])}`}
+              to={`/jobs?category=${encodeURIComponent(cat.filter)}`}
               className="group p-5 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between"
             >
               <div className="space-y-2">
@@ -563,11 +563,12 @@ export const HomePage: React.FC = () => {
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {DataStore.getEmployers().map((emp) => (
-            <div
+            <Link
               key={emp.id}
-              className="p-5 bg-white rounded-2xl border border-slate-200/90 text-center space-y-2.5 shadow-subtle hover:shadow-card transition-all"
+              to={`/jobs?q=${encodeURIComponent(emp.companyName)}`}
+              className="p-5 bg-white rounded-2xl border border-slate-200/90 text-center space-y-2.5 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all group block cursor-pointer"
             >
-              <div className="w-12 h-12 rounded-xl bg-slate-50 mx-auto overflow-hidden border border-slate-200 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-slate-50 mx-auto overflow-hidden border border-slate-200 flex items-center justify-center group-hover:scale-105 transition-transform">
                 {emp.logoUrl ? (
                   <img src={emp.logoUrl} alt={emp.companyName} className="w-full h-full object-cover" />
                 ) : (
@@ -575,13 +576,13 @@ export const HomePage: React.FC = () => {
                 )}
               </div>
               <div>
-                <h4 className="text-xs font-bold text-[#08233F] line-clamp-1">{emp.companyName}</h4>
+                <h4 className="text-xs font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1">{emp.companyName}</h4>
                 <p className="text-[11px] text-slate-400">{emp.industry}</p>
               </div>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                 <ShieldCheck className="w-3 h-3 text-emerald-600" /> Verified Partner
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

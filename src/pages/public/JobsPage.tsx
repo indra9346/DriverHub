@@ -91,7 +91,12 @@ export const JobsPage: React.FC = () => {
 
       const matchesCategory = 
         !selectedCategory ||
-        job.category.toLowerCase().includes(selectedCategory.toLowerCase());
+        job.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        selectedCategory.toLowerCase().includes(job.category.toLowerCase()) ||
+        (selectedCategory.toLowerCase().includes('bus') && job.category.toLowerCase().includes('bus')) ||
+        (selectedCategory.toLowerCase().includes('hmv') && job.category.toLowerCase().includes('hmv')) ||
+        (selectedCategory.toLowerCase().includes('lmv') && job.category.toLowerCase().includes('lmv')) ||
+        (selectedCategory.toLowerCase().includes('delivery') && job.category.toLowerCase().includes('delivery'));
 
       const matchesLocation = 
         !selectedLocation ||

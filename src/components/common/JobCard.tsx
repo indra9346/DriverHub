@@ -33,7 +33,11 @@ export const JobCard: React.FC<JobCardProps> = ({
         {/* Header: Company & Action */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-subtle">
+            <Link
+              to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
+              title={`View all jobs from ${job.companyName}`}
+              className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-subtle hover:border-amber-400 transition-colors cursor-pointer"
+            >
               {job.companyLogo ? (
                 <img
                   src={job.companyLogo}
@@ -46,15 +50,18 @@ export const JobCard: React.FC<JobCardProps> = ({
               ) : (
                 <Building2 className="w-5 h-5 text-slate-400" />
               )}
-            </div>
+            </Link>
 
             <div>
-              <h4 className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+              <Link
+                to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
+                className="text-xs font-semibold text-slate-500 hover:text-blue-700 flex items-center gap-1.5 transition-colors"
+              >
                 {job.companyName}
                 <span title="Verified Employer">
                   <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
                 </span>
-              </h4>
+              </Link>
               <Link
                 to={`/jobs/${job.id}`}
                 className="text-sm sm:text-base font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1"
@@ -85,9 +92,12 @@ export const JobCard: React.FC<JobCardProps> = ({
 
         {/* Badges strip */}
         <div className="flex flex-wrap gap-2 my-3">
-          <span className="badge-category bg-blue-50 text-blue-800 border-blue-200/70">
+          <Link
+            to={`/jobs?category=${encodeURIComponent(job.category)}`}
+            className="badge-category bg-blue-50 text-blue-800 border-blue-200/70 hover:bg-blue-100 transition-colors cursor-pointer"
+          >
             {job.category}
-          </span>
+          </Link>
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
             {job.employmentType}
           </span>

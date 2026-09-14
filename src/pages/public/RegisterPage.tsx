@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserType } from '../../types';
 
 export const RegisterPage: React.FC = () => {
@@ -101,6 +102,8 @@ export const RegisterPage: React.FC = () => {
           createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
           link: '/driver/profile'
         });
+        // Sync new user & driver profile to Supabase in real-time
+        SupabaseSync.registerUser(newUser, newDriver);
       } else {
         const newEmployer: EmployerProfile = {
           id: userId,
@@ -129,12 +132,18 @@ export const RegisterPage: React.FC = () => {
           createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
           link: '/employer/post-job'
         });
+
+        // Sync new employer profile to Supabase in real-time
+        SupabaseSync.registerUser(newUser, newEmployer);
       }
 
       DataStore.setCurrentUser(newUser);
       setLoading(false);
 
-      if (role === 'employer') {
+      const redirect = searchParams.get('redirect');
+      if (redirect) {
+        navigate(redirect);
+      } else if (role === 'employer') {
         navigate('/employer/dashboard');
       } else {
         navigate('/driver/dashboard');
@@ -352,7 +361,10 @@ export const RegisterPage: React.FC = () => {
 
           <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
             Already have an account?{' '}
-            <Link to="/login" className="text-blue-700 font-bold hover:underline">
+            <Link 
+              to={'/login' + (searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '')} 
+              className="text-blue-700 font-bold hover:underline"
+            >
               Sign In
             </Link>
           </div>

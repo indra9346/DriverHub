@@ -118,6 +118,9 @@ export const DataStore = {
 
     const employers = this.getEmployers().map(e => e.id === userId ? { ...e, status } : e);
     setStorage(STORAGE_KEYS.EMPLOYERS, employers);
+
+    // Sync to Supabase in real-time
+    SupabaseSync.syncUserStatus(userId, status);
   },
 
   // Drivers
@@ -365,6 +368,9 @@ export const DataStore = {
         createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
         link: '/driver/applications'
       });
+
+      // Sync application status to Supabase in real-time
+      SupabaseSync.syncApplicationStatus(appId, status, options?.employerNotes);
     }
   },
 

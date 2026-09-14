@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   MapPin, IndianRupee, Clock, Briefcase, Building2, ShieldCheck, 
-  FileText, CheckCircle2, ArrowLeft, Heart, Share2, Users, AlertCircle, 
+  FileText, CheckCircle2, ArrowLeft, ArrowRight, Heart, Share2, Users, AlertCircle, 
   Send, Sparkles, Phone, Mail 
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -218,15 +218,17 @@ export const JobDetailPage: React.FC = () => {
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>Application Submitted</span>
               </div>
+            ) : !currentUser ? (
+              <button
+                onClick={() => navigate(`/login?role=driver&redirect=${encodeURIComponent(`/jobs/${job.id}`)}`)}
+                className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-subtle transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Login to Apply</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             ) : (
               <button
-                onClick={() => {
-                  if (!currentUser) {
-                    navigate(`/login?redirect=/jobs/${job.id}`);
-                  } else {
-                    setIsApplyModalOpen(true);
-                  }
-                }}
+                onClick={() => setIsApplyModalOpen(true)}
                 className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-subtle transition-all hover:scale-[1.02] cursor-pointer"
               >
                 Apply Now for this Vacancy

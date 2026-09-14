@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Job, Application, DriverProfile, EmployerProfile, User } from '../types';
+import { Job, Application, DriverProfile, EmployerProfile, User, Notification } from '../types';
 
 // Helper to convert any string ID to a valid deterministic UUID
 export function toUUID(id: string): string {
@@ -49,7 +49,7 @@ export const SupabaseSync = {
       }, { onConflict: 'id' });
 
       // 2. Insert or update Job in Supabase
-      const { data, error } = await supabase.from('jobs').upsert({
+      const { error } = await supabase.from('jobs').upsert({
         id: toUUID(job.id),
         employer_id: employerUUID,
         company_id: companyUUID,
@@ -116,6 +116,112 @@ export const SupabaseSync = {
       }
     } catch (e) {
       console.warn('Failed to sync application to Supabase:', e);
+    }
+  },
+
+  // Register and sync new user to Supabase
+  async registerUser(user: User, profileData?: DriverProfile | EmployerProfile) {
+    try {
+      const userUUID = toUUID(user.id);
+      
+      // Upsert into Supabase profiles
+      await supabase.from('profiles').upsert({
+        id: userUUID,
+        role: user.role,
+        full_name: (profileData as DriverProfile)?.fullName || (profileData as EmployerProfile)?.contactPerson || user.email.split('@')[0],
+        email: user.email,
+        phone: user.phone || '+91 98765 00000',
+        city: (profileData as DriverProfile)?.city || 'Bengaluru',
+        state: (profileData as DriverProfile)?.state || 'Karnataka',
+        status: 'active'
+      }, { onConflict: 'id' });
+
+      if (user.role === 'driver' && profileData) {
+        const dp = profileData as DriverProfile;
+        await supabase.from('driver_profiles').upsert({
+          id: userUUID,
+          user_id: userUUID,
+          driver_category: dp.driverCategory || 'HMV',
+          years_experience: dp.experienceYears || 2,
+          license_number: dp.licenseNumber || 'KA01 12345678',
+          license_type: dp.licenseType || 'Commercial Transport',
+          license_expiry: dp.licenseExpiry || '2034-01-01',
+          skills: dp.skills || [],
+          preferred_location: dp.preferredLocation || 'Bengaluru',
+          expected_salary: dp.expectedSalary || 25000,
+          availability: dp.availability || 'Immediate',
+          bio: dp.bio || ''
+        }, { onConflict: 'id' });
+      } else if (user.role === 'employer' && profileData) {
+        const ep = profileData as EmployerProfile;
+        await supabase.from('companies').upsert({
+          id: userUUID,
+          user_id: userUUID,
+          company_name: ep.companyName || 'Enterprise Transport',
+          contact_person: ep.contactPerson || 'Fleet Manager',
+          email: ep.email || user.email,
+          phone: ep.phone || user.phone,
+          industry: ep.industry || 'Logistics & Freight',
+          location: ep.location || 'Bengaluru',
+          city: ep.city || 'Bengaluru',
+          state: ep.state || 'Karnataka',
+          verified: true,
+          status: 'active'
+        }, { onConflict: 'id' });
+      }
+      console.log('✅ Registered user synced to Supabase:', user.email);
+    } catch (e) {
+      console.warn('Supabase registerUser error:', e);
+    }
+  },
+
+  // Update user status (active/blocked) in Supabase
+  async syncUserStatus(userId: string, status: 'active' | 'blocked' | 'pending' | 'suspended') {
+    try {
+      const userUUID = toUUID(userId);
+      await supabase.from('profiles').update({ status }).eq('id', userUUID);
+    } catch (e) {
+      console.warn('syncUserStatus error:', e);
+    }
+  },
+
+  // Update application status in Supabase
+  async syncApplicationStatus(appId: string, status: string, notes?: string) {
+    try {
+      const appUUID = toUUID(appId);
+      await supabase.from('applications').update({
+        status,
+        updated_at: new Date().toISOString()
+      }).eq('id', appUUID);
+    } catch (e) {
+      console.warn('syncApplicationStatus error:', e);
+    }
+  },
+
+  // Initialize Realtime WebSocket subscriptions
+  initRealtimeListeners(onUpdate?: () => void) {
+    try {
+      const channel = supabase
+        .channel('driverhub_live_sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, (payload) => {
+          console.log('⚡ Realtime Jobs Update from Supabase:', payload);
+          if (onUpdate) onUpdate();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, (payload) => {
+          console.log('⚡ Realtime Applications Update from Supabase:', payload);
+          if (onUpdate) onUpdate();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+          console.log('⚡ Realtime Profiles Update from Supabase:', payload);
+          if (onUpdate) onUpdate();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (e) {
+      console.warn('Realtime subscription setup:', e);
     }
   },
 
@@ -211,18 +317,7 @@ export const SupabaseSync = {
         redirectTo: window.location.origin + '/forgot-password',
       }).catch(err => console.log('Supabase auth reset mail attempt:', err));
 
-      // 2. Try RPC function first (Bypasses any table restrictions)
-      const { data: rpcData, error: rpcError } = await supabase.rpc('request_password_reset', {
-        user_email: cleanEmail,
-        reset_code: otpCode
-      });
-
-      if (!rpcError) {
-        console.log('Successfully saved OTP via Supabase RPC for', cleanEmail);
-        return true;
-      }
-
-      // 3. Fallback direct table upsert
+      // 2. Direct table upsert
       const resetUUID = toUUID('reset-' + cleanEmail);
       const { error: tableError } = await supabase.from('password_resets').upsert({
         id: resetUUID,
@@ -234,7 +329,7 @@ export const SupabaseSync = {
       if (tableError) {
         console.warn('Supabase password_resets direct write error:', tableError.message);
       } else {
-        console.log('Successfully saved OTP via direct upsert for', cleanEmail);
+        console.log('Successfully saved OTP for', cleanEmail);
       }
 
       return true;
@@ -249,7 +344,6 @@ export const SupabaseSync = {
     try {
       const cleanEmail = email.trim().toLowerCase();
       
-      // Check in Supabase table
       const { data } = await supabase
         .from('password_resets')
         .select('otp_code')
@@ -261,7 +355,6 @@ export const SupabaseSync = {
         return true;
       }
 
-      // Also try Supabase Auth OTP verification
       const { data: authData, error } = await supabase.auth.verifyOtp({
         email: cleanEmail,
         token: enteredCode.trim(),
@@ -279,4 +372,3 @@ export const SupabaseSync = {
     }
   }
 };
-

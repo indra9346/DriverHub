@@ -41,8 +41,18 @@ import { AdminEmployers } from './pages/admin/AdminEmployers';
 import { AdminApplications } from './pages/admin/AdminApplications';
 
 import { ScrollToTop } from './components/common/ScrollToTop';
+import { SupabaseSync } from './services/supabaseSync';
 
 export const App: React.FC = () => {
+  React.useEffect(() => {
+    const cleanup = SupabaseSync.initRealtimeListeners(() => {
+      window.dispatchEvent(new Event('driverhub_storage_updated'));
+    });
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
+
   return (
     <>
       <ScrollToTop />

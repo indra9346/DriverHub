@@ -42,9 +42,19 @@ import { AdminApplications } from './pages/admin/AdminApplications';
 
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { SupabaseSync } from './services/supabaseSync';
+import { DataStore } from './services/store';
 
 export const App: React.FC = () => {
   React.useEffect(() => {
+    // 1. Sync all current local drivers, employers, jobs, applications to Supabase
+    SupabaseSync.syncAllData(
+      DataStore.getJobs(),
+      DataStore.getEmployers(),
+      DataStore.getDrivers(),
+      DataStore.getApplications()
+    );
+
+    // 2. Listen to Realtime updates
     const cleanup = SupabaseSync.initRealtimeListeners(() => {
       window.dispatchEvent(new Event('driverhub_storage_updated'));
     });

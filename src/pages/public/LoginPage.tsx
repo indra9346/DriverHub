@@ -20,6 +20,7 @@ export const LoginPage: React.FC = () => {
   const initialRole = (searchParams.get('role') as UserRole) || 'driver';
   const [roleTab, setRoleTab] = useState<UserRole>(initialRole);
   const [error, setError] = useState<string | null>(null);
+  const [suggestedRole, setSuggestedRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Auto-sync live database profiles on login page mount
@@ -36,6 +37,7 @@ export const LoginPage: React.FC = () => {
   const handleRoleChange = (newRole: UserRole) => {
     setRoleTab(newRole);
     setError(null);
+    setSuggestedRole(null);
     setPassword('');
     const saved = DataStore.getLastUserByRole(newRole);
     if (saved?.email) {
@@ -52,6 +54,7 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuggestedRole(null);
     setLoading(true);
 
     try {
@@ -156,6 +159,7 @@ export const LoginPage: React.FC = () => {
       // Rule 1: Account must exist
       if (!matched) {
         setError(`No account found for "${cleanEmail}". Please check the spelling or create a new account.`);
+        setSuggestedRole(null);
         setLoading(false);
         return;
       }
@@ -163,14 +167,32 @@ export const LoginPage: React.FC = () => {
       // Rule 2: Account must NOT be blocked
       if (matched.status === 'blocked') {
         setError(`🚫 Account Suspended: Your account (${cleanEmail}) has been blocked by Driver Hub administration. Access denied.`);
+        setSuggestedRole(null);
         setLoading(false);
         return;
       }
 
-      // Rule 3: Validate password (allows registered password, demo default, or 123456)
+      // Rule 3: Role Validation - Prevent Role Mismatches & Confusing Redirects
+      if (matched.role !== roleTab) {
+        setLoading(false);
+        const roleLabel = matched.role === 'driver' ? 'Driver' : matched.role === 'employer' ? 'Employer' : 'Administrator';
+        const tabLabel = roleTab === 'admin' ? 'Admin Portal' : roleTab === 'employer' ? 'Employer Desk' : 'Driver Portal';
+        
+        setSuggestedRole(matched.role);
+        
+        if (roleTab === 'admin') {
+          setError(`🚫 Access Denied: "${cleanEmail}" is registered as a ${roleLabel}, not an Administrator. Please switch to the ${roleLabel} sign-in tab.`);
+        } else {
+          setError(`🚫 Role Conflict: "${cleanEmail}" is registered as a ${roleLabel}. You are currently trying to sign in on the ${tabLabel}. Please switch to the ${roleLabel} tab.`);
+        }
+        return;
+      }
+
+      // Rule 4: Validate password (allows registered password, demo default, or 123456)
       const expectedPassword = matched.password || 'DriverHub@2026';
       if (password && password !== expectedPassword && password !== 'DriverHub@2026' && password !== '123456' && password.length < 4) {
         setError('Incorrect password. Please verify credentials or reset your password.');
+        setSuggestedRole(null);
         setLoading(false);
         return;
       }
@@ -270,9 +292,29 @@ export const LoginPage: React.FC = () => {
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 p-3.5 bg-red-50 text-red-800 text-xs rounded-xl border border-red-200 animate-in fade-in">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                <span className="leading-relaxed font-medium">{error}</span>
+              <div className="p-3.5 bg-red-50 text-red-800 text-xs rounded-xl border border-red-200 animate-in fade-in space-y-2.5">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed font-medium">{error}</span>
+                </div>
+                {suggestedRole && (
+                  <div className="pl-6 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentTypedEmail = email;
+                        setRoleTab(suggestedRole);
+                        setEmail(currentTypedEmail);
+                        setSuggestedRole(null);
+                        setError(null);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#08233F] hover:bg-[#051626] text-amber-300 font-bold rounded-lg text-xs transition-all shadow-sm cursor-pointer hover:scale-[1.02]"
+                    >
+                      <span>Switch to {suggestedRole === 'driver' ? 'Driver' : suggestedRole === 'employer' ? 'Employer' : 'Admin'} Sign In</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

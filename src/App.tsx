@@ -46,17 +46,22 @@ import { DataStore } from './services/store';
 
 export const App: React.FC = () => {
   React.useEffect(() => {
-    // 1. Sync all current local drivers, employers, jobs, applications to Supabase
-    SupabaseSync.syncAllData(
-      DataStore.getJobs(),
-      DataStore.getEmployers(),
-      DataStore.getDrivers(),
-      DataStore.getApplications()
-    );
+    // 1. First fetch latest accounts & data from Supabase for cross-device consistency
+    SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
+      // 2. Sync all current local drivers, employers, jobs, applications to Supabase
+      SupabaseSync.syncAllData(
+        DataStore.getJobs(),
+        DataStore.getEmployers(),
+        DataStore.getDrivers(),
+        DataStore.getApplications()
+      );
+    });
 
-    // 2. Listen to Realtime updates
+    // 3. Listen to Realtime updates
     const cleanup = SupabaseSync.initRealtimeListeners(() => {
-      window.dispatchEvent(new Event('driverhub_storage_updated'));
+      SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
+        window.dispatchEvent(new Event('driverhub_storage_updated'));
+      });
     });
     return () => {
       if (cleanup) cleanup();

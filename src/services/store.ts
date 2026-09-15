@@ -1,11 +1,12 @@
 import { 
-  Job, DriverProfile, EmployerProfile, Application, Notification, User, FavoriteJob, DriverDocument, DriverExperience 
+  Job, DriverProfile, EmployerProfile, Application, Notification, User, FavoriteJob, DriverDocument, DriverExperience, UserRole 
 } from '../types';
 import { initialJobs, initialDrivers, initialEmployers, initialApplications, initialNotifications, initialUsers } from '../data/mockData';
 import { SupabaseSync } from './supabaseSync';
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'driverhub_current_user',
+  LAST_ROLE_USERS: 'driverhub_last_role_users',
   USERS: 'driverhub_users',
   JOBS: 'driverhub_jobs',
   DRIVERS: 'driverhub_drivers',
@@ -60,6 +61,26 @@ export const DataStore = {
 
   setCurrentUser(user: User | null): void {
     setStorage(STORAGE_KEYS.CURRENT_USER, user);
+    if (user && user.role && user.email) {
+      const lastRoles = getStorage<Record<string, string>>(STORAGE_KEYS.LAST_ROLE_USERS, {});
+      lastRoles[user.role] = user.email.trim().toLowerCase();
+      setStorage(STORAGE_KEYS.LAST_ROLE_USERS, lastRoles);
+    }
+  },
+
+  getLastUserByRole(role: UserRole): User | null {
+    const lastRoles = getStorage<Record<string, string>>(STORAGE_KEYS.LAST_ROLE_USERS, {});
+    const email = lastRoles[role];
+    const users = this.getUsers();
+    if (email) {
+      const found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (found) return found;
+    }
+    // Check if there is any custom (non-initial) user created for this role
+    const customUser = users.find(u => u.role === role && !initialUsers.some(init => init.email.toLowerCase() === u.email.toLowerCase()));
+    if (customUser) return customUser;
+
+    return null;
   },
 
   // Users

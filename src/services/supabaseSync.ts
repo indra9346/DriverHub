@@ -344,6 +344,78 @@ export const SupabaseSync = {
     }
   },
 
+  // Pull all live accounts and profiles from Supabase into local device store
+  async fetchAndMergeRemoteData(dataStore: any) {
+    try {
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      if (profiles && profiles.length > 0) {
+        for (const p of profiles) {
+          dataStore.addUser({
+            id: p.id,
+            email: p.email,
+            role: p.role,
+            status: p.status || 'active',
+            phone: p.phone || '',
+            createdAt: p.created_at?.slice(0, 10) || '2026-09-15'
+          });
+        }
+      }
+
+      const { data: driverProfiles } = await supabase.from('driver_profiles').select('*');
+      if (driverProfiles && driverProfiles.length > 0) {
+        for (const dp of driverProfiles) {
+          const matchingProfile = profiles?.find((p: any) => p.id === dp.user_id);
+          if (matchingProfile) {
+            dataStore.updateDriverProfile({
+              id: dp.user_id,
+              fullName: matchingProfile.full_name || 'Driver Candidate',
+              phone: matchingProfile.phone || '',
+              email: matchingProfile.email,
+              location: matchingProfile.location || matchingProfile.city || 'Bengaluru',
+              city: matchingProfile.city || 'Bengaluru',
+              state: matchingProfile.state || 'Karnataka',
+              driverCategory: dp.driver_category || 'HMV',
+              licenseNumber: dp.license_number || 'KA01 12345678',
+              licenseType: dp.license_type || 'Commercial Transport',
+              licenseExpiry: dp.license_expiry || '2034-01-01',
+              experienceYears: dp.years_experience || 2,
+              skills: dp.skills || ['Safe Driving'],
+              availability: dp.availability || 'Immediate',
+              status: matchingProfile.status || 'active',
+              experiences: [],
+              documents: []
+            });
+          }
+        }
+      }
+
+      const { data: companies } = await supabase.from('companies').select('*');
+      if (companies && companies.length > 0) {
+        for (const comp of companies) {
+          const matchingProfile = profiles?.find((p: any) => p.id === comp.user_id);
+          if (matchingProfile) {
+            dataStore.updateEmployerProfile({
+              id: comp.user_id,
+              companyName: comp.company_name,
+              contactPerson: comp.contact_person || matchingProfile.full_name,
+              email: comp.email || matchingProfile.email,
+              phone: comp.phone || matchingProfile.phone,
+              industry: comp.industry || 'Logistics & Freight',
+              location: comp.location || comp.city || 'Bengaluru',
+              city: comp.city || 'Bengaluru',
+              state: comp.state || 'Karnataka',
+              verified: comp.verified ?? true,
+              status: comp.status || 'active',
+              createdAt: comp.created_at?.slice(0, 10) || '2026-09-10'
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Supabase fetchAndMergeRemoteData notice:', e);
+    }
+  },
+
   // Store password reset verification code in Supabase
   async createPasswordReset(email: string, otpCode: string) {
     try {

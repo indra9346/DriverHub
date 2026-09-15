@@ -24,17 +24,78 @@ export const LoginPage: React.FC = () => {
   const allDrivers = DataStore.getDrivers();
   const allEmployers = DataStore.getEmployers();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    setTimeout(() => {
+    try {
       const cleanEmail = email.trim().toLowerCase();
       const users = DataStore.getUsers();
       let matched = users.find(u => u.email.toLowerCase() === cleanEmail);
 
-      // Auto-provision from driver or employer profiles if not found in users list
+      // If not found in local store (e.g. logging in from a new phone/browser), query Supabase in real-time!
+      if (!matched) {
+        const { supabase } = await import('../../services/supabaseClient');
+        const { data: dbProfiles } = await supabase.from('profiles').select('*').eq('email', cleanEmail).limit(1);
+        if (dbProfiles && dbProfiles.length > 0) {
+          const dbUser = dbProfiles[0];
+          matched = {
+            id: dbUser.id,
+            email: dbUser.email,
+            role: dbUser.role,
+            status: dbUser.status || 'active',
+            phone: dbUser.phone || '',
+            createdAt: dbUser.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+            password: password
+          };
+          DataStore.addUser(matched);
+
+          // Fetch profile details
+          if (dbUser.role === 'driver') {
+            const { data: dbDrv } = await supabase.from('driver_profiles').select('*').eq('user_id', dbUser.id).limit(1);
+            const drvData = dbDrv?.[0];
+            DataStore.updateDriverProfile({
+              id: dbUser.id,
+              fullName: dbUser.full_name || 'Driver Candidate',
+              phone: dbUser.phone || '',
+              email: dbUser.email,
+              location: dbUser.location || dbUser.city || 'Bengaluru',
+              city: dbUser.city || 'Bengaluru',
+              state: dbUser.state || 'Karnataka',
+              driverCategory: drvData?.driver_category || 'HMV',
+              licenseNumber: drvData?.license_number || 'KA01 12345678',
+              licenseType: drvData?.license_type || 'Commercial Transport',
+              licenseExpiry: drvData?.license_expiry || '2034-01-01',
+              experienceYears: drvData?.years_experience || 2,
+              skills: drvData?.skills || ['Safe Driving'],
+              availability: drvData?.availability || 'Immediate',
+              status: dbUser.status || 'active',
+              experiences: [],
+              documents: []
+            });
+          } else if (dbUser.role === 'employer') {
+            const { data: dbComp } = await supabase.from('companies').select('*').eq('user_id', dbUser.id).limit(1);
+            const compData = dbComp?.[0];
+            DataStore.updateEmployerProfile({
+              id: dbUser.id,
+              companyName: compData?.company_name || (dbUser.full_name + ' Logistics'),
+              contactPerson: compData?.contact_person || dbUser.full_name,
+              email: dbUser.email,
+              phone: dbUser.phone || '',
+              industry: compData?.industry || 'Logistics & Freight',
+              location: compData?.location || dbUser.city || 'Bengaluru',
+              city: compData?.city || 'Bengaluru',
+              state: compData?.state || 'Karnataka',
+              verified: compData?.verified ?? true,
+              status: dbUser.status || 'active',
+              createdAt: dbUser.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)
+            });
+          }
+        }
+      }
+
+      // Fallback auto-provision from driver or employer profiles if not found in users list
       if (!matched) {
         const driver = allDrivers.find(d => d.email.toLowerCase() === cleanEmail);
         if (driver) {
@@ -85,7 +146,7 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      // Login Successful
+      // Login Successful: Sets session and stores last-active user for this role on this device
       DataStore.setCurrentUser(matched);
       setLoading(false);
 
@@ -98,8 +159,14 @@ export const LoginPage: React.FC = () => {
       } else {
         navigate('/driver/dashboard');
       }
-    }, 300);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An unexpected authentication error occurred. Please try again.');
+      setLoading(false);
+    }
   };
+
+  const savedUserForRole = DataStore.getLastUserByRole(roleTab);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -237,12 +304,23 @@ export const LoginPage: React.FC = () => {
               </button>
             </form>
 
-            {/* 1-Click Fast Access Option for Instant Testing */}
-            <div className="pt-1">
+            {/* 1-Click Fast Access Option for Instant Access */}
+            <div className="pt-1 space-y-1">
               <button
                 type="button"
                 onClick={() => {
-                  if (roleTab === 'admin') {
+                  if (savedUserForRole) {
+                    DataStore.setCurrentUser(savedUserForRole);
+                    if (redirect) {
+                      navigate(redirect);
+                    } else if (roleTab === 'admin') {
+                      navigate('/admin/dashboard');
+                    } else if (roleTab === 'employer') {
+                      navigate('/employer/dashboard');
+                    } else {
+                      navigate('/driver/dashboard');
+                    }
+                  } else if (roleTab === 'admin') {
                     const adminUser = allUsers.find(u => u.role === 'admin') || {
                       id: 'usr-admin-1',
                       email: 'admin@driverhub.in',
@@ -253,36 +331,27 @@ export const LoginPage: React.FC = () => {
                     };
                     DataStore.setCurrentUser(adminUser);
                     navigate('/admin/dashboard');
-                  } else if (roleTab === 'employer') {
-                    const emp = allEmployers[0] || { id: 'usr-employer-1', email: 'deepa@bharatlogistics.in', phone: '+91 80 2200 0000' };
-                    const empUser = allUsers.find(u => u.id === emp.id) || {
-                      id: emp.id,
-                      email: emp.email,
-                      role: 'employer',
-                      status: 'active',
-                      phone: emp.phone || '+91 80 2200 0000',
-                      createdAt: '2026-08-10'
-                    };
-                    DataStore.setCurrentUser(empUser);
-                    navigate('/employer/dashboard');
                   } else {
-                    const drv = allDrivers.find(d => d.status === 'active') || allDrivers[1];
-                    const drvUser = allUsers.find(u => u.id === drv.id) || {
-                      id: drv.id,
-                      email: drv.email,
-                      role: 'driver',
-                      status: 'active',
-                      phone: drv.phone || '+91 98765 00000',
-                      createdAt: '2026-08-15'
-                    };
-                    DataStore.setCurrentUser(drvUser);
-                    navigate('/driver/dashboard');
+                    setError(`No saved ${roleTab} account found on this device. Please enter your email and password above or click 'Create an Account'.`);
                   }
                 }}
-                className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold rounded-xl text-xs flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer shadow-xs"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                ⚡ 1-Click Instant Sign In as {roleTab === 'admin' ? 'Admin' : roleTab === 'employer' ? 'Employer' : 'Driver'}
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>
+                    {savedUserForRole
+                      ? `⚡ 1-Click Instant Sign In as ${savedUserForRole.email}`
+                      : roleTab === 'admin'
+                      ? '⚡ 1-Click Instant Sign In as Admin'
+                      : `⚡ 1-Click Sign In as ${roleTab === 'employer' ? 'Employer' : 'Driver'}`}
+                  </span>
+                </div>
+                {savedUserForRole && (
+                  <span className="text-[10px] text-amber-800/80 font-normal">
+                    (Resumes your verified {roleTab} session on this device)
+                  </span>
+                )}
               </button>
             </div>
 

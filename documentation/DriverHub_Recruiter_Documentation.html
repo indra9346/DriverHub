@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>DriverHub — Full-Stack Recruitment Platform Documentation</title>
+  <title>DriverHub — Assignment Submission & Project Documentation</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
     
     @page {
       size: A4;
-      margin: 18mm 16mm 18mm 16mm;
+      margin: 14mm 14mm 14mm 14mm;
     }
 
     * {
@@ -19,16 +19,16 @@
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: #1e293b;
+      color: #0f172a;
       background: #ffffff;
-      line-height: 1.5;
-      font-size: 11.5pt;
+      line-height: 1.45;
+      font-size: 10.5pt;
     }
 
     .header-container {
       border-bottom: 2.5px solid #08233f;
-      padding-bottom: 14px;
-      margin-bottom: 20px;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
@@ -39,32 +39,32 @@
       background: #08233f;
       color: #f59e0b;
       font-weight: 900;
-      font-size: 14pt;
-      padding: 4px 12px;
-      border-radius: 6px;
+      font-size: 13pt;
+      padding: 3px 10px;
+      border-radius: 5px;
       letter-spacing: 0.5px;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .project-title {
-      font-size: 20pt;
+      font-size: 18pt;
       font-weight: 800;
       color: #08233f;
       line-height: 1.2;
     }
 
     .project-subtitle {
-      font-size: 10.5pt;
+      font-size: 10pt;
       color: #475569;
-      font-weight: 500;
-      margin-top: 3px;
+      font-weight: 600;
+      margin-top: 2px;
     }
 
     .meta-box {
       text-align: right;
-      font-size: 9.5pt;
+      font-size: 9pt;
       color: #334155;
-      line-height: 1.4;
+      line-height: 1.35;
     }
 
     .meta-box strong {
@@ -79,18 +79,18 @@
 
     h2 {
       color: #08233f;
-      font-size: 13pt;
+      font-size: 11.5pt;
       font-weight: 700;
       border-left: 4px solid #f59e0b;
-      padding-left: 8px;
-      margin-top: 18px;
-      margin-bottom: 8px;
+      padding-left: 7px;
+      margin-top: 14px;
+      margin-bottom: 6px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
 
     p {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       color: #334155;
       text-align: justify;
     }
@@ -98,16 +98,16 @@
     .pill-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin: 8px 0 14px 0;
+      gap: 5px;
+      margin: 6px 0 10px 0;
     }
 
     .pill {
       background: #f1f5f9;
       border: 1px solid #cbd5e1;
-      padding: 3px 9px;
-      border-radius: 12px;
-      font-size: 9pt;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 8.5pt;
       font-weight: 600;
       color: #0f172a;
     }
@@ -124,24 +124,30 @@
       color: #b45309;
     }
 
+    .pill.green {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #047857;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 10px 0 16px 0;
-      font-size: 9.5pt;
+      margin: 8px 0 12px 0;
+      font-size: 9pt;
     }
 
     th {
       background: #08233f;
       color: #ffffff;
       text-align: left;
-      padding: 7px 10px;
+      padding: 6px 8px;
       font-weight: 600;
       border: 1px solid #08233f;
     }
 
     td {
-      padding: 6px 10px;
+      padding: 5px 8px;
       border: 1px solid #cbd5e1;
       vertical-align: top;
     }
@@ -150,23 +156,22 @@
       background: #f8fafc;
     }
 
-    .feature-card-grid {
+    .checklist-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin: 10px 0;
+      gap: 8px;
+      margin: 8px 0;
     }
 
-    .feature-card {
+    .checklist-card {
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 10px 12px;
+      border-radius: 6px;
+      padding: 8px 10px;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
 
-    .feature-card h3 {
-      font-size: 10.5pt;
+    .checklist-card h3 {
+      font-size: 9.5pt;
       font-weight: 700;
       color: #08233f;
       margin-bottom: 4px;
@@ -175,34 +180,34 @@
       gap: 4px;
     }
 
-    .feature-card p {
-      font-size: 9pt;
-      color: #475569;
-      margin-bottom: 0;
-      line-height: 1.4;
+    .checklist-card ul {
+      list-style-type: none;
+      padding-left: 0;
+      font-size: 8.5pt;
+      color: #334155;
+    }
+
+    .checklist-card li {
+      margin-bottom: 3px;
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .check-icon {
+      color: #059669;
+      font-weight: 800;
     }
 
     .page-break {
       page-break-before: always;
     }
 
-    .code-block {
-      background: #0f172a;
-      color: #e2e8f0;
-      font-family: 'Courier New', Courier, monospace;
-      padding: 10px 12px;
-      border-radius: 6px;
-      font-size: 8.5pt;
-      line-height: 1.4;
-      margin: 8px 0;
-      white-space: pre-wrap;
-    }
-
     .footer-note {
-      margin-top: 24px;
+      margin-top: 16px;
       border-top: 1px solid #e2e8f0;
-      padding-top: 10px;
-      font-size: 8.5pt;
+      padding-top: 8px;
+      font-size: 8pt;
       color: #64748b;
       display: flex;
       justify-content: space-between;
@@ -215,156 +220,168 @@
   <div class="header-container">
     <div>
       <div class="logo-badge">DRIVER HUB</div>
-      <h1 class="project-title">Project Technical Documentation</h1>
-      <p class="project-subtitle">Commercial Driver Recruitment & Fleet Logistics Management Ecosystem</p>
+      <h1 class="project-title">Driver Recruitment Portal & Mobile App</h1>
+      <p class="project-subtitle">Interview Assignment Submission — Comprehensive Project Documentation</p>
     </div>
     <div class="meta-box">
       <strong>Candidate:</strong> K S Indra Kumar<br>
-      <strong>Live Deployment:</strong> <a href="https://driver-hub-xi.vercel.app" target="_blank">driver-hub-xi.vercel.app</a><br>
-      <strong>GitHub Repo:</strong> <a href="https://github.com/indra9346/DriverHub" target="_blank">github.com/indra9346/DriverHub</a><br>
-      <strong>Date:</strong> September 2026
+      <strong>Live Web App:</strong> <a href="https://driver-hub-xi.vercel.app" target="_blank">driver-hub-xi.vercel.app</a><br>
+      <strong>GitHub Repository:</strong> <a href="https://github.com/indra9346/DriverHub" target="_blank">github.com/indra9346/DriverHub</a><br>
+      <strong>Mobile Framework:</strong> React Native / Expo (`android-mvp`)
     </div>
   </div>
 
-  <!-- 1. EXECUTIVE SUMMARY -->
-  <h2>1. Executive Summary & Problem Statement</h2>
+  <!-- 1. ASSIGNMENT OVERVIEW -->
+  <h2>1. Assignment Scope & Technology Choices</h2>
   <p>
-    <strong>DriverHub</strong> is a full-stack recruitment and fleet operations management platform built to bridge the unstructured commercial logistics market in India. It enables logistics companies, transit operators, and school fleets to discover, verify, interview, and hire licensed commercial drivers (HMV, Trailer, Passenger Bus, Delivery LMV) with real-time application tracking and compliance verification.
+    <strong>Driver Hub</strong> is a specialized recruitment platform designed to connect commercial drivers with fleet operators and logistics companies. Both a <strong>Production Web Application</strong> and a <strong>Native Android Mobile Application</strong> have been engineered with a shared Supabase PostgreSQL cloud backend.
   </p>
 
   <div class="pill-grid">
-    <span class="pill accent">React 18</span>
-    <span class="pill accent">TypeScript</span>
-    <span class="pill accent">Vite Bundler</span>
-    <span class="pill amber">Supabase PostgreSQL</span>
-    <span class="pill amber">Realtime WebSockets</span>
-    <span class="pill">Tailwind CSS</span>
-    <span class="pill">Role-Based Access Control (RBAC)</span>
-    <span class="pill">REST & Real-Time Sync</span>
+    <span class="pill green">✓ Web App (React 18 + TS + Tailwind)</span>
+    <span class="pill green">✓ Android App (Expo / React Native)</span>
+    <span class="pill accent">Supabase Cloud PostgreSQL</span>
+    <span class="pill accent">Real-time WebSocket Sync</span>
+    <span class="pill amber">Role-Based Access Control (RBAC)</span>
+    <span class="pill amber">AI Driver Support Assistant</span>
   </div>
 
-  <!-- 2. SYSTEM ARCHITECTURE & RBAC -->
-  <h2>2. Role-Based Portals & Core Modules</h2>
+  <!-- 2. REQUIREMENT FULFILLMENT MATRIX -->
+  <h2>2. Assignment Requirement Checklist & Feature Mapping</h2>
 
-  <div class="feature-card-grid">
-    <div class="feature-card">
-      <h3>🚗 1. Driver Candidate Portal</h3>
-      <p>
-        • Advanced multi-filter job search by driver badge (HMV, Trailer, PSV), salary range, and city.<br>
-        • 1-Click Job Application pipeline with real-time status tracker (Applied → Under Review → Shortlisted → Trial → Hired).<br>
-        • Profile & License document management (KA/TN commercial transport badge).
-      </p>
+  <div class="checklist-grid">
+    <!-- Drivers -->
+    <div class="checklist-card">
+      <h3>🚗 For Drivers / Candidates</h3>
+      <ul>
+        <li><span class="check-icon">✓</span> <strong>Registration & Login:</strong> Role-specific signup with phone, category, and license details.</li>
+        <li><span class="check-icon">✓</span> <strong>Create & Manage Profile:</strong> Dynamic bio, expected salary, availability, and badge type.</li>
+        <li><span class="check-icon">✓</span> <strong>Experience & Skills:</strong> Heavy transport, trailer handling, GPS navigation tags.</li>
+        <li><span class="check-icon">✓</span> <strong>Document Uploads:</strong> Driving license, badge certificate, and resume attachment.</li>
+        <li><span class="check-icon">✓</span> <strong>Search & Filter Jobs:</strong> Filter by vehicle category (HMV, LMV, Bus), city, and salary.</li>
+        <li><span class="check-icon">✓</span> <strong>Apply & Track Applications:</strong> 5-stage progress bar (Applied → Review → Shortlist → Trial → Hired).</li>
+        <li><span class="check-icon">✓</span> <strong>Notifications:</strong> Real-time alerts for interview schedules and shortlists.</li>
+      </ul>
     </div>
 
-    <div class="feature-card">
-      <h3>🏢 2. Employer & Fleet Portal</h3>
-      <p>
-        • Vacancy Posting & Custom requirement builder (multi-axle experience, PSV badge, shift hours).<br>
-        • Real-time Candidate Pipeline with drag/click status progression & interview date scheduling.<br>
-        • Verified Company Profile page showcasing fleet size, depots, and live listings.
-      </p>
+    <!-- Employers -->
+    <div class="checklist-card">
+      <h3>🏢 For Employers & Fleets</h3>
+      <ul>
+        <li><span class="check-icon">✓</span> <strong>Employer Registration & Login:</strong> Company profile with GST/depot details.</li>
+        <li><span class="check-icon">✓</span> <strong>Company Profile Management:</strong> Fleet size, operating corridors, and website.</li>
+        <li><span class="check-icon">✓</span> <strong>Post Job Vacancies:</strong> Category, experience years, salary bracket, shift hours, required docs.</li>
+        <li><span class="check-icon">✓</span> <strong>Application Pipeline:</strong> Candidate reviews with resume previews.</li>
+        <li><span class="check-icon">✓</span> <strong>Search Driver Profiles:</strong> Search verified candidates by badge & location.</li>
+        <li><span class="check-icon">✓</span> <strong>Shortlist & Contact:</strong> 1-click status updates, interview date scheduler, phone/email contact.</li>
+      </ul>
     </div>
 
-    <div class="feature-card">
-      <h3>🛡️ 3. Super Administrator Portal</h3>
-      <p>
-        • Global Platform Oversight: Job listings approval/rejection moderation queue.<br>
-        • Employer fleet verification badges & trust scoring.<br>
-        • Real-time User Account governance: Ban, suspend, or reactivate drivers & employers with instant session revocation.
-      </p>
+    <!-- Admin -->
+    <div class="checklist-card">
+      <h3>🛡️ Admin Moderation Panel</h3>
+      <ul>
+        <li><span class="check-icon">✓</span> <strong>Manage Candidates & Employers:</strong> Central user directory with status filters.</li>
+        <li><span class="check-icon">✓</span> <strong>Job Post Moderation:</strong> Review pending vacancies; approve or reject listings.</li>
+        <li><span class="check-icon">✓</span> <strong>Manage Applications:</strong> Platform-wide application audit trail.</li>
+        <li><span class="check-icon">✓</span> <strong>Live Dashboard Statistics:</strong> Total drivers, active jobs, applications, and placement rate.</li>
+        <li><span class="check-icon">✓</span> <strong>User Governance:</strong> 1-click ban/suspend or reactivate users with instant session blocking.</li>
+      </ul>
     </div>
 
-    <div class="feature-card">
-      <h3>⚡ 4. Real-Time Sync & AI Assistance</h3>
-      <p>
-        • Supabase PostgreSQL replication across multiple phones, laptops, and browser sessions.<br>
-        • Integrated AI Driver Assistant for instant salary calculations, license compliance, and RTO regulations.<br>
-        • Dynamic mobile bottom navigation bar and touch-friendly drawer sidebar.
-      </p>
+    <!-- Multi-Platform -->
+    <div class="checklist-card">
+      <h3>📱 Multi-Platform Architecture</h3>
+      <ul>
+        <li><span class="check-icon">✓</span> <strong>1. Web Application:</strong> High-performance responsive SPA deployed live on Vercel.</li>
+        <li><span class="check-icon">✓</span> <strong>2. Android Mobile Application:</strong> Standalone React Native Expo project in <code>android-mvp/</code>.</li>
+        <li><span class="check-icon">✓</span> <strong>Mobile Bottom Navigation:</strong> 1-tap thumb navigation for rapid on-the-go driver access.</li>
+        <li><span class="check-icon">✓</span> <strong>Offline-First & Auto-Sync:</strong> Cloud persistence via Supabase PostgreSQL.</li>
+      </ul>
     </div>
   </div>
 
-  <!-- 3. DATABASE SCHEMA & DATA PIPELINE -->
-  <h2>3. Supabase PostgreSQL Schema Architecture</h2>
+  <div class="page-break"></div>
+
+  <!-- 3. DATABASE SCHEMA -->
+  <h2>3. Supabase Database Schema Design</h2>
   <table>
     <thead>
       <tr>
-        <th style="width: 22%;">Table Name</th>
-        <th style="width: 38%;">Primary Fields & Relations</th>
-        <th style="width: 40%;">Business Logic & Constraints</th>
+        <th style="width: 20%;">Table Name</th>
+        <th style="width: 40%;">Columns & Relations</th>
+        <th style="width: 40%;">Purpose & Capabilities</th>
       </tr>
     </thead>
     <tbody>
       <tr>
         <td><strong>public.profiles</strong></td>
-        <td><code>id (UUID PK), role, full_name, email, phone, city, status, created_at</code></td>
-        <td>Stores all drivers, employers, and admin accounts. Case-insensitive email indexing and real-time status syncing.</td>
+        <td><code>id (UUID PK), role, full_name, email, phone, city, state, status, created_at</code></td>
+        <td>Unified user identity for drivers, employers, and superadmins with real-time status syncing.</td>
       </tr>
       <tr>
         <td><strong>public.driver_profiles</strong></td>
         <td><code>id, user_id (FK), driver_category, license_number, license_type, years_experience, skills, expected_salary</code></td>
-        <td>Commercial driving badges, verified years on interstate routes, equipment handling ratings, and salary brackets.</td>
+        <td>Commercial credentials, verified experience, license type, and equipment competencies.</td>
       </tr>
       <tr>
         <td><strong>public.companies</strong></td>
         <td><code>id, user_id (FK), company_name, industry, location, verified, status</code></td>
-        <td>Fleet operator records, depot logistics hubs, registration certificates, and verified employer badges.</td>
+        <td>Fleet operator records, trust badges, operating locations, and company descriptions.</td>
       </tr>
       <tr>
         <td><strong>public.jobs</strong></td>
-        <td><code>id, employer_id, title, category, salary_min, salary_max, vacancies, status</code></td>
-        <td>Multi-axle and commercial transit vacancies with salary scales, shift timings, and moderation status.</td>
+        <td><code>id, employer_id (FK), company_id (FK), title, category, salary_min, salary_max, vacancies, status</code></td>
+        <td>Commercial vacancies with salary scales, shift types, and moderation approval flags.</td>
       </tr>
       <tr>
         <td><strong>public.applications</strong></td>
-        <td><code>id, job_id (FK), driver_id (FK), status, applied_date, interview_date</code></td>
-        <td>Application tracking lifecycle linking candidates to listings with real-time feedback updates.</td>
+        <td><code>id, job_id (FK), driver_id (FK), cover_message, status, applied_date, interview_date</code></td>
+        <td>Full applicant tracking lifecycle linking drivers to jobs with interview schedules.</td>
       </tr>
     </tbody>
   </table>
 
-  <div class="page-break"></div>
-
-  <!-- 4. TESTING & VERIFICATION CREDENTIALS -->
-  <h2>4. Demo Accounts & Testing Credentials</h2>
-  <p>Recruiters and evaluators can test each portal using the pre-configured credentials below or register any new email live:</p>
+  <!-- 4. DEMO CREDENTIALS -->
+  <h2>4. Demo Credentials & Testing Matrix</h2>
+  <p>Evaluators can use the credentials below to test each portal, or register any new email directly:</p>
 
   <table>
     <thead>
       <tr>
-        <th>Portal Role</th>
+        <th>Role / Portal</th>
         <th>Email Address</th>
         <th>Password</th>
-        <th>Dashboard Route</th>
+        <th>Portal Route</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td><strong>Super Administrator</strong></td>
+        <td><strong>🛡️ Super Administrator</strong></td>
         <td><code>admin@driverhub.in</code></td>
         <td><code>123456</code></td>
         <td><code>/admin/dashboard</code></td>
       </tr>
       <tr>
-        <td><strong>Heavy Freight Employer</strong></td>
+        <td><strong>🏢 Freight Employer (Bharat Logistics)</strong></td>
         <td><code>deepa@bharatlogistics.in</code></td>
         <td><code>123456</code></td>
         <td><code>/employer/dashboard</code></td>
       </tr>
       <tr>
-        <td><strong>Urban Mobility Employer</strong></td>
+        <td><strong>🏢 Mobility Employer (QuickRide)</strong></td>
         <td><code>arjun@quickride.in</code></td>
         <td><code>123456</code></td>
         <td><code>/employer/dashboard</code></td>
       </tr>
       <tr>
-        <td><strong>Commercial Driver (Candidate)</strong></td>
+        <td><strong>🚗 Commercial Driver (Ravi Kumar)</strong></td>
         <td><code>ravi.kumar@driverhub.in</code></td>
         <td><code>123456</code></td>
         <td><code>/driver/dashboard</code></td>
       </tr>
       <tr>
-        <td><strong>Your Live Driver Account</strong></td>
+        <td><strong>🚗 Verified Live Driver</strong></td>
         <td><code>indra1@gmail.com</code></td>
         <td><code>123456</code></td>
         <td><code>/driver/dashboard</code></td>
@@ -372,46 +389,29 @@
     </tbody>
   </table>
 
-  <!-- 5. ENGINEERING HIGHLIGHTS & ARCHITECTURAL DECISIONS -->
-  <h2>5. Key Engineering Highlights & Best Practices</h2>
-  
-  <div style="font-size: 9.5pt; color: #334155; line-height: 1.6;">
-    <p>
-      <strong>1. Cross-Device Real-Time Synchronization:</strong> Implemented a hybrid offline-first architecture. The local state machine integrates seamlessly with Supabase PostgreSQL via WebSocket channels, guaranteeing immediate cross-phone consistency without page refreshes.
-    </p>
-    <p>
-      <strong>2. Production Security & Data Isolation:</strong> Enforced strict authentication barriers and role verification. Passwords and credentials are fully isolated with zero cross-role privilege leakage.
-    </p>
-    <p>
-      <strong>3. Fluid Mobile Ergonomics:</strong> Tailored navigation system with a 1-tap mobile bottom bar, backdrop-blurred drawer navigation, responsive table cards, and zero horizontal viewport clipping.
-    </p>
-    <p>
-      <strong>4. Clean Code & Type Safety:</strong> 100% strict TypeScript types across all data models, layout containers, and API interfaces. Zero compiler warnings and automated production bundling via Vite.
-    </p>
+  <!-- 5. HOW TO RUN BOTH PLATFORMS -->
+  <h2>5. How to Run & Verify Both Platforms</h2>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 8.5pt;">
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+      <h3 style="color: #08233f; font-size: 9pt; font-weight: 700; margin-bottom: 4px;">🌐 1. Web Application</h3>
+      <p style="margin-bottom: 2px;"><strong>Live URL:</strong> <a href="https://driver-hub-xi.vercel.app" target="_blank" style="color: #0284c7;">driver-hub-xi.vercel.app</a></p>
+      <p style="margin-bottom: 2px;"><strong>Local Dev:</strong></p>
+      <code style="background: #0f172a; color: #38bdf8; padding: 2px 4px; border-radius: 3px; display: block; margin: 2px 0;">npm install &amp;&amp; npm run dev</code>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+      <h3 style="color: #08233f; font-size: 9pt; font-weight: 700; margin-bottom: 4px;">📱 2. Android Mobile App</h3>
+      <p style="margin-bottom: 2px;"><strong>Directory:</strong> <code>/android-mvp</code></p>
+      <p style="margin-bottom: 2px;"><strong>Run on Android / Expo Go:</strong></p>
+      <code style="background: #0f172a; color: #38bdf8; padding: 2px 4px; border-radius: 3px; display: block; margin: 2px 0;">cd android-mvp &amp;&amp; npm i &amp;&amp; npx expo start</code>
+    </div>
   </div>
 
-  <!-- 6. CONCLUSION & CONTACT -->
-  <h2>6. Project Deployment & Live Links</h2>
-  <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; margin-top: 10px;">
-    <table style="margin: 0; font-size: 9.5pt; border: none;">
-      <tr style="background: transparent;">
-        <td style="border: none; font-weight: 700; width: 25%; color: #08233f;">Live Web Application:</td>
-        <td style="border: none;"><a href="https://driver-hub-xi.vercel.app" target="_blank" style="color: #0284c7; font-weight: 600;">https://driver-hub-xi.vercel.app</a></td>
-      </tr>
-      <tr style="background: transparent;">
-        <td style="border: none; font-weight: 700; color: #08233f;">GitHub Source Repository:</td>
-        <td style="border: none;"><a href="https://github.com/indra9346/DriverHub" target="_blank" style="color: #0284c7; font-weight: 600;">https://github.com/indra9346/DriverHub</a></td>
-      </tr>
-      <tr style="background: transparent;">
-        <td style="border: none; font-weight: 700; color: #08233f;">Supabase Cloud DB:</td>
-        <td style="border: none; color: #334155;">PostgreSQL Cluster with Realtime Subscriptions & RLS enabled</td>
-      </tr>
-    </table>
-  </div>
-
+  <!-- 6. CONCLUSION -->
   <div class="footer-note">
-    <span>DriverHub Technical Portfolio & Project Specification</span>
-    <span>Engineered by K S Indra Kumar • 2026</span>
+    <span>DriverHub Assignment Submission & Technical Documentation</span>
+    <span>Candidate: K S Indra Kumar • 2026</span>
   </div>
 
 </body>

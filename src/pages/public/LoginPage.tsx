@@ -40,8 +40,6 @@ export const LoginPage: React.FC = () => {
     const saved = DataStore.getLastUserByRole(newRole);
     if (saved?.email) {
       setEmail(saved.email);
-    } else if (newRole === 'admin') {
-      setEmail('admin@driverhub.in');
     } else {
       setEmail('');
     }

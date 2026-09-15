@@ -173,6 +173,17 @@ export const DataStore = {
     } else {
       setStorage(STORAGE_KEYS.DRIVERS, [...drivers, profile]);
     }
+
+    // Sync to Supabase DB in real-time
+    const user = this.getUsers().find(u => u.id === profile.id) || {
+      id: profile.id,
+      email: profile.email,
+      role: 'driver' as const,
+      status: profile.status || 'active',
+      phone: profile.phone,
+      createdAt: '2026-08-15'
+    };
+    SupabaseSync.registerUser(user, profile);
   },
 
   addDriverDocument(driverId: string, doc: DriverDocument): void {
@@ -234,6 +245,17 @@ export const DataStore = {
     } else {
       setStorage(STORAGE_KEYS.EMPLOYERS, [...employers, profile]);
     }
+
+    // Sync to Supabase DB in real-time
+    const user = this.getUsers().find(u => u.id === profile.id) || {
+      id: profile.id,
+      email: profile.email,
+      role: 'employer' as const,
+      status: profile.status || 'active',
+      phone: profile.phone,
+      createdAt: '2026-08-10'
+    };
+    SupabaseSync.registerUser(user, profile);
   },
 
   verifyEmployer(id: string, verified: boolean): void {

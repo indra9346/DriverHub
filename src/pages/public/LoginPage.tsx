@@ -24,8 +24,28 @@ export const LoginPage: React.FC = () => {
 
   // Auto-sync live database profiles on login page mount
   useEffect(() => {
-    SupabaseSync.fetchAndMergeRemoteData(DataStore);
+    SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
+      const saved = DataStore.getLastUserByRole(roleTab);
+      if (saved?.email && !email) {
+        setEmail(saved.email);
+      }
+    });
   }, []);
+
+  // Update email field when switching role tabs
+  const handleRoleChange = (newRole: UserRole) => {
+    setRoleTab(newRole);
+    setError(null);
+    setPassword('');
+    const saved = DataStore.getLastUserByRole(newRole);
+    if (saved?.email) {
+      setEmail(saved.email);
+    } else if (newRole === 'admin') {
+      setEmail('admin@driverhub.in');
+    } else {
+      setEmail('');
+    }
+  };
 
   const allUsers = DataStore.getUsers();
   const allDrivers = DataStore.getDrivers();
@@ -216,11 +236,7 @@ export const LoginPage: React.FC = () => {
             <div className="grid grid-cols-3 p-1 bg-slate-100 rounded-xl gap-1">
               <button
                 type="button"
-                onClick={() => {
-                  setRoleTab('driver');
-                  setEmail('');
-                  setError(null);
-                }}
+                onClick={() => handleRoleChange('driver')}
                 className={`py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
                   roleTab === 'driver'
                     ? 'bg-white text-[#08233F] shadow-sm'
@@ -232,11 +248,7 @@ export const LoginPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => {
-                  setRoleTab('employer');
-                  setEmail('');
-                  setError(null);
-                }}
+                onClick={() => handleRoleChange('employer')}
                 className={`py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
                   roleTab === 'employer'
                     ? 'bg-white text-[#08233F] shadow-sm'
@@ -248,11 +260,7 @@ export const LoginPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => {
-                  setRoleTab('admin');
-                  setEmail('admin@driverhub.in');
-                  setError(null);
-                }}
+                onClick={() => handleRoleChange('admin')}
                 className={`py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
                   roleTab === 'admin'
                     ? 'bg-[#08233F] text-amber-400 shadow-sm'
@@ -314,57 +322,6 @@ export const LoginPage: React.FC = () => {
                 {loading ? 'Authenticating...' : `Sign In as ${roleTab === 'admin' ? 'Superadmin' : roleTab === 'driver' ? 'Driver' : 'Employer'}`}
               </button>
             </form>
-
-            {/* 1-Click Fast Access Option for Instant Access */}
-            <div className="pt-1 space-y-1">
-              <button
-                type="button"
-                onClick={() => {
-                  if (savedUserForRole) {
-                    DataStore.setCurrentUser(savedUserForRole);
-                    if (redirect) {
-                      navigate(redirect);
-                    } else if (roleTab === 'admin') {
-                      navigate('/admin/dashboard');
-                    } else if (roleTab === 'employer') {
-                      navigate('/employer/dashboard');
-                    } else {
-                      navigate('/driver/dashboard');
-                    }
-                  } else if (roleTab === 'admin') {
-                    const adminUser = allUsers.find(u => u.role === 'admin') || {
-                      id: 'usr-admin-1',
-                      email: 'admin@driverhub.in',
-                      role: 'admin',
-                      status: 'active',
-                      phone: '+91 80 2200 8899',
-                      createdAt: '2026-08-01'
-                    };
-                    DataStore.setCurrentUser(adminUser);
-                    navigate('/admin/dashboard');
-                  } else {
-                    setError(`No saved ${roleTab} account found on this device. Please enter your email and password above or click 'Create an Account'.`);
-                  }
-                }}
-                className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold rounded-xl text-xs flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer shadow-xs"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>
-                    {savedUserForRole
-                      ? `⚡ 1-Click Instant Sign In as ${savedUserForRole.email}`
-                      : roleTab === 'admin'
-                      ? '⚡ 1-Click Instant Sign In as Admin'
-                      : `⚡ 1-Click Sign In as ${roleTab === 'employer' ? 'Employer' : 'Driver'}`}
-                  </span>
-                </div>
-                {savedUserForRole && (
-                  <span className="text-[10px] text-amber-800/80 font-normal">
-                    (Resumes your verified {roleTab} session on this device)
-                  </span>
-                )}
-              </button>
-            </div>
 
             <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
               Don't have an account?{' '}

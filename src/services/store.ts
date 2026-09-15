@@ -71,16 +71,9 @@ export const DataStore = {
   getLastUserByRole(role: UserRole): User | null {
     const lastRoles = getStorage<Record<string, string>>(STORAGE_KEYS.LAST_ROLE_USERS, {});
     const email = lastRoles[role];
+    if (!email) return null;
     const users = this.getUsers();
-    if (email) {
-      const found = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (found) return found;
-    }
-    // Check if there is any custom (non-initial) user created for this role
-    const customUser = users.find(u => u.role === role && !initialUsers.some(init => init.email.toLowerCase() === u.email.toLowerCase()));
-    if (customUser) return customUser;
-
-    return null;
+    return users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase()) || null;
   },
 
   // Users

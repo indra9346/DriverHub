@@ -164,52 +164,159 @@ export const HomePage: React.FC = () => {
     <div className="space-y-16 pb-20 bg-[#F5F8FB]">
       
       {/* ========================================================================= */}
-      {/* SECTION 1: NAVY HERO (Unclipped, Generous Spacing, High Contrast) */}
+      {/* SECTION 1: HERO SECTION WITH TRUCK BACKGROUND BANNER */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden bg-[#08233F] text-white pt-16 sm:pt-20 pb-20 sm:pb-24 px-4 sm:px-6 lg:px-8 shadow-md">
-        {/* Subtle grid pattern background */}
-        <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-[radial-gradient(#F5A800_1px,transparent_1px)] [background-size:24px_24px]" />
+      <section className="relative overflow-hidden bg-[#08233F] text-white pt-12 sm:pt-16 lg:pt-20 pb-16 sm:pb-20 lg:pb-24 px-4 sm:px-6 lg:px-8 shadow-xl min-h-[560px] flex flex-col justify-center">
+        
+        {/* Full-bleed Highway Truck Background Banner Image */}
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/hero-truck.jpg"
+            alt="Driver Hub Commercial Transport & Heavy Fleet Truck on Highway Background Banner"
+            className="w-full h-full object-cover object-center lg:object-[center_40%] scale-105"
+            loading="eager"
+          />
+          {/* Layered cinematic gradient overlays for contrast and readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#08233F]/95 via-[#08233F]/85 to-[#08233F]/75 hidden lg:block" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#08233F]/90 via-[#08233F]/80 to-[#08233F]/95 lg:hidden" />
+          <div className="absolute inset-0 bg-[radial-gradient(#F5A800_1px,transparent_1px)] opacity-[0.07] [background-size:24px_24px] pointer-events-none" />
+        </div>
 
-        <div className="max-w-6xl mx-auto relative z-10 text-center space-y-8">
+        <div className="max-w-6xl mx-auto relative z-10 w-full text-center space-y-7 sm:space-y-8">
           
           {/* Trust Badge Pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-xs border border-white/15 text-xs text-amber-400 font-bold shadow-inner">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>India's Premier Professional Driver Recruitment Network</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-amber-400/30 text-xs text-amber-400 font-bold shadow-lg">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+            <span>India's #1 Professional Driver Recruitment Network</span>
           </div>
 
-          {/* Heading & Tagline */}
-          <div className="space-y-4 max-w-4xl mx-auto">
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight font-display text-white leading-tight">
-              Drive Your Career Forward with <span className="text-amber-400">Driver Hub</span>
+          {/* Headline & Subtitle */}
+          <div className="space-y-3.5 max-w-4xl mx-auto">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight font-display text-white leading-[1.15] drop-shadow-md">
+              Drive Your Career Forward with <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400">Driver Hub</span>
             </h1>
-            <p className="text-sm sm:text-base text-slate-200 max-w-2xl mx-auto font-normal leading-relaxed">
-              Connecting verified commercial and personal drivers with top logistics fleets, corporate employers, and private vehicle owners. Direct hiring, verified licenses, zero agency cuts.
+            <p className="text-sm sm:text-base text-slate-200 max-w-2xl mx-auto font-normal leading-relaxed drop-shadow">
+              Connecting verified commercial and personal drivers directly with top logistics fleets, corporate employers, and private vehicle owners. Direct hiring, verified licenses, zero agency cuts.
             </p>
           </div>
 
-          {/* Integrated Floating Search Bar Box (Dominant White Surface) */}
-          <div className="max-w-4xl mx-auto bg-white p-3.5 sm:p-4 rounded-2xl shadow-elevated border border-slate-200/90 text-slate-800 text-left">
-            <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
-              {/* Job Title / Keyword */}
-              <div className="md:col-span-4 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/90">
+          {/* Value proposition key highlights */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs text-slate-200 max-w-3xl mx-auto">
+            <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/70 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-semibold shadow">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Direct Hiring
+            </span>
+            <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/70 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-semibold shadow">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" /> 100% RTO Verified
+            </span>
+            <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/70 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-semibold shadow">
+              <IndianRupee className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> ₹25k - ₹50k/mo Salary
+            </span>
+            <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/70 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-semibold shadow">
+              <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Zero Commission
+            </span>
+          </div>
+
+          {/* ========================================================= */}
+          {/* MOBILE STREAMLINED SEARCH & ACTIONS (No Clunky 4-Row Box) */}
+          {/* ========================================================= */}
+          <div className="lg:hidden space-y-3.5 max-w-md mx-auto pt-1">
+            <form onSubmit={handleSearch} className="flex items-center bg-white/95 backdrop-blur-md p-1.5 rounded-2xl shadow-2xl border border-white/30 text-slate-800">
+              <div className="flex-1 flex items-center gap-2 px-3 py-1.5 text-slate-800">
+                <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="Search jobs, 'HMV', 'Cab', 'Chennai'..."
+                  className="w-full bg-transparent text-xs text-slate-800 placeholder-slate-500 focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Search</span>
+              </button>
+            </form>
+
+            {/* Mobile Quick Category Chips */}
+            <div className="flex items-center justify-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none text-xs">
+              <button
+                onClick={() => { setCategory('HMV'); navigate('/jobs?category=HMV'); }}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-900/75 backdrop-blur-md hover:bg-slate-900/90 border border-white/20 text-white font-medium flex items-center gap-1.5 text-[11px] transition-all shadow"
+              >
+                <span>🚛</span> Heavy HMV
+              </button>
+              <button
+                onClick={() => { setCategory('LMV'); navigate('/jobs?category=LMV'); }}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-900/75 backdrop-blur-md hover:bg-slate-900/90 border border-white/20 text-white font-medium flex items-center gap-1.5 text-[11px] transition-all shadow"
+              >
+                <span>🚗</span> Chauffeur
+              </button>
+              <button
+                onClick={() => { setCategory('Cab Driver'); navigate('/jobs?category=Cab+Driver'); }}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-900/75 backdrop-blur-md hover:bg-slate-900/90 border border-white/20 text-white font-medium flex items-center gap-1.5 text-[11px] transition-all shadow"
+              >
+                <span>🚕</span> Cab Driver
+              </button>
+              <button
+                onClick={() => { setCategory('Delivery Driver'); navigate('/jobs?category=Delivery+Driver'); }}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-900/75 backdrop-blur-md hover:bg-slate-900/90 border border-white/20 text-white font-medium flex items-center gap-1.5 text-[11px] transition-all shadow"
+              >
+                <span>📦</span> Delivery
+              </button>
+              <button
+                onClick={() => { setCategory('Bus Driver'); navigate('/jobs?category=Bus+Driver'); }}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-900/75 backdrop-blur-md hover:bg-slate-900/90 border border-white/20 text-white font-medium flex items-center gap-1.5 text-[11px] transition-all shadow"
+              >
+                <span>🚌</span> Bus
+              </button>
+            </div>
+
+            {/* Mobile Dual Action Buttons */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <Link
+                to="/jobs"
+                className="flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 px-3 rounded-xl text-xs shadow-lg transition-all text-center active:scale-95"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Browse Jobs</span>
+              </Link>
+              <Link
+                to="/employer/post-job"
+                className="flex items-center justify-center gap-1.5 bg-slate-900/80 hover:bg-slate-900 text-white font-bold py-3 px-3 rounded-xl text-xs border border-white/25 transition-all text-center active:scale-95 backdrop-blur-md shadow-lg"
+              >
+                <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Post Vacancy</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* ========================================================= */}
+          {/* DESKTOP SEARCH BAR (Sleek Integrated Glassmorphic Box) */}
+          {/* ========================================================= */}
+          <div className="hidden lg:block max-w-4xl mx-auto bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-2xl border border-white/30 text-slate-800 text-left">
+            <form onSubmit={handleSearch} className="grid grid-cols-12 gap-2.5 items-center">
+              {/* Keyword */}
+              <div className="col-span-4 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200">
                 <Search className="w-4 h-4 text-slate-400 shrink-0" />
                 <input
                   type="text"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   placeholder="Job title, 'HMV', 'Cab', 'Delivery'..."
-                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
               {/* Driver Category */}
-              <div className="md:col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/90">
+              <div className="col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200">
                 <Truck className="w-4 h-4 text-slate-400 shrink-0" />
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 focus:outline-none cursor-pointer"
+                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 focus:outline-none cursor-pointer font-medium"
                 >
                   <option value="">All Driver Types</option>
                   <option value="HMV">Heavy Truck (HMV)</option>
@@ -221,23 +328,23 @@ export const HomePage: React.FC = () => {
                 </select>
               </div>
 
-              {/* City / Location */}
-              <div className="md:col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50 rounded-xl border border-slate-200/90">
+              {/* Location */}
+              <div className="col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200">
                 <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="City (Bengaluru, Chennai...)"
-                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
               {/* Search Button */}
-              <div className="md:col-span-2">
+              <div className="col-span-2">
                 <button
                   type="submit"
-                  className="w-full h-full min-h-[44px] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-subtle transition-all duration-150 hover:scale-[1.02] cursor-pointer"
+                  className="w-full min-h-[44px] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow transition-all duration-150 hover:scale-[1.02] cursor-pointer text-xs sm:text-sm"
                 >
                   <Search className="w-4 h-4" />
                   <span>Search</span>
@@ -245,54 +352,55 @@ export const HomePage: React.FC = () => {
               </div>
             </form>
 
-            {/* Quick Keyword tags */}
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-3 text-xs text-slate-500 border-t border-slate-100 mt-2.5">
-              <span className="font-bold text-slate-700">Trending:</span>
-              <button onClick={() => { setCategory('HMV'); navigate('/jobs?category=HMV'); }} className="hover:text-blue-600 hover:underline cursor-pointer">
+            {/* Trending Tags */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-3 text-xs text-slate-600 border-t border-slate-200/80 mt-2.5">
+              <span className="font-bold text-slate-800">Trending:</span>
+              <button onClick={() => { setCategory('HMV'); navigate('/jobs?category=HMV'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
                 Interstate HMV
               </button>
               <span>•</span>
-              <button onClick={() => { setLocation('Bengaluru'); navigate('/jobs?location=Bengaluru'); }} className="hover:text-blue-600 hover:underline cursor-pointer">
+              <button onClick={() => { setLocation('Bengaluru'); navigate('/jobs?location=Bengaluru'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
                 Bengaluru Sedans
               </button>
               <span>•</span>
-              <button onClick={() => { setCategory('Delivery Driver'); navigate('/jobs?category=Delivery+Driver'); }} className="hover:text-blue-600 hover:underline cursor-pointer">
+              <button onClick={() => { setCategory('Delivery Driver'); navigate('/jobs?category=Delivery+Driver'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
                 Hyperlocal Delivery
               </button>
               <span>•</span>
-              <button onClick={() => { setCategory('Bus Driver'); navigate('/jobs?category=Bus+Driver'); }} className="hover:text-blue-600 hover:underline cursor-pointer">
+              <button onClick={() => { setCategory('Bus Driver'); navigate('/jobs?category=Bus+Driver'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
                 School Buses
               </button>
             </div>
           </div>
 
-          {/* Live Platform Stats Ticker with Viewport Animation */}
-          <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-6 border-t border-white/10 text-slate-200">
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-display">
+          {/* Live Platform Stats Ticker with Viewport Animation & Glassmorphic Cards */}
+          <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4 max-w-5xl mx-auto pt-6 sm:pt-8 text-slate-200 text-center">
+            <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
                 {statsAnimated ? `${counts.drivers.toLocaleString('en-IN')}+` : '12,500+'}
               </p>
-              <p className="text-xs text-slate-300 mt-0.5">Verified Drivers</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">Verified Drivers</p>
             </div>
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-display">
+            <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
                 {statsAnimated ? `${counts.employers.toLocaleString('en-IN')}+` : '450+'}
               </p>
-              <p className="text-xs text-slate-300 mt-0.5">Fleet & Corporate Employers</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">Fleet & Corporate Employers</p>
             </div>
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-display">
+            <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
                 {statsAnimated ? `${counts.jobs.toLocaleString('en-IN')}+` : '850+'}
               </p>
-              <p className="text-xs text-slate-300 mt-0.5">Active Job Openings</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">Active Job Openings</p>
             </div>
-            <div>
-              <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-display">
+            <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
+              <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
                 {statsAnimated ? `${counts.placement}%` : '98%'}
               </p>
-              <p className="text-xs text-slate-300 mt-0.5">Placement Success Rate</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">Placement Success Rate</p>
             </div>
           </div>
+
         </div>
       </section>
 

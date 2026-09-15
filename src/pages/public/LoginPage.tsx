@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   LogIn, User, Building2, Shield, Lock, Mail, ArrowRight, 
@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
+import { supabase } from '../../services/supabaseClient';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { UserRole, User as UserType } from '../../types';
 
 export const LoginPage: React.FC = () => {
@@ -20,6 +22,11 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Auto-sync live database profiles on login page mount
+  useEffect(() => {
+    SupabaseSync.fetchAndMergeRemoteData(DataStore);
+  }, []);
+
   const allUsers = DataStore.getUsers();
   const allDrivers = DataStore.getDrivers();
   const allEmployers = DataStore.getEmployers();
@@ -32,12 +39,16 @@ export const LoginPage: React.FC = () => {
     try {
       const cleanEmail = email.trim().toLowerCase();
       const users = DataStore.getUsers();
-      let matched = users.find(u => u.email.toLowerCase() === cleanEmail);
+      let matched = users.find(u => u.email.trim().toLowerCase() === cleanEmail);
 
       // If not found in local store (e.g. logging in from a new phone/browser), query Supabase in real-time!
       if (!matched) {
-        const { supabase } = await import('../../services/supabaseClient');
-        const { data: dbProfiles } = await supabase.from('profiles').select('*').eq('email', cleanEmail).limit(1);
+        const { data: dbProfiles, error: dbError } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('email', cleanEmail)
+          .limit(1);
+
         if (dbProfiles && dbProfiles.length > 0) {
           const dbUser = dbProfiles[0];
           matched = {

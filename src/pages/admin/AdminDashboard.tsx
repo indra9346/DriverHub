@@ -28,20 +28,22 @@ export const AdminDashboard: React.FC = () => {
   const shortlistedCount = applications.filter(a => a.status === 'shortlisted' || a.status === 'interview' || a.status === 'selected');
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="bg-brand-navy rounded-2xl p-6 sm:p-8 text-white shadow-elevated flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
-        <div className="relative z-10">
-          <span className="text-xs font-bold text-brand-amber uppercase tracking-wider">Superadmin Portal</span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold font-display mt-1">
+      <div className="bg-[#08233F] rounded-2xl p-5 sm:p-8 text-white shadow-elevated flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+        <div className="relative z-10 space-y-1">
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-white/10 text-amber-400 text-[11px] font-bold uppercase tracking-wider">
+            <ShieldCheck className="w-3.5 h-3.5" /> Superadmin Portal
+          </div>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-display text-white">
             Driver Hub Administration & Moderation
           </h1>
-          <p className="text-xs sm:text-sm text-slate-300 mt-1">
+          <p className="text-xs sm:text-sm text-slate-300">
             Real-time platform overview, moderation queues, and safety compliance audits
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 relative z-10">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 relative z-10">
           <button
             onClick={async () => {
               const btn = document.getElementById('supabase-sync-btn');
@@ -53,14 +55,14 @@ export const AdminDashboard: React.FC = () => {
               }, 3000);
             }}
             id="supabase-sync-btn"
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             Sync with Supabase DB
           </button>
           
           <Link
             to="/admin/jobs"
-            className="px-4 py-2.5 bg-brand-amber hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs shadow-xs"
+            className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs shadow-xs text-center"
           >
             Review Pending Jobs ({pendingJobs.length})
           </Link>
@@ -68,59 +70,60 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Total Drivers</span>
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-600">Total Drivers</span>
             <Users className="w-4 h-4 text-brand-blue" />
           </div>
-          <p className="text-2xl font-bold text-brand-navy font-display">{drivers.length}</p>
-          <Link to="/admin/candidates" className="text-[11px] text-brand-blue hover:underline font-semibold">
+          <p className="text-xl sm:text-2xl font-bold text-brand-navy font-display">{drivers.length}</p>
+          <Link to="/admin/candidates" className="text-[10px] sm:text-[11px] text-brand-blue hover:underline font-semibold block truncate">
             Manage candidates →
           </Link>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Registered Fleets</span>
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-600">Registered Fleets</span>
             <Building2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-2xl font-bold text-brand-navy font-display">{employers.length}</p>
-          <Link to="/admin/employers" className="text-[11px] text-brand-blue hover:underline font-semibold">
+          <p className="text-xl sm:text-2xl font-bold text-brand-navy font-display">{employers.length}</p>
+          <Link to="/admin/employers" className="text-[10px] sm:text-[11px] text-brand-blue hover:underline font-semibold block truncate">
             Verify companies →
           </Link>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Active Jobs</span>
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-600">Active Jobs</span>
             <Briefcase className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-2xl font-bold text-emerald-600 font-display">{activeJobs.length}</p>
-          <span className="text-[11px] text-slate-500">Live on public portal</span>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-600 font-display">{activeJobs.length}</p>
+          <span className="text-[10px] sm:text-[11px] text-slate-500 block truncate">Live on public portal</span>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Pending Approvals</span>
-            <Clock className="w-4 h-4 text-brand-amber" />
+            <span className="text-[11px] sm:text-xs font-semibold text-slate-600">Pending Approvals</span>
+            <Clock className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-2xl font-bold text-brand-amber font-display">{pendingJobs.length}</p>
-          <Link to="/admin/jobs" className="text-[11px] text-amber-700 font-bold hover:underline">
+          <p className="text-xl sm:text-2xl font-bold text-amber-600 font-display">{pendingJobs.length}</p>
+          <Link to="/admin/jobs" className="text-[10px] sm:text-[11px] text-amber-700 font-bold hover:underline block truncate">
             Requires action →
           </Link>
         </div>
       </div>
 
       {/* Moderation Queue & Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* Left 7 Cols: Pending Jobs Moderation */}
-        <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-card space-y-4">
+        <div className="lg:col-span-7 bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-card space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-brand-navy font-display flex items-center gap-2">
-              <Clock className="w-4 h-4 text-brand-amber" /> Pending Job Approvals ({pendingJobs.length})
+            <h3 className="text-sm sm:text-base font-bold text-brand-navy font-display flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-500 shrink-0" /> 
+              <span>Pending Approvals ({pendingJobs.length})</span>
             </h3>
-            <Link to="/admin/jobs" className="text-xs font-bold text-brand-blue hover:underline">
+            <Link to="/admin/jobs" className="text-xs font-bold text-brand-blue hover:underline shrink-0">
               Moderate Queue
             </Link>
           </div>
@@ -133,14 +136,14 @@ export const AdminDashboard: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {pendingJobs.map((job) => (
-                <div key={job.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <h4 className="text-xs font-bold text-brand-navy">{job.title}</h4>
-                    <p className="text-[11px] text-slate-500">{job.companyName} • {job.category} • {job.city}</p>
+                <div key={job.id} className="p-3.5 sm:p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5 min-w-0">
+                    <h4 className="text-xs font-bold text-brand-navy truncate">{job.title}</h4>
+                    <p className="text-[11px] text-slate-500 truncate">{job.companyName} • {job.category} • {job.city}</p>
                   </div>
                   <Link
                     to="/admin/jobs"
-                    className="px-3 py-1.5 bg-brand-navy hover:bg-brand-navy-light text-white text-xs font-semibold rounded-lg shrink-0 transition-all"
+                    className="px-3 py-1.5 bg-[#08233F] hover:bg-[#051626] text-white text-xs font-semibold rounded-lg shrink-0 text-center transition-all"
                   >
                     Review & Approve
                   </Link>
@@ -151,12 +154,13 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Right 5 Cols: Employer Accounts */}
-        <div className="lg:col-span-5 bg-white rounded-2xl p-6 border border-slate-200 shadow-card space-y-4">
+        <div className="lg:col-span-5 bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-card space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-brand-navy font-display flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-brand-blue" /> Employer Accounts
+            <h3 className="text-sm sm:text-base font-bold text-brand-navy font-display flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-brand-blue shrink-0" /> 
+              <span>Employer Accounts</span>
             </h3>
-            <Link to="/admin/employers" className="text-xs font-bold text-brand-blue hover:underline">
+            <Link to="/admin/employers" className="text-xs font-bold text-brand-blue hover:underline shrink-0">
               View All
             </Link>
           </div>
@@ -164,11 +168,13 @@ export const AdminDashboard: React.FC = () => {
           <div className="space-y-3">
             {employers.slice(0, 4).map((emp) => (
               <div key={emp.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-                <div>
-                  <h4 className="text-xs font-bold text-brand-navy">{emp.companyName}</h4>
-                  <p className="text-[11px] text-slate-500">{emp.industry} • {emp.city}</p>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-brand-navy truncate">{emp.companyName}</h4>
+                  <p className="text-[11px] text-slate-500 truncate">{emp.industry} • {emp.city}</p>
                 </div>
-                <StatusBadge status={emp.verified ? 'verified' : 'pending'} size="sm" />
+                <div className="shrink-0">
+                  <StatusBadge status={emp.verified ? 'verified' : 'pending'} size="sm" />
+                </div>
               </div>
             ))}
           </div>

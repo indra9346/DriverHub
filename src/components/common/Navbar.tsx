@@ -255,98 +255,200 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3">
-          <nav className="space-y-1">
-            <Link
-              to="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold tracking-tight uppercase ${
-                isActive('/') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              Home
-            </Link>
-            <Link
-              to="/jobs"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold tracking-tight uppercase ${
-                isActive('/jobs') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              Find Jobs
-            </Link>
-            <Link
-              to="/companies"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold tracking-tight uppercase ${
-                isActive('/companies') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              Top Employers
-            </Link>
-            <Link
-              to="/about"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold tracking-tight uppercase ${
-                isActive('/about') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              About
-            </Link>
-            <Link
-              to="/contact"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3.5 py-2.5 rounded-xl text-xs font-bold tracking-tight uppercase ${
-                isActive('/contact') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              Contact
-            </Link>
-          </nav>
-
-          <div className="pt-3 border-t border-slate-100">
-            {currentUser ? (
-              <div className="space-y-2">
-                <div className="px-3.5 py-2 bg-slate-50 rounded-xl border border-slate-200/80">
-                  <p className="text-xs font-semibold text-slate-900">{currentUser.email}</p>
-                  <p className="text-[11px] text-slate-500 capitalize">{currentUser.role} Account</p>
+        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-4 max-h-[calc(100vh-4.5rem)] overflow-y-auto animate-in slide-in-from-top-2 duration-150">
+          {/* User Profile Header (Mobile) */}
+          {currentUser ? (
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#08233F] text-amber-400 font-bold flex items-center justify-center text-xs shadow-xs shrink-0">
+                  {currentUser.role === 'admin' ? 'AD' : currentUser.role === 'employer' ? 'EM' : 'DR'}
                 </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-900 truncate">{currentUser.email}</p>
+                  <span className="inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60 mt-0.5">
+                    {currentUser.role} Portal
+                  </span>
+                </div>
+              </div>
+
+              {/* Portal Quick Links */}
+              <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200/60">
                 <Link
                   to={getDashboardPath()}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="block w-full text-center px-4 py-2.5 bg-[#08233F] text-white font-bold rounded-xl text-xs"
+                  className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                 >
-                  Go to Dashboard
+                  <LayoutDashboard className="w-3.5 h-3.5 text-brand-navy shrink-0" />
+                  <span className="truncate">Dashboard</span>
                 </Link>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="block w-full text-center px-4 py-2.5 text-red-600 hover:bg-red-50 font-bold rounded-xl text-xs border border-red-200"
-                >
-                  Sign Out
-                </button>
+
+                {currentUser.role === 'driver' && (
+                  <>
+                    <Link
+                      to="/driver/applications"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-brand-blue shrink-0" />
+                      <span className="truncate">Applications</span>
+                    </Link>
+                    <Link
+                      to="/driver/profile"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="truncate">My Profile</span>
+                    </Link>
+                    <Link
+                      to="/driver/saved"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    >
+                      <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                      <span className="truncate">Saved Jobs</span>
+                    </Link>
+                  </>
+                )}
+
+                {currentUser.role === 'employer' && (
+                  <>
+                    <Link
+                      to="/employer/post-job"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-amber-950 bg-amber-100/80 border border-amber-300 hover:bg-amber-200 transition-colors"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                      <span className="truncate">Post Vacancy</span>
+                    </Link>
+                    <Link
+                      to="/employer/jobs"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    >
+                      <Briefcase className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="truncate">Manage Jobs</span>
+                    </Link>
+                    <Link
+                      to="/employer/applications"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-brand-blue shrink-0" />
+                      <span className="truncate">Candidates</span>
+                    </Link>
+                  </>
+                )}
+
+                {currentUser.role === 'admin' && (
+                  <>
+                    <Link
+                      to="/admin/jobs"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    >
+                      <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span className="truncate">Moderation</span>
+                    </Link>
+                    <Link
+                      to="/admin/employers"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-brand-blue shrink-0" />
+                      <span className="truncate">Fleets</span>
+                    </Link>
+                  </>
+                )}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  to="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-center px-4 py-2.5 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-center px-4 py-2.5 bg-[#08233F] text-white font-bold rounded-xl text-xs"
-                >
-                  Register
-                </Link>
-              </div>
-            )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Link
+                to="/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-center px-4 py-2.5 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-center px-4 py-2.5 bg-[#08233F] text-white font-bold rounded-xl text-xs shadow-xs hover:bg-[#051626] transition-colors"
+              >
+                Register
+              </Link>
+            </div>
+          )}
+
+          {/* Public Navigation Links */}
+          <div className="pt-2 border-t border-slate-100">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3.5 block mb-1">
+              Navigation
+            </span>
+            <nav className="space-y-1">
+              <Link
+                to="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  isActive('/') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/jobs"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  isActive('/jobs') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Find Jobs
+              </Link>
+              <Link
+                to="/companies"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  isActive('/companies') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Top Employers
+              </Link>
+              <Link
+                to="/about"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  isActive('/about') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                About
+              </Link>
+              <Link
+                to="/contact"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  isActive('/contact') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Contact
+              </Link>
+            </nav>
           </div>
+
+          {currentUser && (
+            <div className="pt-2 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 font-bold rounded-xl text-xs border border-red-200 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </header>

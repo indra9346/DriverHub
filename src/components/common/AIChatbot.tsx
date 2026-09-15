@@ -57,12 +57,12 @@ export const AIChatbot: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50">
       {/* Floating Trigger Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="group relative flex items-center gap-2.5 bg-[#08233F] hover:bg-[#051626] text-white px-4 py-3 rounded-full shadow-elevated border border-slate-700/60 transition-all duration-200 hover:scale-[1.03] cursor-pointer"
+          className="group relative flex items-center gap-2.5 bg-[#08233F] hover:bg-[#051626] text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-elevated border border-slate-700/60 transition-all duration-200 hover:scale-[1.03] cursor-pointer"
         >
           <div className="relative">
             <Bot className="w-5 h-5 text-amber-400 group-hover:rotate-6 transition-transform" />
@@ -82,7 +82,7 @@ export const AIChatbot: React.FC = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="w-[92vw] sm:w-[390px] h-[540px] max-h-[85vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="w-[calc(100vw-2rem)] sm:w-[390px] max-w-[390px] h-[520px] max-h-[78vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header */}
           <div className="bg-[#08233F] text-white px-4 py-3.5 flex items-center justify-between border-b border-slate-800">
             <div className="flex items-center gap-3">

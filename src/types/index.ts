@@ -31,6 +31,69 @@ export interface User {
   createdAt: string;
 }
 
+export interface EmployerSubscription {
+  employerId: string;
+  planName: string;
+  jobCredits: number;
+  dbUnlockCredits: number;
+  totalJobCredits: number;
+  totalDbUnlockCredits: number;
+  gstin: string;
+  gstinVerified: boolean;
+  billingCompanyName: string;
+  billingAddress: string;
+  expiresAt: string;
+  status: 'active' | 'expired' | 'low_credits';
+}
+
+export interface BillingTransaction {
+  id: string;
+  employerId: string;
+  date: string;
+  time: string;
+  planDetails: string;
+  appliesUntil: string;
+  amount: number;
+  status: 'Success' | 'Pending' | 'Failed' | 'Cancelled';
+  invoiceId?: string;
+  jobCreditsAdded?: number;
+  dbCreditsAdded?: number;
+}
+
+export interface SavedSearch {
+  id: string;
+  employerId: string;
+  title: string;
+  category: string;
+  city: string;
+  minExp: number;
+  mustHaveSkills: string[];
+  createdAt: string;
+  matchCount: number;
+}
+
+export interface CandidateUnlock {
+  id: string;
+  employerId: string;
+  driverId: string;
+  unlockedAt: string;
+  downloadedExcel?: boolean;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  receiverId: string;
+  receiverName: string;
+  jobId?: string;
+  jobTitle?: string;
+  text: string;
+  timestamp: string;
+  read: boolean;
+}
+
 export interface DriverProfile {
   id: string; // user id
   fullName: string;
@@ -44,10 +107,22 @@ export interface DriverProfile {
   licenseType: string;
   licenseExpiry: string;
   experienceYears: number;
+  experienceMonths?: number;
   skills: string[];
+  languages?: string[];
+  vehicleTypes?: string[];
+  currentRole?: string;
+  previousRole?: string;
+  education?: string;
   preferredLocation?: string;
   expectedSalary?: number;
   availability: 'Immediate' | '15 Days' | '1 Month' | 'Flexible';
+  nightShiftWilling?: boolean;
+  outstationWilling?: boolean;
+  cvAttached?: boolean;
+  policeVerified?: boolean;
+  lastActive?: string;
+  unlockCount?: number;
   bio?: string;
   avatarUrl?: string;
   resumeUrl?: string;
@@ -93,6 +168,7 @@ export interface EmployerProfile {
   website?: string;
   logoUrl?: string;
   description?: string;
+  gstin?: string;
   verified: boolean;
   status: UserStatus;
   createdAt: string;
@@ -103,16 +179,25 @@ export interface Job {
   employerId: string;
   companyName: string;
   companyLogo?: string;
+  postedBy?: string;
   title: string;
   category: DriverCategory;
   location: string;
   city: string;
   state: string;
+  workLocationType?: 'Work From Depot / Office' | 'Client / Household Site' | 'Interstate / Field Route';
   experienceRequired: string;
   experienceMinYears?: number;
   salaryMin: number;
   salaryMax: number;
   salaryType?: 'monthly' | 'yearly' | 'daily';
+  payType?: 'Fixed Only' | 'Fixed + Incentive' | 'Incentive Only';
+  perks?: string[];
+  nightShift?: boolean;
+  vehicleType?: string;
+  routeType?: 'Local City' | 'Outstation / Highway' | 'Both Local & Outstation';
+  joiningFeeRequired?: boolean;
+  screeningQuestions?: string[];
   workingHours: string;
   employmentType: 'Full-time' | 'Part-time' | 'Contract' | 'Temporary';
   description: string;
@@ -122,6 +207,8 @@ export interface Job {
   status: JobStatus;
   postedDate: string;
   applicationsCount?: number;
+  activeLeadsCount?: number;
+  databaseMatchesCount?: number;
 }
 
 export interface Application {
@@ -143,6 +230,8 @@ export interface Application {
   updatedDate: string;
   employerNotes?: string;
   interviewDate?: string;
+  interviewMode?: 'In-Person Driving Trial' | 'Phone Interview' | 'Video Verification';
+  interviewLocation?: string;
 }
 
 export interface Notification {
@@ -184,3 +273,4 @@ export interface AIMessage {
     url: string;
   };
 }
+

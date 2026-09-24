@@ -113,78 +113,105 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center gap-3">
             {currentUser ? (
               <div className="flex items-center gap-3">
-                {/* Employer Post Job button shortcut */}
+                {/* Employer Available Credits Pill & Post Job shortcut (Matches Screenshot 7) */}
                 {currentUser.role === 'employer' && (
-                  <Link
-                    to="/employer/post-job"
-                    className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-xs transition-all duration-150 hover:scale-[1.02]"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" /> Post a Job
-                  </Link>
+                  <>
+                    <Link
+                      to="/employer/billing"
+                      className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-2xs transition-colors"
+                    >
+                      <span className="text-slate-700">💳 Available credits</span>
+                      <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-extrabold">
+                        {DataStore.getSubscription(currentUser.id).dbUnlockCredits}
+                      </span>
+                    </Link>
+
+                    <Link
+                      to="/employer/post-job"
+                      className="flex items-center gap-1.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-xs transition-all duration-150"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" /> Post a new job
+                    </Link>
+                  </>
                 )}
 
                 {/* Notifications */}
                 <NotificationBell userId={currentUser.id} />
 
-                {/* User Dropdown */}
+                {/* User Dropdown (Matches Screenshot 7: Avatar Circle + Name + Phone + View profile + Company profile + Sign out) */}
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-2 p-1.5 pr-3 rounded-full border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors focus:outline-none"
+                    className="flex items-center gap-2 p-1 pr-2.5 rounded-full border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors focus:outline-none cursor-pointer"
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#08233F] text-amber-400 font-bold flex items-center justify-center text-xs shadow-xs">
-                      {currentUser.role === 'admin' ? 'AD' : currentUser.role === 'employer' ? 'EM' : 'DR'}
+                    <div className="w-8 h-8 rounded-full bg-[#3A2E39] text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                      {currentUser.email.charAt(0).toUpperCase()}
                     </div>
                     <div className="text-left text-xs">
                       <div className="font-semibold text-slate-900 capitalize leading-tight">
-                        {currentUser.role}
+                        {currentUser.role === 'employer'
+                          ? DataStore.getEmployerById(currentUser.id)?.contactPerson?.split(' ')[0] || 'Employer'
+                          : currentUser.role === 'driver'
+                          ? DataStore.getDriverById(currentUser.id)?.fullName?.split(' ')[0] || 'Driver'
+                          : 'Admin'}
                       </div>
                       <div className="text-[10px] text-slate-500 truncate max-w-[100px]">
-                        {currentUser.email.split('@')[0]}
+                        {currentUser.phone || currentUser.email.split('@')[0]}
                       </div>
                     </div>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
                   </button>
 
                   {isUserMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-elevated border border-slate-200/90 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-100">
-                      <div className="px-4 py-2 border-b border-slate-100">
-                        <p className="text-xs font-semibold text-slate-900 truncate">{currentUser.email}</p>
-                        <span className="inline-block mt-0.5 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                          {currentUser.role} portal
-                        </span>
+                    <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-elevated border border-slate-200/90 py-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-100">
+                      <div className="px-4 py-2.5 border-b border-slate-100 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-[#3A2E39] text-white font-bold flex items-center justify-center text-xs shrink-0">
+                          {currentUser.email.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold text-slate-900 truncate">
+                            {currentUser.role === 'employer'
+                              ? DataStore.getEmployerById(currentUser.id)?.contactPerson || 'Deepa Nair'
+                              : currentUser.role === 'driver'
+                              ? DataStore.getDriverById(currentUser.id)?.fullName || 'Ravi Kumar'
+                              : 'Platform Admin'}
+                          </p>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            {currentUser.phone || '9341556688'}
+                          </p>
+                        </div>
                       </div>
 
                       <Link
                         to={getDashboardPath()}
                         onClick={() => setIsUserMenuOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                       >
-                        <LayoutDashboard className="w-4 h-4 text-slate-400" /> Dashboard
+                        <LayoutDashboard className="w-4 h-4 text-slate-500" /> Dashboard
                       </Link>
 
                       {currentUser.role === 'driver' && (
                         <>
                           <Link
+                            to="/driver/profile"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
+                          >
+                            <User className="w-4 h-4 text-slate-500" /> View profile
+                          </Link>
+                          <Link
                             to="/driver/applications"
                             onClick={() => setIsUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <FileText className="w-4 h-4 text-slate-400" /> My Applications
+                            <FileText className="w-4 h-4 text-slate-500" /> My Applications
                           </Link>
                           <Link
                             to="/driver/saved"
                             onClick={() => setIsUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <Heart className="w-4 h-4 text-slate-400" /> Saved Jobs
-                          </Link>
-                          <Link
-                            to="/driver/profile"
-                            onClick={() => setIsUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
-                          >
-                            <User className="w-4 h-4 text-slate-400" /> My Profile
+                            <Heart className="w-4 h-4 text-slate-500" /> Saved Jobs
                           </Link>
                         </>
                       )}
@@ -192,18 +219,32 @@ export const Navbar: React.FC = () => {
                       {currentUser.role === 'employer' && (
                         <>
                           <Link
-                            to="/employer/jobs"
+                            to="/employer/company"
                             onClick={() => setIsUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <Briefcase className="w-4 h-4 text-slate-400" /> Manage Jobs
+                            <User className="w-4 h-4 text-slate-500" /> View profile
                           </Link>
                           <Link
                             to="/employer/company"
                             onClick={() => setIsUserMenuOpen(false)}
-                            className="flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <Building2 className="w-4 h-4 text-slate-400" /> Company Profile
+                            <Building2 className="w-4 h-4 text-slate-500" /> Company profile
+                          </Link>
+                          <Link
+                            to="/employer/candidates"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
+                          >
+                            <Briefcase className="w-4 h-4 text-slate-500" /> Driver Database
+                          </Link>
+                          <Link
+                            to="/employer/billing"
+                            onClick={() => setIsUserMenuOpen(false)}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
+                          >
+                            <Settings className="w-4 h-4 text-slate-500" /> Billing & Credits
                           </Link>
                         </>
                       )}
@@ -212,18 +253,18 @@ export const Navbar: React.FC = () => {
                         <Link
                           to="/admin/jobs"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 font-medium"
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                         >
-                          <Shield className="w-4 h-4 text-slate-400" /> Moderation Queue
+                          <Shield className="w-4 h-4 text-slate-500" /> Moderation Queue
                         </Link>
                       )}
 
                       <div className="border-t border-slate-100 my-1" />
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left flex items-center gap-2.5 px-4 py-2 text-xs text-red-600 hover:bg-red-50 font-semibold"
+                        className="w-full text-left flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 font-bold cursor-pointer"
                       >
-                        <LogOut className="w-4 h-4" /> Sign Out
+                        <LogOut className="w-4 h-4" /> Sign out
                       </button>
                     </div>
                   )}

@@ -701,3 +701,464 @@ export const initialNotifications: Notification[] = [
     link: '/admin/employers'
   }
 ];
+
+export const additionalDrivers: DriverProfile[] = [
+  {
+    id: 'usr-driver-7',
+    fullName: 'Afnan Khan R',
+    phone: '+91 98450 77211',
+    email: 'afnan.khan@driverhub.in',
+    location: 'Deepanjali Nagar, Bengaluru',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    driverCategory: 'HMV',
+    licenseNumber: 'KA05 20190088123',
+    licenseType: 'Heavy Motor Vehicle (HMV-Transport) + Badge',
+    licenseExpiry: '2032-11-20',
+    experienceYears: 4,
+    experienceMonths: 9,
+    skills: ['Heavy Truck Driving', 'Multi-Axle Fleet', 'Highway Logistics', 'FASTag & E-Way Bill Handling', 'Fuel Efficiency'],
+    languages: ['English (Good)', 'Hindi', 'Kannada', 'Urdu'],
+    vehicleTypes: ['14-Wheel Truck', 'BharatBenz 2823R', 'Tata Prima'],
+    currentRole: 'Senior Fleet Driver at S B International Tours & Logistics Pvt Ltd',
+    previousRole: 'Heavy Commercial Driver at DitioSys Transport Pvt Ltd',
+    education: 'PUC / ITI Automobile & RTO Safety Certified',
+    preferredLocation: 'Bengaluru / Bangalore Region & South India',
+    expectedSalary: 29000,
+    availability: 'Immediate',
+    nightShiftWilling: true,
+    outstationWilling: true,
+    cvAttached: true,
+    policeVerified: true,
+    lastActive: '24 Sep \'26',
+    unlockCount: 22,
+    bio: '4 yrs 9 mos accident-free commercial driving experience across Bengaluru, Mysuru, Chennai, and Mumbai highways.',
+    status: 'active',
+    experiences: [
+      {
+        id: 'exp-afnan-1',
+        driverId: 'usr-driver-7',
+        companyName: 'S B International Tours & Logistics Pvt Ltd',
+        roleTitle: 'Senior Fleet Driver',
+        vehicleType: 'BharatBenz 2823R Multi-Axle',
+        durationYears: 3,
+        startDate: '2023-01',
+        endDate: 'Present',
+        description: 'Interstate hub-to-hub express freight operations.'
+      }
+    ],
+    documents: []
+  },
+  {
+    id: 'usr-driver-8',
+    fullName: 'R Baranidharan',
+    phone: '+91 94441 66892',
+    email: 'baranidharan.r@driverhub.in',
+    location: 'Banashankari, Bengaluru',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    driverCategory: 'Personal Driver',
+    licenseNumber: 'KA01 20170039104',
+    licenseType: 'LMV & LMV-TR Commercial Badge',
+    licenseExpiry: '2033-04-15',
+    experienceYears: 7,
+    experienceMonths: 4,
+    skills: ['Luxury Automatic Cars', 'VIP Protocol', 'City & Airport Transfers', ' Defensive Driving', 'GPS Navigation'],
+    languages: ['Kannada', 'Tamil', 'English (Fluent)', 'Hindi'],
+    vehicleTypes: ['Mercedes-Benz E-Class', 'Toyota Innova Hycross', 'BMW 5 Series', 'Fortuner'],
+    currentRole: 'Executive Corporate Chauffeur at Prestige Corporate Services',
+    previousRole: 'Family Personal Chauffeur at Indiranagar Residence',
+    education: '12th Pass • Defensive Driving Certified',
+    preferredLocation: 'Banashankari, Basavanagudi, Jayanagar, Koramangala (Bengaluru)',
+    expectedSalary: 26000,
+    availability: 'Immediate',
+    nightShiftWilling: true,
+    outstationWilling: true,
+    cvAttached: true,
+    policeVerified: true,
+    lastActive: '24 Sep \'26',
+    unlockCount: 15,
+    bio: 'Well-groomed executive & family chauffeur experienced with automatic luxury sedans and MPVs.',
+    status: 'active',
+    experiences: [],
+    documents: []
+  },
+  {
+    id: 'usr-driver-9',
+    fullName: 'Basavaraj Patil',
+    phone: '+91 97312 88410',
+    email: 'basavaraj.patil@driverhub.in',
+    location: 'Peenya Industrial Area, Bengaluru',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    driverCategory: 'Trailer Driver',
+    licenseNumber: 'KA25 20150091822',
+    licenseType: 'HMV Trailer & Hazardous Goods Endorsed',
+    licenseExpiry: '2031-08-10',
+    experienceYears: 11,
+    experienceMonths: 2,
+    skills: ['40ft Container Trailer', 'Port Clearance', 'Ghat Road Driving', 'Air Brake Maintenance', 'Long Haul Night Driving'],
+    languages: ['Kannada', 'Hindi', 'Marathi', 'Telugu'],
+    vehicleTypes: ['40ft Flatbed Trailer', 'Ashok Leyland 4220', 'Volvo FM 420'],
+    currentRole: 'Master Trailer Operator at VRL Heavy Corridor Logistics',
+    previousRole: 'Container Driver at Mangaluru Port Freight Corp',
+    education: '10th SSLC + Heavy Institute Certification',
+    preferredLocation: 'Peenya, Nelamangala, Hubballi, Mangaluru, Mumbai Highway',
+    expectedSalary: 38000,
+    availability: 'Immediate',
+    nightShiftWilling: true,
+    outstationWilling: true,
+    cvAttached: true,
+    policeVerified: true,
+    lastActive: '23 Sep \'26',
+    unlockCount: 31,
+    bio: '11+ years heavy 40ft container and trailer specialist on Bengaluru–Mumbai–Chennai–Mangaluru port corridors.',
+    status: 'active',
+    experiences: [],
+    documents: []
+  },
+  {
+    id: 'usr-driver-10',
+    fullName: 'Prakash Gowda H S',
+    phone: '+91 99001 45231',
+    email: 'prakash.gowda@driverhub.in',
+    location: 'Vijayanagar, Mysuru',
+    city: 'Mysuru',
+    state: 'Karnataka',
+    driverCategory: 'Bus Driver',
+    licenseNumber: 'KA09 20160022109',
+    licenseType: 'HMV Passenger Bus + PSV Badge',
+    licenseExpiry: '2032-02-28',
+    experienceYears: 8,
+    experienceMonths: 6,
+    skills: ['School Bus Safety', '50-Seater Staff Bus', 'First Aid Certified', 'Student Route Compliance', 'Punctual Operations'],
+    languages: ['Kannada', 'English', 'Hindi'],
+    vehicleTypes: ['Swaraj Mazda School Bus', 'Ashok Leyland Viking 52-Seater', 'Force Traveller 26-Seater'],
+    currentRole: 'Senior School Bus Pilot at Mysuru Public Academy',
+    previousRole: 'Corporate Staff Coach Driver at Infosys Campus Transit',
+    education: '12th Pass + PSV Badge & Child Safety Verified',
+    preferredLocation: 'Mysuru, Mandya, South Bengaluru',
+    expectedSalary: 24000,
+    availability: '15 Days',
+    nightShiftWilling: false,
+    outstationWilling: true,
+    cvAttached: true,
+    policeVerified: true,
+    lastActive: '24 Sep \'26',
+    unlockCount: 14,
+    bio: 'PSV-badged school and corporate staff bus driver with zero traffic violations and verified police clearance.',
+    status: 'active',
+    experiences: [],
+    documents: []
+  },
+  {
+    id: 'usr-driver-11',
+    fullName: 'Mohammed Irfan',
+    phone: '+91 98867 33901',
+    email: 'irfan.m@driverhub.in',
+    location: 'Whitefield, Bengaluru',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    driverCategory: 'Cab Driver',
+    licenseNumber: 'KA53 20200074190',
+    licenseType: 'LMV Commercial (Yellow Board Badge)',
+    licenseExpiry: '2035-06-18',
+    experienceYears: 5,
+    experienceMonths: 3,
+    skills: ['IT Corridor Employee Pickup', 'EV Fleet Driving', 'Airport Duty', 'Night Roster', 'App Navigation'],
+    languages: ['Hindi', 'Urdu', 'English', 'Kannada'],
+    vehicleTypes: ['Maruti Ertiga CNG', 'Toyota Etios', 'BYD e6 Electric', 'Tata Tigor EV'],
+    currentRole: 'Corporate Fleet Cab Driver at Lithium Urban Mobility',
+    previousRole: 'Airport Transfer Driver at Meru Cabs',
+    education: '10th Pass',
+    preferredLocation: 'Whitefield, Marathahalli, Electronic City, Hebbal',
+    expectedSalary: 25000,
+    availability: 'Immediate',
+    nightShiftWilling: true,
+    outstationWilling: true,
+    cvAttached: true,
+    policeVerified: true,
+    lastActive: '24 Sep \'26',
+    unlockCount: 19,
+    bio: 'Experienced corporate employee transport and EV cab fleet driver covering all Bengaluru tech parks.',
+    status: 'active',
+    experiences: [],
+    documents: []
+  },
+  {
+    id: 'usr-driver-12',
+    fullName: 'Venkatesh Murthy',
+    phone: '+91 96114 20984',
+    email: 'venkatesh.m@driverhub.in',
+    location: 'Yeshwanthpur, Bengaluru',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    driverCategory: 'Tempo Driver',
+    licenseNumber: 'KA04 20210018345',
+    licenseType: 'LMV-Goods & Light Commercial (LCV)',
+    licenseExpiry: '2034-09-12',
+    experienceYears: 4,
+    experienceMonths: 1,
+    skills: ['Tata Ace / Bolero Pickup', 'FMCG Warehouse Delivery', 'Cold Chain Reefer Van', 'POD & Cash Collection'],
+    languages: ['Kannada', 'Telugu', 'Hindi'],
+    vehicleTypes: ['Mahindra Bolero Pik-Up', 'Tata Ace Gold', 'Ashok Leyland Bada Dost', 'Eicher Pro 2049'],
+    currentRole: 'Hub Distribution Driver at BigBasket Supply Chain',
+    previousRole: 'LCV Delivery Driver at Dairy Classic Cold Chain',
+    education: '10th Pass',
+    preferredLocation: 'Yeshwanthpur, Peenya, Rajajinagar, Yelahanka',
+    expectedSalary: 22000,
+    availability: 'Immediate',
+    nightShiftWilling: true,
+    outstationWilling: false,
+    cvAttached: true,
+    policeVerified: true,
+    lastActive: '24 Sep \'26',
+    unlockCount: 11,
+    bio: 'Fast and reliable LCV / Tempo driver skilled in B2B warehouse distribution and city retail delivery.',
+    status: 'active',
+    experiences: [],
+    documents: []
+  }
+];
+
+export const initialEmployerSubscriptions: Record<string, import('../types').EmployerSubscription> = {
+  'usr-employer-1': {
+    employerId: 'usr-employer-1',
+    planName: 'ApnaHire Enterprise Fleet Pass (Quarterly)',
+    jobCredits: 8,
+    dbUnlockCredits: 145,
+    totalJobCredits: 10,
+    totalDbUnlockCredits: 200,
+    gstin: '29AAKCB0612Q1ZC',
+    gstinVerified: true,
+    billingCompanyName: 'BHARAT LOGISTICS INDIA PRIVATE LIMITED',
+    billingAddress: 'Third Floor, Plot 42, Phase 1, Electronic City, Basaveshwara Nagar / Industrial Corridor, Bengaluru Urban, Karnataka - 560100',
+    expiresAt: '2026-12-31',
+    status: 'active'
+  },
+  'usr-employer-2': {
+    employerId: 'usr-employer-2',
+    planName: '2 Job Credit + 50 Driver Unlocks Package',
+    jobCredits: 3,
+    dbUnlockCredits: 42,
+    totalJobCredits: 5,
+    totalDbUnlockCredits: 50,
+    gstin: '29AABCU9603R1ZM',
+    gstinVerified: true,
+    billingCompanyName: 'QUICKRIDE MOBILITY SOLUTIONS PRIVATE LIMITED',
+    billingAddress: '100 Feet Road, HAL 2nd Stage, Indiranagar, Bengaluru, Karnataka - 560038',
+    expiresAt: '2026-11-30',
+    status: 'active'
+  }
+};
+
+export const initialBillingTransactions: import('../types').BillingTransaction[] = [
+  {
+    id: 'txn-101',
+    employerId: 'usr-employer-1',
+    date: '15 Sep 2026',
+    time: '11:20:14 AM',
+    planDetails: 'Enterprise Fleet Pass (10 Job Credits + 200 Driver Unlocks)',
+    appliesUntil: 'Valid until: Dec 31, 2026',
+    amount: 4999,
+    status: 'Success',
+    invoiceId: 'INV-DH-2026-0915',
+    jobCreditsAdded: 10,
+    dbCreditsAdded: 200
+  },
+  {
+    id: 'txn-102',
+    employerId: 'usr-employer-1',
+    date: '03 Sep 2026',
+    time: '3:09:20 AM',
+    planDetails: '2 Job Credit Package',
+    appliesUntil: 'Ordered on: Sep 3, 2026',
+    amount: 1651,
+    status: 'Cancelled',
+    invoiceId: 'INV-DH-2026-0903',
+    jobCreditsAdded: 2,
+    dbCreditsAdded: 25
+  },
+  {
+    id: 'txn-103',
+    employerId: 'usr-employer-1',
+    date: '01 Sep 2026',
+    time: '3:02:41 AM',
+    planDetails: '2 Job Credit Package',
+    appliesUntil: 'Ordered on: Sep 1, 2026',
+    amount: 1651,
+    status: 'Success',
+    invoiceId: 'INV-DH-2026-0901',
+    jobCreditsAdded: 2,
+    dbCreditsAdded: 25
+  },
+  {
+    id: 'txn-104',
+    employerId: 'usr-employer-1',
+    date: '21 Aug 2026',
+    time: '4:15:09 PM',
+    planDetails: 'Starter Driver Database Unlock Pack (50 Unlocks)',
+    appliesUntil: 'Ordered on: Aug 21, 2026',
+    amount: 999,
+    status: 'Success',
+    invoiceId: 'INV-DH-2026-0821',
+    jobCreditsAdded: 1,
+    dbCreditsAdded: 50
+  }
+];
+
+export const initialSavedSearches: import('../types').SavedSearch[] = [
+  {
+    id: 'srch-1',
+    employerId: 'usr-employer-1',
+    title: 'HMV Heavy Truck & Multi-Axle Drivers — Bengaluru',
+    category: 'HMV',
+    city: 'Bengaluru',
+    minExp: 3,
+    mustHaveSkills: ['Interstate Freight', 'Night Driving', 'GPS Navigation'],
+    createdAt: '2026-09-20',
+    matchCount: 18
+  },
+  {
+    id: 'srch-2',
+    employerId: 'usr-employer-1',
+    title: '40ft Container Trailer Operators (Port & Highway)',
+    category: 'Trailer Driver',
+    city: 'Bengaluru',
+    minExp: 5,
+    mustHaveSkills: ['40ft Container Trailer', 'Long Haul Night Driving'],
+    createdAt: '2026-09-18',
+    matchCount: 9
+  },
+  {
+    id: 'srch-3',
+    employerId: 'usr-employer-1',
+    title: 'Executive Corporate Chauffeurs (Automatic SUV/Sedan)',
+    category: 'Personal Driver',
+    city: 'Bengaluru',
+    minExp: 4,
+    mustHaveSkills: ['Luxury Automatic Cars', 'VIP Protocol'],
+    createdAt: '2026-09-12',
+    matchCount: 14
+  }
+];
+
+export const initialCandidateUnlocks: import('../types').CandidateUnlock[] = [
+  {
+    id: 'unl-1',
+    employerId: 'usr-employer-1',
+    driverId: 'usr-driver-1',
+    unlockedAt: '2026-09-22 10:15',
+    downloadedExcel: true
+  },
+  {
+    id: 'unl-2',
+    employerId: 'usr-employer-1',
+    driverId: 'usr-driver-4',
+    unlockedAt: '2026-09-23 14:30',
+    downloadedExcel: false
+  }
+];
+
+export const initialDirectMessages: import('../types').DirectMessage[] = [
+  {
+    id: 'msg-1',
+    senderId: 'usr-employer-1',
+    senderName: 'Deepa Nair (Bharat Logistics)',
+    senderRole: 'employer',
+    receiverId: 'usr-driver-1',
+    receiverName: 'Ravi Kumar',
+    jobId: 'job-1',
+    jobTitle: 'Senior Heavy Truck Driver (Multi-Axle)',
+    text: 'Hello Ravi, we reviewed your HMV license and 6 years highway experience. Can you attend a driving trial at our Electronic City Phase 1 depot tomorrow at 10:30 AM?',
+    timestamp: '2026-09-24 10:15 AM',
+    read: false
+  },
+  {
+    id: 'msg-2',
+    senderId: 'usr-driver-1',
+    senderName: 'Ravi Kumar',
+    senderRole: 'driver',
+    receiverId: 'usr-employer-1',
+    receiverName: 'Deepa Nair (Bharat Logistics)',
+    jobId: 'job-1',
+    jobTitle: 'Senior Heavy Truck Driver (Multi-Axle)',
+    text: 'Namaskara Madam, yes I am available tomorrow at 10:30 AM. I will bring my original HMV license, Aadhaar, and previous experience certificates.',
+    timestamp: '2026-09-24 10:42 AM',
+    read: false
+  },
+  {
+    id: 'msg-3',
+    senderId: 'usr-employer-2',
+    senderName: 'Arjun Rao (QuickRide Mobility)',
+    senderRole: 'employer',
+    receiverId: 'usr-driver-3',
+    receiverName: 'Anitha P',
+    jobId: 'job-2',
+    jobTitle: 'Executive Corporate Cab Chauffeur',
+    text: 'Hi Anitha, your background verification is complete. Please report to the Indiranagar fleet hub for vehicle handover briefing.',
+    timestamp: '2026-09-23 04:20 PM',
+    read: true
+  }
+];
+
+// Deterministic, explainable Driver <-> Job Matching Engine (Section 36)
+export function calculateDriverJobMatch(driver: DriverProfile, job: Job): {
+  score: number;
+  reasons: { matched: boolean; label: string }[];
+} {
+  const reasons: { matched: boolean; label: string }[] = [];
+  let score = 0;
+
+  // 1. Category / License match (35 pts)
+  const categoryMatched =
+    driver.driverCategory === job.category ||
+    (job.category === 'HMV' && ['HMV', 'HMV-Transport', 'Truck Driver', 'Trailer Driver'].includes(driver.driverCategory)) ||
+    (job.category === 'LMV' && ['LMV', 'LMV-Transport', 'Cab Driver', 'Personal Driver', 'Tempo Driver'].includes(driver.driverCategory));
+  if (categoryMatched) {
+    score += 35;
+    reasons.push({ matched: true, label: `License & ${job.category} category matched` });
+  } else {
+    score += 15;
+    reasons.push({ matched: false, label: `Requires ${job.category} specialization` });
+  }
+
+  // 2. Experience match (25 pts)
+  const minExp = job.experienceMinYears ?? 2;
+  if (driver.experienceYears >= minExp) {
+    score += 25;
+    reasons.push({ matched: true, label: `${driver.experienceYears} yrs experience meets ${minExp}+ yrs requirement` });
+  } else {
+    score += 10;
+    reasons.push({ matched: false, label: `Experience (${driver.experienceYears} yrs) below ${minExp} yrs target` });
+  }
+
+  // 3. Location / City match (20 pts)
+  const cityMatch =
+    driver.city?.toLowerCase() === job.city?.toLowerCase() ||
+    driver.location?.toLowerCase().includes((job.city || '').toLowerCase()) ||
+    driver.preferredLocation?.toLowerCase().includes((job.city || '').toLowerCase());
+  if (cityMatch) {
+    score += 20;
+    reasons.push({ matched: true, label: `${job.city} location matched` });
+  } else {
+    score += 8;
+    reasons.push({ matched: false, label: `Outstation / Relocation to ${job.city}` });
+  }
+
+  // 4. Salary compatibility (20 pts)
+  const expected = driver.expectedSalary || 25000;
+  if (job.salaryMax >= expected) {
+    score += 20;
+    reasons.push({ matched: true, label: `Salary up to ₹${job.salaryMax.toLocaleString('en-IN')}/mo matches expectation` });
+  } else {
+    score += 12;
+    reasons.push({ matched: false, label: `Max salary ₹${job.salaryMax.toLocaleString('en-IN')} slightly below ₹${expected.toLocaleString('en-IN')}` });
+  }
+
+  return {
+    score: Math.min(98, Math.max(62, score)),
+    reasons
+  };
+}
+

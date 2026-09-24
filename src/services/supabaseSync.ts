@@ -317,10 +317,19 @@ export const SupabaseSync = {
           user_id: drvUUID,
           driver_category: drv.driverCategory,
           years_experience: drv.experienceYears,
+          experience_months: drv.experienceMonths || 0,
           license_number: drv.licenseNumber,
           license_type: drv.licenseType,
           license_expiry: drv.licenseExpiry,
           skills: drv.skills || [],
+          languages: drv.languages || ['Kannada', 'Hindi', 'English'],
+          vehicle_types: drv.vehicleTypes || [],
+          current_job_role: drv.currentRole || null,
+          previous_role: drv.previousRole || null,
+          education: drv.education || '10th/12th Pass + RTO Badge',
+          police_verified: drv.policeVerified ?? true,
+          cv_attached: drv.cvAttached ?? true,
+          unlock_count: drv.unlockCount || 15,
           preferred_location: drv.preferredLocation,
           expected_salary: drv.expectedSalary,
           availability: drv.availability,
@@ -341,6 +350,92 @@ export const SupabaseSync = {
       console.log('✅ Supabase database full sync complete!');
     } catch (e) {
       console.warn('Sync all data error:', e);
+    }
+  },
+
+  async syncSubscription(sub: import('../types').EmployerSubscription) {
+    try {
+      const empUUID = toUUID(sub.employerId);
+      await supabase.from('employer_subscriptions').upsert({
+        id: empUUID,
+        employer_id: empUUID,
+        plan_name: sub.planName,
+        job_credits: sub.jobCredits,
+        db_unlock_credits: sub.dbUnlockCredits,
+        total_job_credits: sub.totalJobCredits,
+        total_db_unlock_credits: sub.totalDbUnlockCredits,
+        gstin: sub.gstin,
+        gstin_verified: sub.gstinVerified,
+        billing_company_name: sub.billingCompanyName,
+        billing_address: sub.billingAddress,
+        status: sub.status
+      }, { onConflict: 'employer_id' });
+    } catch (e) {
+      console.warn('syncSubscription error:', e);
+    }
+  },
+
+  async syncBillingTransaction(txn: import('../types').BillingTransaction) {
+    try {
+      const empUUID = toUUID(txn.employerId);
+      await supabase.from('billing_transactions').upsert({
+        id: toUUID(txn.id),
+        employer_id: empUUID,
+        plan_details: txn.planDetails,
+        applies_until: txn.appliesUntil,
+        amount: txn.amount,
+        status: txn.status,
+        invoice_id: txn.invoiceId || 'INV-DH-2026',
+        job_credits_added: txn.jobCreditsAdded || 0,
+        db_credits_added: txn.dbCreditsAdded || 0
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('syncBillingTransaction error:', e);
+    }
+  },
+
+  async syncCandidateUnlock(unlock: import('../types').CandidateUnlock) {
+    try {
+      await supabase.from('candidate_unlocks').upsert({
+        id: toUUID(unlock.id),
+        employer_id: toUUID(unlock.employerId),
+        driver_id: toUUID(unlock.driverId),
+        downloaded_excel: unlock.downloadedExcel || false
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('syncCandidateUnlock error:', e);
+    }
+  },
+
+  async syncSavedSearch(search: import('../types').SavedSearch) {
+    try {
+      await supabase.from('saved_searches').upsert({
+        id: toUUID(search.id),
+        employer_id: toUUID(search.employerId),
+        title: search.title,
+        category: search.category,
+        city: search.city,
+        min_exp: search.minExp,
+        must_have_skills: search.mustHaveSkills || [],
+        match_count: search.matchCount || 10
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('syncSavedSearch error:', e);
+    }
+  },
+
+  async syncDirectMessage(msg: import('../types').DirectMessage) {
+    try {
+      await supabase.from('direct_messages').upsert({
+        id: toUUID(msg.id),
+        sender_id: toUUID(msg.senderId),
+        receiver_id: toUUID(msg.receiverId),
+        job_id: msg.jobId ? toUUID(msg.jobId) : null,
+        text: msg.text,
+        read: msg.read || false
+      }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('syncDirectMessage error:', e);
     }
   },
 

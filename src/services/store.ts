@@ -1,19 +1,30 @@
 import { 
-  Job, DriverProfile, EmployerProfile, Application, Notification, User, FavoriteJob, DriverDocument, DriverExperience, UserRole 
+  Job, DriverProfile, EmployerProfile, Application, Notification, User, FavoriteJob, DriverDocument, DriverExperience, UserRole,
+  EmployerSubscription, BillingTransaction, SavedSearch, CandidateUnlock, DirectMessage
 } from '../types';
-import { initialJobs, initialDrivers, initialEmployers, initialApplications, initialNotifications, initialUsers } from '../data/mockData';
+import { 
+  initialJobs, initialDrivers, additionalDrivers, initialEmployers, initialApplications, initialNotifications, initialUsers,
+  initialEmployerSubscriptions, initialBillingTransactions, initialSavedSearches, initialCandidateUnlocks, initialDirectMessages
+} from '../data/mockData';
 import { SupabaseSync } from './supabaseSync';
+
+const allDefaultDrivers: DriverProfile[] = [...initialDrivers, ...additionalDrivers];
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'driverhub_current_user',
   LAST_ROLE_USERS: 'driverhub_last_role_users',
   USERS: 'driverhub_users',
   JOBS: 'driverhub_jobs',
-  DRIVERS: 'driverhub_drivers',
+  DRIVERS: 'driverhub_drivers_v2',
   EMPLOYERS: 'driverhub_employers',
   APPLICATIONS: 'driverhub_applications',
   NOTIFICATIONS: 'driverhub_notifications',
   FAVORITES: 'driverhub_favorites',
+  SUBSCRIPTIONS: 'driverhub_subscriptions',
+  BILLING: 'driverhub_billing_txns',
+  SAVED_SEARCHES: 'driverhub_saved_searches',
+  UNLOCKS: 'driverhub_candidate_unlocks',
+  MESSAGES: 'driverhub_direct_messages',
 };
 
 // Helper for local storage
@@ -139,7 +150,7 @@ export const DataStore = {
 
   // Drivers
   getDrivers(): DriverProfile[] {
-    return getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, initialDrivers);
+    return getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers);
   },
 
   getDriverById(id: string): DriverProfile {
@@ -362,7 +373,7 @@ export const DataStore = {
   updateApplicationStatus(
     appId: string, 
     status: Application['status'], 
-    options?: { employerNotes?: string; interviewDate?: string }
+    options?: { employerNotes?: string; interviewDate?: string; interviewMode?: Application['interviewMode']; interviewLocation?: string }
   ): void {
     const apps = this.getApplications().map(a => {
       if (a.id === appId) {
@@ -372,6 +383,8 @@ export const DataStore = {
           updatedDate: new Date().toISOString().slice(0, 10),
           employerNotes: options?.employerNotes ?? a.employerNotes,
           interviewDate: options?.interviewDate ?? a.interviewDate,
+          interviewMode: options?.interviewMode ?? a.interviewMode,
+          interviewLocation: options?.interviewLocation ?? a.interviewLocation,
         };
       }
       return a;
@@ -457,15 +470,198 @@ export const DataStore = {
     setStorage(STORAGE_KEYS.NOTIFICATIONS, notifs);
   },
 
+  // =======================================================================
+  // APNAHIRE-STYLE SUBSCRIPTION, CREDITS, BILLING, UNLOCKS & SAVED SEARCHES
+  // =======================================================================
+  getSubscription(employerId: string): EmployerSubscription {
+    const subs = getStorage<Record<string, EmployerSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, initialEmployerSubscriptions);
+    if (subs[employerId]) return subs[employerId];
+    const employer = this.getEmployerById(employerId);
+    const defaultSub: EmployerSubscription = {
+      employerId,
+      planName: 'Starter Fleet Hiring Plan (2 Job Credits + 50 Driver Unlocks)',
+      jobCredits: 4,
+      dbUnlockCredits: 50,
+      totalJobCredits: 5,
+      totalDbUnlockCredits: 50,
+      gstin: employer.gstin || '29AAKCB0612Q1ZC',
+      gstinVerified: true,
+      billingCompanyName: (employer.companyName || 'FLEET LOGISTICS INDIA PVT LTD').toUpperCase(),
+      billingAddress: employer.address || 'Third Floor, No. 51, 3rd Stage, 4th Block, Basaveshwara Nagar, Bengaluru Urban, Karnataka - 560079',
+      expiresAt: '2026-12-31',
+      status: 'active'
+    };
+    subs[employerId] = defaultSub;
+    setStorage(STORAGE_KEYS.SUBSCRIPTIONS, subs);
+    return defaultSub;
+  },
+
+  updateSubscription(employerId: string, patch: Partial<EmployerSubscription>): EmployerSubscription {
+    const subs = getStorage<Record<string, EmployerSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, initialEmployerSubscriptions);
+    const current = this.getSubscription(employerId);
+    const updated = { ...current, ...patch };
+    subs[employerId] = updated;
+    setStorage(STORAGE_KEYS.SUBSCRIPTIONS, subs);
+    SupabaseSync.syncSubscription(updated);
+    return updated;
+  },
+
+  purchaseSubscriptionPlan(
+    employerId: string,
+    planDetails: string,
+    amount: number,
+    jobCreditsToAdd: number,
+    dbCreditsToAdd: number
+  ): void {
+    const current = this.getSubscription(employerId);
+    this.updateSubscription(employerId, {
+      planName: planDetails,
+      jobCredits: current.jobCredits + jobCreditsToAdd,
+      dbUnlockCredits: current.dbUnlockCredits + dbCreditsToAdd,
+      totalJobCredits: current.totalJobCredits + jobCreditsToAdd,
+      totalDbUnlockCredits: current.totalDbUnlockCredits + dbCreditsToAdd,
+      status: 'active',
+      expiresAt: '2027-03-31'
+    });
+
+    const txns = getStorage<BillingTransaction[]>(STORAGE_KEYS.BILLING, initialBillingTransactions);
+    const now = new Date();
+    const newTxn: BillingTransaction = {
+      id: 'txn-' + Date.now(),
+      employerId,
+      date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      planDetails,
+      appliesUntil: 'Valid until: Mar 31, 2027',
+      amount,
+      status: 'Success',
+      invoiceId: 'INV-DH-' + Math.floor(100000 + Math.random() * 900000),
+      jobCreditsAdded: jobCreditsToAdd,
+      dbCreditsAdded: dbCreditsToAdd
+    };
+    setStorage(STORAGE_KEYS.BILLING, [newTxn, ...txns]);
+    SupabaseSync.syncBillingTransaction(newTxn);
+  },
+
+  getBillingTransactions(employerId: string): BillingTransaction[] {
+    const txns = getStorage<BillingTransaction[]>(STORAGE_KEYS.BILLING, initialBillingTransactions);
+    const empTxns = txns.filter(t => t.employerId === employerId || employerId === 'usr-employer-1');
+    return empTxns.length > 0 ? empTxns : initialBillingTransactions;
+  },
+
+  getCandidateUnlocks(employerId: string): CandidateUnlock[] {
+    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, initialCandidateUnlocks);
+    return unlocks.filter(u => u.employerId === employerId);
+  },
+
+  unlockCandidate(employerId: string, driverId: string): { success: boolean; message: string } {
+    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, initialCandidateUnlocks);
+    const already = unlocks.find(u => u.employerId === employerId && u.driverId === driverId);
+    if (already) {
+      return { success: true, message: 'Candidate phone number already unlocked.' };
+    }
+
+    const sub = this.getSubscription(employerId);
+    if (sub.dbUnlockCredits <= 0) {
+      return { success: false, message: 'Out of Driver Database Credits. Please recharge your plan in Billing & Credits.' };
+    }
+
+    // Deduct 1 DB Unlock credit
+    this.updateSubscription(employerId, {
+      dbUnlockCredits: Math.max(0, sub.dbUnlockCredits - 1)
+    });
+
+    const newUnlock: CandidateUnlock = {
+      id: 'unl-' + Date.now(),
+      employerId,
+      driverId,
+      unlockedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      downloadedExcel: false
+    };
+    setStorage(STORAGE_KEYS.UNLOCKS, [newUnlock, ...unlocks]);
+    SupabaseSync.syncCandidateUnlock(newUnlock);
+
+    // Notify driver that a verified employer viewed/unlocked their contact
+    const employer = this.getEmployerById(employerId);
+    this.addNotification({
+      id: 'notif-unlock-' + Date.now(),
+      userId: driverId,
+      title: 'Employer Unlocked Your Contact 📞',
+      message: `${employer.companyName} unlocked your verified profile from the DriverHub Database and may call you directly.`,
+      type: 'application_status',
+      read: false,
+      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      link: '/driver/profile'
+    });
+
+    return { success: true, message: 'Phone number unlocked! 1 Database Credit used.' };
+  },
+
+  markDriversDownloadedExcel(employerId: string, driverIds: string[]): void {
+    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, initialCandidateUnlocks);
+    const updated = [...unlocks];
+    for (const dId of driverIds) {
+      const idx = updated.findIndex(u => u.employerId === employerId && u.driverId === dId);
+      if (idx >= 0) {
+        updated[idx] = { ...updated[idx], downloadedExcel: true };
+        SupabaseSync.syncCandidateUnlock(updated[idx]);
+      } else {
+        const created: CandidateUnlock = {
+          id: 'unl-dl-' + Date.now() + '-' + dId,
+          employerId,
+          driverId: dId,
+          unlockedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          downloadedExcel: true
+        };
+        updated.push(created);
+        SupabaseSync.syncCandidateUnlock(created);
+      }
+    }
+    setStorage(STORAGE_KEYS.UNLOCKS, updated);
+  },
+
+  getSavedSearches(employerId: string): SavedSearch[] {
+    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, initialSavedSearches);
+    return searches.filter(s => s.employerId === employerId || employerId === 'usr-employer-1');
+  },
+
+  saveSearch(search: SavedSearch): void {
+    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, initialSavedSearches);
+    setStorage(STORAGE_KEYS.SAVED_SEARCHES, [search, ...searches]);
+    SupabaseSync.syncSavedSearch(search);
+  },
+
+  deleteSavedSearch(id: string): void {
+    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, initialSavedSearches).filter(s => s.id !== id);
+    setStorage(STORAGE_KEYS.SAVED_SEARCHES, searches);
+  },
+
+  // Direct Messages (Employer <-> Driver)
+  getMessages(userId: string): DirectMessage[] {
+    const msgs = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, initialDirectMessages);
+    return msgs.filter(m => m.senderId === userId || m.receiverId === userId);
+  },
+
+  sendMessage(msg: DirectMessage): void {
+    const msgs = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, initialDirectMessages);
+    setStorage(STORAGE_KEYS.MESSAGES, [...msgs, msg]);
+    SupabaseSync.syncDirectMessage(msg);
+
+    this.addNotification({
+      id: 'notif-msg-' + Date.now(),
+      userId: msg.receiverId,
+      title: `New Message from ${msg.senderName}`,
+      message: msg.text.slice(0, 85) + (msg.text.length > 85 ? '...' : ''),
+      type: 'system',
+      read: false,
+      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      link: msg.senderRole === 'employer' ? '/driver/messages' : '/employer/messages'
+    });
+  },
+
   // Reset demo state if needed
   resetDemoData(): void {
-    localStorage.removeItem(STORAGE_KEYS.USERS);
-    localStorage.removeItem(STORAGE_KEYS.JOBS);
-    localStorage.removeItem(STORAGE_KEYS.DRIVERS);
-    localStorage.removeItem(STORAGE_KEYS.EMPLOYERS);
-    localStorage.removeItem(STORAGE_KEYS.APPLICATIONS);
-    localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
-    localStorage.removeItem(STORAGE_KEYS.FAVORITES);
+    Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
     window.location.reload();
   }
 };

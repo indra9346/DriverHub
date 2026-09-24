@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { 
   Users, FileText, CheckCircle2, XCircle, Clock, Award, 
   UserCheck, Phone, Mail, Calendar, MessageSquare, ShieldCheck, Download 
@@ -8,11 +9,17 @@ import { Application, ApplicationStatus, DriverProfile, Job } from '../../types'
 import { StatusBadge } from '../../components/common/StatusBadge';
 
 export const EmployerApplications: React.FC = () => {
+  const { jobId: paramJobId } = useParams<{ jobId?: string }>();
+  const [searchParams] = useSearchParams();
   const currentUser = DataStore.getCurrentUser();
   const [applications, setApplications] = useState<Application[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [selectedJobId, setSelectedJobId] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedJobId, setSelectedJobId] = useState<string>(
+    paramJobId || searchParams.get('jobId') || 'all'
+  );
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    searchParams.get('status') || 'all'
+  );
 
   // Candidate detail / status modal
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);

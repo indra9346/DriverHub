@@ -32,6 +32,11 @@ import { EmployerManageJobs } from './pages/employer/EmployerManageJobs';
 import { EmployerApplications } from './pages/employer/EmployerApplications';
 import { EmployerCandidates } from './pages/employer/EmployerCandidates';
 import { EmployerCompanyProfile } from './pages/employer/EmployerCompanyProfile';
+import { EmployerReports } from './pages/employer/EmployerReports';
+import { EmployerBilling } from './pages/employer/EmployerBilling';
+
+// Common Pages
+import { MessagesPage } from './pages/common/MessagesPage';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -46,15 +51,30 @@ import { DataStore } from './services/store';
 
 export const App: React.FC = () => {
   React.useEffect(() => {
-    // 1. First fetch latest accounts & data from Supabase for cross-device consistency
-    SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
+    // 1. Fetch latest accounts & data from Supabase for cross-device consistency
+    SupabaseSync.fetchAndMergeRemoteData(DataStore).then(async () => {
       // 2. Sync all current local drivers, employers, jobs, applications to Supabase
-      SupabaseSync.syncAllData(
+      await SupabaseSync.syncAllData(
         DataStore.getJobs(),
         DataStore.getEmployers(),
         DataStore.getDrivers(),
         DataStore.getApplications()
       );
+      // 3. Sync ApnaHire subscriptions, billing history, saved searches, unlocks & messages to Supabase
+      const sub = DataStore.getSubscription('usr-employer-1');
+      await SupabaseSync.syncSubscription(sub);
+      for (const txn of DataStore.getBillingTransactions('usr-employer-1')) {
+        await SupabaseSync.syncBillingTransaction(txn);
+      }
+      for (const srch of DataStore.getSavedSearches('usr-employer-1')) {
+        await SupabaseSync.syncSavedSearch(srch);
+      }
+      for (const unl of DataStore.getCandidateUnlocks('usr-employer-1')) {
+        await SupabaseSync.syncCandidateUnlock(unl);
+      }
+      for (const msg of DataStore.getMessages('usr-employer-1')) {
+        await SupabaseSync.syncDirectMessage(msg);
+      }
     });
 
     // 3. Listen to Realtime updates
@@ -72,58 +92,82 @@ export const App: React.FC = () => {
     <>
       <ScrollToTop />
       <Routes>
-      {/* Public Routes */}
-      <Route element={<PublicLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/jobs" element={<JobsPage />} />
-        <Route path="/jobs/:id" element={<JobDetailPage />} />
-        <Route path="/companies" element={<CompaniesPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      </Route>
+        {/* Public Routes */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/jobs" element={<JobsPage />} />
+          <Route path="/search" element={<JobsPage />} />
+          <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/companies/:id" element={<CompaniesPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/privacy" element={<AboutPage />} />
+          <Route path="/terms" element={<AboutPage />} />
+          <Route path="/safety" element={<AboutPage />} />
+          <Route path="/help" element={<ContactPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register/driver" element={<RegisterPage />} />
+          <Route path="/register/employer" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/post-job" element={<Navigate to="/employer/post-job" replace />} />
+        </Route>
 
-      {/* Driver Portal */}
-      <Route path="/driver" element={<DashboardLayout requiredRole="driver" />}>
-        <Route index element={<Navigate to="/driver/dashboard" replace />} />
-        <Route path="dashboard" element={<DriverDashboard />} />
-        <Route path="applications" element={<DriverApplications />} />
-        <Route path="saved" element={<DriverSavedJobs />} />
-        <Route path="profile" element={<DriverProfilePage />} />
-        <Route path="documents" element={<DriverDocuments />} />
-        <Route path="notifications" element={<DriverNotifications />} />
-        <Route path="settings" element={<DriverSettings />} />
-      </Route>
+        {/* Driver Portal */}
+        <Route path="/driver" element={<DashboardLayout requiredRole="driver" />}>
+          <Route index element={<Navigate to="/driver/dashboard" replace />} />
+          <Route path="dashboard" element={<DriverDashboard />} />
+          <Route path="jobs" element={<JobsPage />} />
+          <Route path="applications" element={<DriverApplications />} />
+          <Route path="saved" element={<DriverSavedJobs />} />
+          <Route path="messages" element={<MessagesPage />} />
+          <Route path="profile" element={<DriverProfilePage />} />
+          <Route path="documents" element={<DriverDocuments />} />
+          <Route path="notifications" element={<DriverNotifications />} />
+          <Route path="settings" element={<DriverSettings />} />
+        </Route>
 
-      {/* Employer Portal */}
-      <Route path="/employer" element={<DashboardLayout requiredRole="employer" />}>
-        <Route index element={<Navigate to="/employer/dashboard" replace />} />
-        <Route path="dashboard" element={<EmployerDashboard />} />
-        <Route path="post-job" element={<EmployerPostJob />} />
-        <Route path="jobs" element={<EmployerManageJobs />} />
-        <Route path="applications" element={<EmployerApplications />} />
-        <Route path="candidates" element={<EmployerCandidates />} />
-        <Route path="company" element={<EmployerCompanyProfile />} />
-        <Route path="notifications" element={<DriverNotifications />} />
-        <Route path="settings" element={<DriverSettings />} />
-      </Route>
+        {/* Employer Portal */}
+        <Route path="/employer" element={<DashboardLayout requiredRole="employer" />}>
+          <Route index element={<Navigate to="/employer/dashboard" replace />} />
+          <Route path="dashboard" element={<EmployerDashboard />} />
+          <Route path="post-job" element={<EmployerPostJob />} />
+          <Route path="jobs/new" element={<EmployerPostJob />} />
+          <Route path="jobs" element={<EmployerManageJobs />} />
+          <Route path="jobs/:jobId" element={<EmployerManageJobs />} />
+          <Route path="jobs/:jobId/applications" element={<EmployerApplications />} />
+          <Route path="applications" element={<EmployerApplications />} />
+          <Route path="candidates" element={<EmployerCandidates />} />
+          <Route path="database" element={<EmployerCandidates />} />
+          <Route path="reports" element={<EmployerReports />} />
+          <Route path="download-applications" element={<EmployerReports />} />
+          <Route path="billing" element={<EmployerBilling />} />
+          <Route path="credits" element={<EmployerBilling />} />
+          <Route path="plans" element={<EmployerBilling />} />
+          <Route path="messages" element={<MessagesPage />} />
+          <Route path="company" element={<EmployerCompanyProfile />} />
+          <Route path="notifications" element={<DriverNotifications />} />
+          <Route path="settings" element={<DriverSettings />} />
+        </Route>
 
-      {/* Admin Portal */}
-      <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="jobs" element={<AdminJobs />} />
-        <Route path="candidates" element={<AdminCandidates />} />
-        <Route path="employers" element={<AdminEmployers />} />
-        <Route path="applications" element={<AdminApplications />} />
-        <Route path="settings" element={<DriverSettings />} />
-      </Route>
+        {/* Admin Portal */}
+        <Route path="/admin" element={<DashboardLayout requiredRole="admin" />}>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="jobs" element={<AdminJobs />} />
+          <Route path="moderation" element={<AdminJobs />} />
+          <Route path="candidates" element={<AdminCandidates />} />
+          <Route path="drivers" element={<AdminCandidates />} />
+          <Route path="employers" element={<AdminEmployers />} />
+          <Route path="applications" element={<AdminApplications />} />
+          <Route path="reports" element={<AdminDashboard />} />
+          <Route path="settings" element={<DriverSettings />} />
+        </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   );
 };

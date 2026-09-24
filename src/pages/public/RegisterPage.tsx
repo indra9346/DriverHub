@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
   UserPlus, Truck, Building2, Mail, Lock, Phone, User, 
   MapPin, Briefcase, Award, CheckCircle2, ShieldCheck, ArrowRight 
@@ -11,10 +11,14 @@ import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserT
 
 export const RegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const routeLoc = useLocation();
   const navigate = useNavigate();
-  const initialRole = (searchParams.get('role') as UserRole) || 'driver';
+  const initialRole: UserRole =
+    routeLoc.pathname.includes('/employer') || searchParams.get('role') === 'employer'
+      ? 'employer'
+      : 'driver';
 
-  const [role, setRole] = useState<UserRole>(initialRole === 'employer' ? 'employer' : 'driver');
+  const [role, setRole] = useState<UserRole>(initialRole);
 
   // Common fields
   const [email, setEmail] = useState('');

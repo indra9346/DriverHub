@@ -30,7 +30,7 @@ const EN_TO_KN: Record<string, string> = {
   // Hero Section & Home Page
   "India's #1 Professional Driver Recruitment Network": 'ಭಾರತದ #1 ವೃತ್ತಿಪರ ಚಾಲಕರ ನೇಮಕಾತಿ ಜಾಲ',
   'Drive Your Career Forward with': 'ನಿಮ್ಮ ವೃತ್ತಿಜೀವನವನ್ನು ಮುನ್ನಡೆಸಿ -',
-  'Driver Hub': 'ಡ್ರೈವರ್ ಹಬ್ (Driver Hub)',
+  'Driver Hub': 'ಡ್ರೈವರ್ ಹಬ್',
   'Connecting verified commercial and personal drivers directly with top logistics fleets, corporate employers, and private vehicle owners. Direct hiring, verified licenses, zero agency cuts.':
     'ಪರಿಶೀಲಿಸಿದ ವಾಣಿಜ್ಯ ಮತ್ತು ವೈಯಕ್ತಿಕ ಚಾಲಕರನ್ನು ನೇರವಾಗಿ ಪ್ರಮುಖ ಲಾಜಿಸ್ಟಿಕ್ಸ್ ಕಂಪನಿಗಳು, ಕಾರ್ಪೊರೇಟ್ ಉದ್ಯೋಗದಾತರು ಮತ್ತು ವಾಹನ ಮಾಲೀಕರೊಂದಿಗೆ ಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ. ನೇರ ನೇಮಕಾತಿ, ಪರಿಶೀಲಿಸಿದ ಲೈಸೆನ್ಸ್, ಶೂನ್ಯ ಏಜೆನ್ಸಿ ಕಮಿಷನ್.',
   'Direct Hiring': 'ನೇರ ನೇಮಕಾತಿ',
@@ -81,7 +81,7 @@ const EN_TO_KN: Record<string, string> = {
   'Apply Now': 'ಈಗಲೇ ಅರ್ಜಿ ಸಲ್ಲಿಸಿ',
   'View Details': 'ವಿವರಗಳನ್ನು ನೋಡಿ',
 
-  // Mock Data Job Titles & Descriptions
+  // Mock Data Job Titles
   'Senior Heavy Truck Driver (Multi-Axle Interstate)': 'ಹಿರಿಯ ಭಾರಿ ಟ್ರಕ್ ಚಾಲಕ (ಮಲ್ಟಿ-ಆಕ್ಸಿಲ್ ಅಂತಾರಾಜ್ಯ)',
   'Container Trailer Truck Driver (40ft Trailer)': 'ಕಂಟೈನರ್ ಟ್ರೈಲರ್ ಟ್ರಕ್ ಚಾಲಕ (40 ಅಡಿ ಟ್ರೈಲರ್)',
   'Executive Fleet Chauffeur (Sedans & Luxury SUVs)': 'ಎಕ್ಸಿಕ್ಯೂಟಿವ್ ಕಾರ್ಪೊರೇಟ್ ಕಾರು ಚಾಲಕ (ಸೆಡಾನ್ & SUV)',
@@ -301,7 +301,26 @@ const PHRASE_REPLACEMENTS: Array<[string, string]> = [
   ['Phone Number', 'ಫೋನ್ ಸಂಖ್ಯೆ'],
   ['Subject', 'ವಿಷಯ'],
   ['Message', 'ಸಂದೇಶ'],
-  ['All Rights Reserved', 'ಎಲ್ಲಾ ಹಕ್ಕುಗಳನ್ನು ಕಾಯ್ದಿರಿಸಲಾಗಿದೆ']
+  ['All Rights Reserved', 'ಎಲ್ಲಾ ಹಕ್ಕುಗಳನ್ನು ಕಾಯ್ದಿರಿಸಲಾಗಿದೆ'],
+  ['Driver', 'ಚಾಲಕ'],
+  ['Drivers', 'ಚಾಲಕರು'],
+  ['Employer', 'ಉದ್ಯೋಗದಾತ'],
+  ['Employers', 'ಉದ್ಯೋಗದಾತರು'],
+  ['Company', 'ಕಂಪನಿ'],
+  ['Companies', 'ಕಂಪನಿಗಳು'],
+  ['Years', 'ವರ್ಷಗಳು'],
+  ['Month', 'ತಿಂಗಳು'],
+  ['Monthly', 'ಮಾಸಿಕ'],
+  ['Apply', 'ಅರ್ಜಿ ಸಲ್ಲಿಸಿ'],
+  ['Save', 'ಉಳಿಸಿ'],
+  ['Cancel', 'ರದ್ದುಮಾಡಿ'],
+  ['Submit', 'ಸಲ್ಲಿಸಿ'],
+  ['Close', 'ಮುಚ್ಚಿ'],
+  ['Back', 'ಹಿಂದೆ'],
+  ['Next', 'ಮುಂದೆ'],
+  ['Reset', 'ರೀಸೆಟ್'],
+  ['Clear', 'ತೆರವುಗೊಳಿಸಿ'],
+  ['Active', 'ಸಕ್ರಿಯ']
 ];
 
 const PLACEHOLDER_EN_TO_KN: Record<string, string> = {
@@ -364,88 +383,91 @@ const LanguageContext = createContext<LanguageContextValue>({
 
 const originalTextMap = new WeakMap<Text, string>();
 const originalPlaceholderMap = new WeakMap<Element, string>();
+let isApplyingTranslation = false;
 
-// Trigger Google Website Translator combo if loaded for any remaining free-form text
-function syncGoogleTranslateWidget(lang: AppLanguage) {
+function clearAnyLegacyGoogleTranslateCookies() {
+  if (typeof document === 'undefined') return;
   try {
-    const select = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
-    if (select) {
-      const targetVal = lang === 'kn' ? 'kn' : 'en';
-      if (select.value !== targetVal) {
-        select.value = targetVal;
-        select.dispatchEvent(new Event('change'));
-      }
+    const host = window.location.hostname;
+    const parts = host.split('.');
+    const domains = [host, `.${host}`];
+    if (parts.length >= 2) {
+      const rootDomain = parts.slice(-2).join('.');
+      domains.push(rootDomain, `.${rootDomain}`);
     }
-    if (lang === 'en' && document.documentElement.classList.contains('translated-ltr')) {
-      document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
-      window.location.reload();
+    document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    for (const d of domains) {
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${d}`;
     }
   } catch {}
 }
 
 function applyDOMTranslation(lang: AppLanguage) {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined' || isApplyingTranslation) return;
+  isApplyingTranslation = true;
 
-  // 1. Translate all DOM Text Nodes across the active page
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let node: Node | null;
-  while ((node = walker.nextNode())) {
-    const textNode = node as Text;
-    const parent = textNode.parentElement;
-    if (!parent) continue;
-    const tag = parent.tagName;
-    if (tag === 'SCRIPT' || tag === 'STYLE' || parent.closest('[data-no-translate="true"]')) {
-      continue;
+  try {
+    // 1. Translate or restore all DOM Text Nodes across the active page
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const textNode = node as Text;
+      const parent = textNode.parentElement;
+      if (!parent) continue;
+      const tag = parent.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || parent.closest('[data-no-translate="true"]')) {
+        continue;
+      }
+
+      const currentVal = textNode.nodeValue || '';
+      const trimmed = currentVal.trim();
+      if (!trimmed) continue;
+
+      if (lang === 'kn') {
+        const original = originalTextMap.get(textNode) ?? currentVal;
+        if (!originalTextMap.has(textNode)) {
+          originalTextMap.set(textNode, currentVal);
+        }
+        const translated = translateStringToKannada(original);
+        if (translated !== currentVal) {
+          textNode.nodeValue = translated;
+        }
+      } else {
+        const original = originalTextMap.get(textNode);
+        if (original !== undefined && currentVal !== original) {
+          textNode.nodeValue = original;
+        }
+      }
     }
 
-    const currentVal = textNode.nodeValue || '';
-    const trimmed = currentVal.trim();
-    if (!trimmed) continue;
-
-    if (lang === 'kn') {
-      const original = originalTextMap.get(textNode) ?? currentVal;
-      if (!originalTextMap.has(textNode)) {
-        originalTextMap.set(textNode, currentVal);
+    // 2. Translate or restore Input & Textarea Placeholders
+    const inputs = document.querySelectorAll('input[placeholder], textarea[placeholder]');
+    inputs.forEach((el) => {
+      const currentPh = el.getAttribute('placeholder') || '';
+      if (lang === 'kn') {
+        const origPh = originalPlaceholderMap.get(el) ?? currentPh;
+        if (!originalPlaceholderMap.has(el)) {
+          originalPlaceholderMap.set(el, currentPh);
+        }
+        const translatedPh = PLACEHOLDER_EN_TO_KN[origPh] || translateStringToKannada(origPh);
+        if (translatedPh !== currentPh) {
+          el.setAttribute('placeholder', translatedPh);
+        }
+      } else {
+        const origPh = originalPlaceholderMap.get(el);
+        if (origPh !== undefined && currentPh !== origPh) {
+          el.setAttribute('placeholder', origPh);
+        }
       }
-      const translated = translateStringToKannada(original);
-      if (translated !== currentVal) {
-        textNode.nodeValue = translated;
-      }
-    } else {
-      const original = originalTextMap.get(textNode);
-      if (original !== undefined && currentVal !== original) {
-        textNode.nodeValue = original;
-      }
-    }
+    });
+  } finally {
+    isApplyingTranslation = false;
   }
-
-  // 2. Translate Input & Textarea Placeholders
-  const inputs = document.querySelectorAll('input[placeholder], textarea[placeholder]');
-  inputs.forEach((el) => {
-    const currentPh = el.getAttribute('placeholder') || '';
-    if (lang === 'kn') {
-      const origPh = originalPlaceholderMap.get(el) ?? currentPh;
-      if (!originalPlaceholderMap.has(el)) {
-        originalPlaceholderMap.set(el, currentPh);
-      }
-      const translatedPh = PLACEHOLDER_EN_TO_KN[origPh] || translateStringToKannada(origPh);
-      if (translatedPh !== currentPh) {
-        el.setAttribute('placeholder', translatedPh);
-      }
-    } else {
-      const origPh = originalPlaceholderMap.get(el);
-      if (origPh !== undefined && currentPh !== origPh) {
-        el.setAttribute('placeholder', origPh);
-      }
-    }
-  });
-
-  syncGoogleTranslateWidget(lang);
 }
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<AppLanguage>(() => {
+    clearAnyLegacyGoogleTranslateCookies();
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       return saved === 'kn' ? 'kn' : 'en';
@@ -455,10 +477,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const setLang = (next: AppLanguage) => {
+    clearAnyLegacyGoogleTranslateCookies();
     setLangState(next);
     try {
       localStorage.setItem(STORAGE_KEY, next);
-      document.cookie = `googtrans=/en/${next}; path=/`;
     } catch {}
   };
 
@@ -473,59 +495,14 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return text;
   };
 
-  // Inject hidden Google Website Translator script once so any arbitrary paragraph/bio also translates
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!document.getElementById('google-translate-hidden-container')) {
-      const div = document.createElement('div');
-      div.id = 'google-translate-hidden-container';
-      div.style.display = 'none';
-      document.body.appendChild(div);
-
-      const style = document.createElement('style');
-      style.innerHTML = `
-        .goog-te-banner-frame, .skiptranslate > iframe, #goog-gt-tt, .goog-te-balloon-frame {
-          display: none !important;
-          visibility: hidden !important;
-        }
-        body {
-          top: 0px !important;
-          position: static !important;
-        }
-        .goog-text-highlight {
-          background: transparent !important;
-          box-shadow: none !important;
-        }
-      `;
-      document.head.appendChild(style);
-
-      (window as any).googleTranslateElementInit = () => {
-        try {
-          new (window as any).google.translate.TranslateElement(
-            {
-              pageLanguage: 'en',
-              includedLanguages: 'en,kn',
-              autoDisplay: false
-            },
-            'google-translate-hidden-container'
-          );
-          syncGoogleTranslateWidget(lang);
-        } catch {}
-      };
-
-      const script = document.createElement('script');
-      script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
-
-  useEffect(() => {
+    clearAnyLegacyGoogleTranslateCookies();
     document.documentElement.lang = lang;
     applyDOMTranslation(lang);
 
     let rafId: number | null = null;
     const observer = new MutationObserver(() => {
+      if (isApplyingTranslation) return;
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         applyDOMTranslation(lang);

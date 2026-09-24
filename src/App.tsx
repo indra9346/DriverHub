@@ -48,6 +48,7 @@ import { AdminApplications } from './pages/admin/AdminApplications';
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { SupabaseSync } from './services/supabaseSync';
 import { DataStore } from './services/store';
+import { LanguageProvider } from './services/i18n';
 
 export const App: React.FC = () => {
   React.useEffect(() => {
@@ -89,7 +90,7 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <>
+    <LanguageProvider>
       <ScrollToTop />
       <Routes>
         {/* Public Routes */}
@@ -168,6 +169,6 @@ export const App: React.FC = () => {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </LanguageProvider>
   );
 };

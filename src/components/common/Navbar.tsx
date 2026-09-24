@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Menu, X, Briefcase, Building2, User, LogIn, LogOut, ChevronDown, 
-  Shield, Heart, FileText, Settings, LayoutDashboard, PlusCircle, Sparkles 
+  Shield, Heart, FileText, Settings, LayoutDashboard, PlusCircle, Sparkles, Globe 
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
 import { DataStore } from '../../services/store';
+import { useLanguage } from '../../services/i18n';
 import { User as UserType } from '../../types';
 
 export const Navbar: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserType | null>(DataStore.getCurrentUser());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const { lang, setLang, toggleLang } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,11 +49,14 @@ export const Navbar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-40 bg-white/98 backdrop-blur-xs border-b border-slate-200/90 shadow-subtle">
+    <header
+      style={{ backgroundColor: '#ffffff' }}
+      className="sticky top-0 z-50 w-full bg-white border-b border-slate-200 shadow-sm"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo */}
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-6 lg:gap-8">
             <Logo size="md" />
 
             {/* Desktop Navigation Links */}
@@ -111,6 +116,60 @@ export const Navbar: React.FC = () => {
 
           {/* Right Action Area */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Attractive Kannada <-- 0 --> English Language Toggle Switch */}
+            <div
+              data-no-translate="true"
+              onClick={toggleLang}
+              role="switch"
+              aria-checked={lang === 'kn'}
+              title="Switch Language: ಕನ್ನಡ ↔ English"
+              className="group flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/70 border border-slate-300/90 rounded-full p-1 cursor-pointer select-none shadow-inner transition-all duration-200"
+            >
+              <button
+                type="button"
+                data-no-translate="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLang('kn');
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold tracking-tight transition-all duration-200 cursor-pointer ${
+                  lang === 'kn'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm scale-[1.02]'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                ಕನ್ನಡ
+              </button>
+
+              {/* Center Toggle Track (<-- 0 -->) */}
+              <div
+                data-no-translate="true"
+                className="w-8 h-4 rounded-full bg-[#08233F] p-0.5 flex items-center relative shadow-inner"
+              >
+                <span
+                  className={`w-3 h-3 rounded-full bg-amber-400 shadow-md transform transition-transform duration-200 ${
+                    lang === 'kn' ? 'translate-x-0' : 'translate-x-4'
+                  }`}
+                />
+              </div>
+
+              <button
+                type="button"
+                data-no-translate="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLang('en');
+                }}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold tracking-tight transition-all duration-200 cursor-pointer ${
+                  lang === 'en'
+                    ? 'bg-[#08233F] text-white shadow-sm scale-[1.02]'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                English
+              </button>
+            </div>
+
             {currentUser ? (
               <div className="flex items-center gap-3">
                 {/* Employer Available Credits Pill & Post Job shortcut (Matches Screenshot 7) */}
@@ -290,6 +349,16 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile Menu Button */}
           <div className="flex items-center gap-2 md:hidden">
+            <button
+              type="button"
+              data-no-translate="true"
+              onClick={toggleLang}
+              className="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-full px-2.5 py-1 text-[11px] font-extrabold text-slate-800 shadow-xs"
+            >
+              <span className={lang === 'kn' ? 'text-amber-600 font-black' : 'text-slate-500'}>ಕನ್ನಡ</span>
+              <span className="text-slate-400">⇄</span>
+              <span className={lang === 'en' ? 'text-[#08233F] font-black' : 'text-slate-500'}>EN</span>
+            </button>
             {currentUser && <NotificationBell userId={currentUser.id} />}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

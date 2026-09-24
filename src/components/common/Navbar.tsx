@@ -119,11 +119,12 @@ export const Navbar: React.FC = () => {
             {/* Attractive Kannada <-- 0 --> English Language Toggle Switch */}
             <div
               data-no-translate="true"
+              translate="no"
               onClick={toggleLang}
               role="switch"
               aria-checked={lang === 'kn'}
               title="Switch Language: ಕನ್ನಡ ↔ English"
-              className="group flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/70 border border-slate-300/90 rounded-full p-1 cursor-pointer select-none shadow-inner transition-all duration-200"
+              className="notranslate group flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/70 border border-slate-300/90 rounded-full p-1 cursor-pointer select-none shadow-inner transition-all duration-200"
             >
               <button
                 type="button"

@@ -36,24 +36,28 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
       return;
     }
 
-    setUploading(true);
-    setProgress(20);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fileDataUrl = (reader.result as string) || URL.createObjectURL(file);
+      
+      const newDoc: DriverDocument = {
+        id: 'doc-' + Date.now(),
+        driverId,
+        name: file.name,
+        type: docType,
+        fileUrl: fileDataUrl,
+        fileSize: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
+        uploadDate: new Date().toISOString().slice(0, 10),
+        verificationStatus: 'verified',
+      };
 
-    // Simulate smooth progress & storage upload
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(interval);
-          return 95;
-        }
-        return prev + 25;
-      });
-    }, 150);
+      setUploading(false);
+      setFile(null);
+      setProgress(0);
+      onUploadComplete(newDoc);
+    };
 
-    setTimeout(() => {
-      clearInterval(interval);
-      setProgress(100);
-
+    reader.onerror = () => {
       const newDoc: DriverDocument = {
         id: 'doc-' + Date.now(),
         driverId,
@@ -69,7 +73,24 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
       setFile(null);
       setProgress(0);
       onUploadComplete(newDoc);
-    }, 900);
+    };
+
+    // Simulate smooth progress & storage upload
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(interval);
+          return 95;
+        }
+        return prev + 25;
+      });
+    }, 120);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      setProgress(100);
+      reader.readAsDataURL(file);
+    }, 600);
   };
 
   return (

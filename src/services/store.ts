@@ -151,12 +151,29 @@ export const DataStore = {
     const existing = drivers.find(d => d.id === id);
     if (existing) return existing;
     const user = this.getUsers().find(u => u.id === id);
+    if (user) {
+      const match = drivers.find(d => 
+        (d.email && user.email && d.email.toLowerCase() === user.email.toLowerCase()) ||
+        (d.phone && user.phone && d.phone.replace(/[^0-9]/g, '') === user.phone.replace(/[^0-9]/g, ''))
+      );
+      if (match) return { ...match, id };
+    }
     return {
       id, fullName: user?.fullName || '', phone: user?.phone || '', email: user?.email || '',
       location: '', city: '', state: '', driverCategory: '', licenseNumber: '', licenseType: '',
       licenseExpiry: '', experienceYears: 0, skills: [], preferredLocation: '', expectedSalary: 0,
       availability: 'Flexible', bio: '', status: 'pending', experiences: [], documents: []
     };
+  },
+
+  getDriverDocuments(driverId: string): DriverDocument[] {
+    const driver = this.getDriverById(driverId);
+    if (driver && driver.documents && driver.documents.length > 0) {
+      return driver.documents;
+    }
+    const drivers = this.getDrivers();
+    const match = drivers.find(d => d.id === driverId || (driver && d.phone && driver.phone && d.phone.replace(/[^0-9]/g, '') === driver.phone.replace(/[^0-9]/g, '')));
+    return match?.documents || [];
   },
 
   updateDriverProfile(profile: DriverProfile): void {
@@ -190,7 +207,8 @@ export const DataStore = {
   addDriverDocument(driverId: string, doc: DriverDocument): void {
     const driver = this.getDriverById(driverId);
     if (driver) {
-      const documents = driver.documents ? [...driver.documents, doc] : [doc];
+      const existingDocs = driver.documents || [];
+      const documents = [...existingDocs.filter(d => d.id !== doc.id), doc];
       this.updateDriverProfile({ ...driver, documents });
     }
   },

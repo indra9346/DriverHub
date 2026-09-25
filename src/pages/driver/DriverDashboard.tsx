@@ -18,24 +18,7 @@ export const DriverDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!currentUser) return;
-    const p = DataStore.getDriverById(currentUser.id) || {
-      id: currentUser.id,
-      fullName: 'Ravi Kumar',
-      phone: currentUser.phone || '+91 98765 43210',
-      email: currentUser.email,
-      location: 'Bengaluru',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      driverCategory: 'HMV',
-      licenseNumber: 'KA02 20180045920',
-      licenseType: 'Heavy Motor Vehicle (HMV-Transport)',
-      licenseExpiry: '2030-05-14',
-      experienceYears: 6,
-      skills: ['Interstate Freight', 'GPS Navigation', 'Night Driving'],
-      availability: 'Immediate',
-      status: 'active',
-      documents: []
-    };
+    const p = DataStore.getDriverById(currentUser.id);
     setProfile(p);
 
     const apps = DataStore.getApplications().filter(a => a.driverId === currentUser.id);
@@ -51,8 +34,8 @@ export const DriverDashboard: React.FC = () => {
 
   // Calculate profile completion %
   const calculateCompletion = () => {
-    if (!profile) return 60;
-    let score = 20; // basic account
+    if (!profile) return 0;
+    let score = profile.fullName && profile.email ? 20 : 0;
     if (profile.fullName && profile.phone) score += 20;
     if (profile.licenseNumber && profile.licenseType) score += 20;
     if (profile.skills && profile.skills.length > 0) score += 15;
@@ -69,13 +52,13 @@ export const DriverDashboard: React.FC = () => {
       <div className="bg-brand-navy rounded-2xl p-6 sm:p-8 text-white shadow-elevated flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
         <div className="space-y-2 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-amber text-xs font-bold uppercase tracking-wider">
-            <ShieldCheck className="w-3.5 h-3.5" /> Verified Commercial Driver
+            <ShieldCheck className="w-3.5 h-3.5" /> {profile?.status === 'active' ? 'Driver account active' : 'Complete your driver profile'}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold font-display">
             Welcome back, {profile?.fullName || 'Driver'}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-300">
-            {profile?.driverCategory} Specialist • {profile?.experienceYears || 0} Years Experience • {profile?.location || 'Bengaluru'}
+            {profile?.driverCategory || 'Driver'}{profile?.experienceYears ? ` Specialist • ${profile.experienceYears} Years Experience` : ''}{profile?.location ? ` • ${profile.location}` : ''}
           </p>
         </div>
 

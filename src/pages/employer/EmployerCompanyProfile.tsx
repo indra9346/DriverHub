@@ -11,22 +11,10 @@ export const EmployerCompanyProfile: React.FC = () => {
   useEffect(() => {
     if (!currentUser) return;
     const c = DataStore.getEmployerById(currentUser.id) || {
-      id: currentUser.id,
-      companyName: 'Bharat Logistics Pvt Ltd',
-      contactPerson: 'Deepa Nair (Talent Head)',
-      email: currentUser.email,
-      phone: '+91 80 2200 0001',
-      industry: 'Logistics & Interstate Freight',
-      location: 'Electronic City, Bengaluru',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      address: 'Plot 42, Phase 1, Electronic City, Bengaluru - 560100',
-      website: 'https://bharatlogistics.example.com',
-      logoUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=150&auto=format&fit=crop&q=80',
-      description: 'Leading heavy freight transportation fleet across South & Central India with 250+ GPS-tracked multi-axle trucks.',
-      verified: true,
-      status: 'active',
-      createdAt: '2026-08-10'
+      id: currentUser.id, companyName: '', contactPerson: '',
+      email: currentUser.email, phone: currentUser.phone || '', industry: '', location: '',
+      city: '', state: '', address: '', website: '', logoUrl: '', description: '',
+      verified: false, status: 'pending' as const, createdAt: new Date().toISOString().slice(0, 10)
     };
     setProfile(c);
   }, [currentUser]);

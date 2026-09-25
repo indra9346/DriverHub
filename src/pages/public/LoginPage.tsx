@@ -23,14 +23,10 @@ export const LoginPage: React.FC = () => {
   const [suggestedRole, setSuggestedRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Auto-sync live database profiles on login page mount
+  // Only restore this device's previously used email. Profiles are loaded after authentication.
   useEffect(() => {
-    SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
-      const saved = DataStore.getLastUserByRole(roleTab);
-      if (saved?.email && !email) {
-        setEmail(saved.email);
-      }
-    });
+    const saved = DataStore.getLastUserByRole(roleTab);
+    if (saved?.email && !email) setEmail(saved.email);
   }, []);
 
   // Update email field when switching role tabs
@@ -47,10 +43,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const allUsers = DataStore.getUsers();
-  const allDrivers = DataStore.getDrivers();
-  const allEmployers = DataStore.getEmployers();
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -59,146 +51,66 @@ export const LoginPage: React.FC = () => {
 
     try {
       const cleanEmail = email.trim().toLowerCase();
-      const users = DataStore.getUsers();
-      let matched = users.find(u => u.email.trim().toLowerCase() === cleanEmail);
-
-      // If not found in local store (e.g. logging in from a new phone/browser), query Supabase in real-time!
-      if (!matched) {
-        const { data: dbProfiles, error: dbError } = await supabase
-          .from('profiles')
-          .select('*')
-          .ilike('email', cleanEmail)
-          .limit(1);
-
-        if (dbProfiles && dbProfiles.length > 0) {
-          const dbUser = dbProfiles[0];
-          matched = {
-            id: dbUser.id,
-            email: dbUser.email,
-            role: dbUser.role,
-            status: dbUser.status || 'active',
-            phone: dbUser.phone || '',
-            createdAt: dbUser.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-            password: password
-          };
-          DataStore.addUser(matched);
-
-          // Fetch profile details
-          if (dbUser.role === 'driver') {
-            const { data: dbDrv } = await supabase.from('driver_profiles').select('*').eq('user_id', dbUser.id).limit(1);
-            const drvData = dbDrv?.[0];
-            DataStore.updateDriverProfile({
-              id: dbUser.id,
-              fullName: dbUser.full_name || 'Driver Candidate',
-              phone: dbUser.phone || '',
-              email: dbUser.email,
-              location: dbUser.location || dbUser.city || 'Bengaluru',
-              city: dbUser.city || 'Bengaluru',
-              state: dbUser.state || 'Karnataka',
-              driverCategory: drvData?.driver_category || 'HMV',
-              licenseNumber: drvData?.license_number || 'KA01 12345678',
-              licenseType: drvData?.license_type || 'Commercial Transport',
-              licenseExpiry: drvData?.license_expiry || '2034-01-01',
-              experienceYears: drvData?.years_experience || 2,
-              skills: drvData?.skills || ['Safe Driving'],
-              availability: drvData?.availability || 'Immediate',
-              status: dbUser.status || 'active',
-              experiences: [],
-              documents: []
-            });
-          } else if (dbUser.role === 'employer') {
-            const { data: dbComp } = await supabase.from('companies').select('*').eq('user_id', dbUser.id).limit(1);
-            const compData = dbComp?.[0];
-            DataStore.updateEmployerProfile({
-              id: dbUser.id,
-              companyName: compData?.company_name || (dbUser.full_name + ' Logistics'),
-              contactPerson: compData?.contact_person || dbUser.full_name,
-              email: dbUser.email,
-              phone: dbUser.phone || '',
-              industry: compData?.industry || 'Logistics & Freight',
-              location: compData?.location || dbUser.city || 'Bengaluru',
-              city: compData?.city || 'Bengaluru',
-              state: compData?.state || 'Karnataka',
-              verified: compData?.verified ?? true,
-              status: dbUser.status || 'active',
-              createdAt: dbUser.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)
-            });
-          }
+      let matched: UserType | undefined;
+      const demoAuth = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
+      if (demoAuth) {
+        matched = DataStore.getUsers().find(u => u.email.trim().toLowerCase() === cleanEmail);
+        if (!matched || password !== '123456') throw new Error('Demo sign-in requires a seeded account and the local demo password.');
+      } else {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+        if (authError || !authData.user) throw new Error(authError?.message || 'Sign-in failed. Check your email and password.');
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
+        if (profileError || !profile) throw new Error('Your account profile is not ready. Contact DriverHub support.');
+        if (!['driver', 'employer', 'admin'].includes(profile.role)) throw new Error('This account has no valid DriverHub role.');
+        matched = {
+          id: authData.user.id, email: authData.user.email || cleanEmail,
+          role: profile.role as UserRole,
+          status: profile.status === 'blocked' || profile.status === 'suspended' ? 'blocked' : profile.status || 'active',
+          phone: profile.phone || '', createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)
+        };
+        DataStore.addUser(matched);
+        if (matched.role === 'driver') {
+          const { data: row } = await supabase.from('driver_profiles').select('*').eq('user_id', authData.user.id).maybeSingle();
+          DataStore.updateDriverProfile({
+            id: matched.id, fullName: profile.full_name || 'Driver', phone: matched.phone || '', email: matched.email,
+            location: profile.location || profile.city || '', city: profile.city || '', state: profile.state || '',
+            driverCategory: row?.driver_category || '', licenseNumber: row?.license_number || '',
+            licenseType: row?.license_type || '', licenseExpiry: row?.license_expiry || '',
+            experienceYears: row?.years_experience || 0, skills: row?.skills || [], availability: row?.availability || 'Flexible',
+            status: matched.status, experiences: [], documents: []
+          });
+        } else if (matched.role === 'employer') {
+          const { data: company } = await supabase.from('companies').select('*').eq('user_id', authData.user.id).maybeSingle();
+          const metadata = authData.user.user_metadata || {};
+          DataStore.updateEmployerProfile({
+            id: matched.id, companyName: company?.company_name || metadata.company_name || `${profile.full_name || 'New'} Fleet`,
+            contactPerson: company?.contact_person || profile.full_name || '', email: company?.email || matched.email,
+            phone: company?.phone || matched.phone || '', industry: company?.industry || metadata.industry || 'Driver Hiring',
+            location: company?.location || profile.location || profile.city || '', city: company?.city || profile.city || '',
+            state: company?.state || profile.state || '', address: company?.address || '', website: company?.website || '',
+            description: company?.description || '', verified: company?.verified === true,
+            status: company?.status === 'suspended' ? 'blocked' : company?.status || 'pending',
+            createdAt: company?.created_at?.slice(0, 10) || matched.createdAt
+          });
         }
       }
 
-      // Fallback auto-provision from driver or employer profiles if not found in users list
-      if (!matched) {
-        const driver = allDrivers.find(d => d.email.toLowerCase() === cleanEmail);
-        if (driver) {
-          matched = {
-            id: driver.id,
-            email: driver.email,
-            role: 'driver',
-            status: driver.status || 'active',
-            phone: driver.phone,
-            createdAt: '2026-08-15'
-          };
-          DataStore.addUser(matched);
-        } else {
-          const employer = allEmployers.find(e => e.email.toLowerCase() === cleanEmail);
-          if (employer) {
-            matched = {
-              id: employer.id,
-              email: employer.email,
-              role: 'employer',
-              status: employer.status || 'active',
-              phone: employer.phone,
-              createdAt: '2026-08-10'
-            };
-            DataStore.addUser(matched);
-          }
-        }
-      }
-
-      // Rule 1: Account must exist
-      if (!matched) {
-        setError(`No account found for "${cleanEmail}". Please check the spelling or create a new account.`);
-        setSuggestedRole(null);
-        setLoading(false);
-        return;
-      }
-
-      // Rule 2: Account must NOT be blocked
+      if (!matched) throw new Error('No account found. Please sign up first.');
       if (matched.status === 'blocked') {
-        setError(`🚫 Account Suspended: Your account (${cleanEmail}) has been blocked by Driver Hub administration. Access denied.`);
-        setSuggestedRole(null);
-        setLoading(false);
-        return;
+        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut();
+        throw new Error('This account is suspended. Contact DriverHub support.');
       }
-
-      // Rule 3: Role Validation - Prevent Role Mismatches & Confusing Redirects
       if (matched.role !== roleTab) {
-        setLoading(false);
-        const roleLabel = matched.role === 'driver' ? 'Driver' : matched.role === 'employer' ? 'Employer' : 'Administrator';
-        const tabLabel = roleTab === 'admin' ? 'Admin Portal' : roleTab === 'employer' ? 'Employer Desk' : 'Driver Portal';
-        
         setSuggestedRole(matched.role);
-        
-        if (roleTab === 'admin') {
-          setError(`🚫 Access Denied: "${cleanEmail}" is registered as a ${roleLabel}, not an Administrator. Please switch to the ${roleLabel} sign-in tab.`);
-        } else {
-          setError(`🚫 Role Conflict: "${cleanEmail}" is registered as a ${roleLabel}. You are currently trying to sign in on the ${tabLabel}. Please switch to the ${roleLabel} tab.`);
-        }
-        return;
-      }
-
-      // Rule 4: Validate password (allows registered password, demo default, or 123456)
-      const expectedPassword = matched.password || 'DriverHub@2026';
-      if (password && password !== expectedPassword && password !== 'DriverHub@2026' && password !== '123456' && password.length < 4) {
-        setError('Incorrect password. Please verify credentials or reset your password.');
-        setSuggestedRole(null);
-        setLoading(false);
-        return;
+        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut();
+        throw new Error(`This account is registered as ${matched.role}. Switch to that sign-in role.`);
       }
 
       // Login Successful: Sets session and stores last-active user for this role on this device
       DataStore.setCurrentUser(matched);
+      if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
+        await SupabaseSync.fetchAndMergeRemoteData(DataStore);
+      }
       setLoading(false);
 
       if (redirect) {
@@ -211,8 +123,7 @@ export const LoginPage: React.FC = () => {
         navigate('/driver/dashboard');
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError('An unexpected authentication error occurred. Please try again.');
+      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
       setLoading(false);
     }
   };

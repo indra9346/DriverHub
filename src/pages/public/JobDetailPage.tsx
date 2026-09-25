@@ -26,6 +26,7 @@ export const JobDetailPage: React.FC = () => {
   const [coverMessage, setCoverMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
+  const [applyError, setApplyError] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -73,18 +74,25 @@ export const JobDetailPage: React.FC = () => {
     setIsSaved(saved);
   };
 
-  const handleApplySubmit = (e: React.FormEvent) => {
+  const handleApplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || currentUser.role !== 'driver') {
       navigate('/login?redirect=/jobs/' + job.id);
       return;
     }
+    if (job.status !== 'active' || (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < Date.now())) {
+      setApplyError('This driver job is no longer accepting applications.');
+      return;
+    }
+    if (hasApplied) {
+      setApplyError('You have already applied for this job.');
+      return;
+    }
 
     setSubmitting(true);
 
-    setTimeout(() => {
-      const newApp: Application = {
-        id: 'app-' + Date.now(),
+    const newApp: Application = {
+        id: crypto.randomUUID(),
         jobId: job.id,
         jobTitle: job.title,
         companyName: job.companyName,
@@ -100,20 +108,18 @@ export const JobDetailPage: React.FC = () => {
         status: 'applied',
         appliedDate: new Date().toISOString().slice(0, 10),
         updatedDate: new Date().toISOString().slice(0, 10),
-      };
+    };
 
-      DataStore.addApplication(newApp);
-      setSubmitting(false);
-      setHasApplied(true);
-      setApplySuccess(true);
+    const created = await DataStore.addApplication(newApp);
+    setSubmitting(false);
+    if (!created) {
+      setApplyError('We could not submit this application. The job may have closed, you may already have applied, or the service is temporarily unavailable.');
+      return;
+    }
+    setHasApplied(true);
+    setApplySuccess(true);
 
-      // Trigger Confetti Celebration
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    }, 700);
+    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
   };
 
   return (
@@ -431,6 +437,7 @@ export const JobDetailPage: React.FC = () => {
                   </div>
                 ) : (
                   <form onSubmit={handleApplySubmit} className="space-y-4">
+                    {applyError && <p role="alert" className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">{applyError}</p>}
                     <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/90 text-xs space-y-1">
                       <p className="font-bold text-[#08233F]">Applying as: {driverProfile?.fullName || currentUser.email}</p>
                       <p className="text-slate-600">License: {driverProfile?.licenseType || 'Verified License'}</p>

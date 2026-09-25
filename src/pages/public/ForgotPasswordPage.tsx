@@ -5,17 +5,13 @@ import {
   KeyRound, ShieldCheck, AlertCircle, RefreshCw, ArrowRight 
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
-import { DataStore } from '../../services/store';
 import { supabase } from '../../services/supabaseClient';
-import { SupabaseSync } from '../../services/supabaseSync';
 
 export const ForgotPasswordPage: React.FC = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'email' | 'otp_reset' | 'success'>('email');
+  const [step, setStep] = useState<'email' | 'sent' | 'reset' | 'success'>('email');
   
   const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState<string>('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +19,14 @@ export const ForgotPasswordPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (window.location.pathname !== '/reset-password') return;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setStep('reset');
+      else setError('This password reset link is invalid or expired. Request a new one.');
+    });
+  }, []);
 
   // Step 1: Lookup Account & Dispatch Verification Code
   const handleRequestReset = async (e: React.FormEvent) => {
@@ -38,37 +42,13 @@ export const ForgotPasswordPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // 1. Check if user account exists in Supabase or local store
-      const localUsers = DataStore.getUsers();
-      const localMatch = localUsers.find(u => u.email.toLowerCase() === cleanEmail);
-
-      const { data: remoteProfiles } = await supabase
-        .from('profiles')
-        .select('id, email, full_name')
-        .eq('email', cleanEmail)
-        .limit(1);
-
-      const accountExists = localMatch || (remoteProfiles && remoteProfiles.length > 0);
-
-      if (!accountExists && !cleanEmail.includes('admin') && !cleanEmail.includes('ravi') && !cleanEmail.includes('deepa')) {
-        setLoading(false);
-        setError(`No account found for "${cleanEmail}". Please check your email or register a new account.`);
-        return;
-      }
-
-      // 2. Generate a secure 6-digit verification code
-      const secureOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedCode(secureOtp);
-
-      // 3. Save code to Supabase and send recovery email
-      await SupabaseSync.createPasswordReset(cleanEmail, secureOtp);
-
-      setTimeout(() => {
-        setLoading(false);
-        setOtpCode(''); // Keep field empty for user to enter code from email
-        setStep('otp_reset');
-        setSuccessMessage(`A 6-digit password verification code has been dispatched to ${cleanEmail}.`);
-      }, 700);
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      if (resetError) throw resetError;
+      setSuccessMessage('If an account exists for that email, a password reset link has been sent.');
+      setStep('sent');
+      setLoading(false);
     } catch (err: any) {
       setLoading(false);
       setError(err?.message || 'Failed to dispatch verification code. Please try again.');
@@ -79,14 +59,6 @@ export const ForgotPasswordPage: React.FC = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const cleanEmail = email.trim().toLowerCase();
-    const entered = otpCode.trim();
-
-    if (entered.length !== 6) {
-      setError('Please enter the complete 6-digit verification code sent to your email.');
-      return;
-    }
-
     if (newPassword.length < 6) {
       setError('New password must be at least 6 characters long.');
       return;
@@ -100,57 +72,22 @@ export const ForgotPasswordPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // Validate code against generated code / Supabase record
-      const isMatch = (entered === generatedCode) || (await SupabaseSync.verifyPasswordReset(cleanEmail, entered));
-
-      if (!isMatch && entered !== '123456') {
-        setLoading(false);
-        setError('Incorrect verification code. Please check your email and enter the exact 6-digit code.');
-        return;
-      }
-
-      // Update password in Supabase Auth & DataStore
-      await supabase.auth.updateUser({ password: newPassword }).catch(() => null);
-      DataStore.updateUserPassword(cleanEmail, newPassword);
-
-      setTimeout(() => {
-        setLoading(false);
-        setStep('success');
-      }, 500);
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) throw new Error('The password reset link has expired. Request a new link.');
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+      setLoading(false);
+      setStep('success');
     } catch (err: any) {
       setLoading(false);
       setError(err?.message || 'Failed to update password. Please try again.');
     }
   };
 
-  // Step 3: Instant 1-Click Login to Dashboard
+  // Return to normal sign-in once the recovery flow completes.
   const handleAutoLogin = () => {
-    const cleanEmail = email.trim().toLowerCase();
-    const users = DataStore.getUsers();
-    let user = users.find(u => u.email.toLowerCase() === cleanEmail);
-    
-    if (!user) {
-      user = {
-        id: 'usr-driver-' + Date.now(),
-        email: cleanEmail,
-        role: 'driver',
-        status: 'active',
-        password: newPassword,
-        phone: '+91 98765 00000',
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      DataStore.addUser(user);
-    }
-
-    DataStore.setCurrentUser(user);
-
-    if (user.role === 'admin') {
-      navigate('/admin/dashboard');
-    } else if (user.role === 'employer') {
-      navigate('/employer/dashboard');
-    } else {
-      navigate('/driver/dashboard');
-    }
+    void supabase.auth.signOut();
+    navigate('/login');
   };
 
   return (
@@ -175,12 +112,14 @@ export const ForgotPasswordPage: React.FC = () => {
             <Logo size="md" />
             <h1 className="text-2xl sm:text-3xl font-black text-[#08233F] font-display tracking-tight pt-2">
               {step === 'email' && 'Reset Your Password'}
-              {step === 'otp_reset' && 'Enter Verification Code'}
+              {step === 'sent' && 'Check Your Email'}
+              {step === 'reset' && 'Choose a New Password'}
               {step === 'success' && 'Password Updated!'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              {step === 'email' && 'Enter your registered email address to verify your account and receive a security code.'}
-              {step === 'otp_reset' && `Check your inbox for ${email} and enter the 6-digit verification code below.`}
+              {step === 'email' && 'Enter your email address and we’ll send a secure password reset link.'}
+              {step === 'sent' && successMessage}
+              {step === 'reset' && 'Set a new password for your DriverHub account.'}
               {step === 'success' && 'Your password has been successfully reset in the database.'}
             </p>
           </div>
@@ -191,7 +130,7 @@ export const ForgotPasswordPage: React.FC = () => {
               step === 'email' ? 'w-8 bg-amber-500' : 'w-4 bg-emerald-500'
             }`} />
             <div className={`h-1.5 rounded-full transition-all duration-300 ${
-              step === 'otp_reset' ? 'w-8 bg-amber-500' : step === 'success' ? 'w-4 bg-emerald-500' : 'w-4 bg-slate-200'
+              step === 'reset' ? 'w-8 bg-amber-500' : step === 'success' ? 'w-4 bg-emerald-500' : 'w-4 bg-slate-200'
             }`} />
             <div className={`h-1.5 rounded-full transition-all duration-300 ${
               step === 'success' ? 'w-8 bg-emerald-500' : 'w-4 bg-slate-200'
@@ -239,39 +178,18 @@ export const ForgotPasswordPage: React.FC = () => {
                   ) : (
                     <>
                       <Send className="w-4 h-4 text-amber-400" />
-                      Verify & Send Code to Email
+                      Send Password Reset Link
                     </>
                   )}
                 </button>
               </form>
             )}
 
-            {/* STEP 2: Enter Verification Code & New Password */}
-            {step === 'otp_reset' && (
+            {step === 'sent' && <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800">{successMessage}<button type="button" onClick={() => setStep('email')} className="block mt-3 font-bold underline">Send another reset link</button></div>}
+
+            {/* STEP 2: Set a password using the Supabase recovery session */}
+            {step === 'reset' && (
               <form onSubmit={handleResetPassword} className="space-y-4">
-                
-                {successMessage && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span>{successMessage}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Enter 6-Digit Verification Code
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="123456"
-                    className="w-full tracking-widest text-center text-lg font-bold py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
-                  />
-                </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">New Password</label>
@@ -303,26 +221,6 @@ export const ForgotPasswordPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <button
-                    type="button"
-                    onClick={(e) => handleRequestReset(e as any)}
-                    className="text-blue-700 font-bold hover:underline cursor-pointer"
-                  >
-                    Resend verification code
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('email');
-                      setError(null);
-                    }}
-                    className="text-slate-500 hover:text-slate-800 cursor-pointer"
-                  >
-                    Change Email
-                  </button>
-                </div>
-
                 <button
                   type="submit"
                   disabled={loading}
@@ -333,7 +231,7 @@ export const ForgotPasswordPage: React.FC = () => {
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4 text-amber-400" />
-                      Verify Code & Set New Password
+                      Update Password
                     </>
                   )}
                 </button>

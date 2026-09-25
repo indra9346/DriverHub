@@ -11,7 +11,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 
 export const EmployerManageJobs: React.FC = () => {
   const currentUser = DataStore.getCurrentUser();
-  const employerId = currentUser?.id || 'usr-employer-1';
+  const employerId = currentUser?.role === 'employer' ? currentUser.id : '';
   const navigate = useNavigate();
 
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -26,12 +26,9 @@ export const EmployerManageJobs: React.FC = () => {
 
   const loadJobs = () => {
     const allJobs = DataStore.getJobs();
-    const empJobs = allJobs.filter(j => 
-      j.employerId === employerId || 
-      (currentUser?.email === 'deepa@bharatlogistics.in' && (j.employerId === 'usr-employer-1' || j.companyName?.includes('Bharat')))
-    );
+    const empJobs = allJobs.filter(j => j.employerId === employerId);
     setJobs(empJobs);
-    setApplications(DataStore.getApplications());
+    setApplications(DataStore.getApplications().filter(a => empJobs.some(j => j.id === a.jobId)));
     setDrivers(DataStore.getDrivers().filter(d => d.status === 'active'));
   };
 
@@ -52,7 +49,11 @@ export const EmployerManageJobs: React.FC = () => {
   }, []);
 
   const handleStatusChange = (jobId: string, newStatus: JobStatus) => {
-    DataStore.updateJobStatus(jobId, newStatus);
+    const updated = DataStore.updateJobStatus(jobId, newStatus);
+    if (!updated) {
+      navigate('/employer/plans');
+      return;
+    }
     setOpenActionMenuId(null);
     loadJobs();
     setToast(`Job status updated to ${newStatus.toUpperCase()}`);
@@ -60,13 +61,11 @@ export const EmployerManageJobs: React.FC = () => {
   };
 
   const handleActivateWithCredit = (job: Job) => {
-    const sub = DataStore.getSubscription(employerId);
-    if (sub.jobCredits <= 0) {
-      navigate('/employer/billing');
+    const activated = DataStore.updateJobStatus(job.id, 'active');
+    if (!activated) {
+      navigate('/employer/plans');
       return;
     }
-    DataStore.updateSubscription(employerId, { jobCredits: sub.jobCredits - 1 });
-    DataStore.updateJobStatus(job.id, 'active');
     loadJobs();
     setToast(`Published "${job.title}" using 1 Job Credit! Now live to drivers.`);
     setTimeout(() => setToast(null), 3500);
@@ -345,7 +344,7 @@ export const EmployerManageJobs: React.FC = () => {
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleStatusChange(job.id, 'active')}
+                              onClick={() => handleActivateWithCredit(job)}
                               className="w-full text-left px-3.5 py-2 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
                             >
                               Publish / Reopen Job

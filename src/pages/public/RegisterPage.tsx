@@ -7,6 +7,7 @@ import {
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
+import { supabase } from '../../services/supabaseClient';
 import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserType } from '../../types';
 
 export const RegisterPage: React.FC = () => {
@@ -39,8 +40,9 @@ export const RegisterPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     const cleanEmail = email.trim().toLowerCase();
@@ -58,16 +60,32 @@ export const RegisterPage: React.FC = () => {
     }
 
     setLoading(true);
+    try {
+      const fullName = role === 'driver' ? driverName : contactPerson;
+      const { data: authResult, error: authError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: { data: {
+          role, full_name: fullName, phone, city: location, state: 'Karnataka',
+          company_name: role === 'employer' ? companyName : undefined,
+          industry: role === 'employer' ? industry : undefined
+        } }
+      });
+      if (authError) throw authError;
+      if (!authResult.user) throw new Error('Registration could not be completed. Please try again.');
+      if (!authResult.session) {
+        setSuccessMessage('Your account was created. Check your email to confirm it, then sign in to continue.');
+        setLoading(false);
+        return;
+      }
 
-    setTimeout(() => {
-      const userId = 'usr-' + role + '-' + Date.now();
+      const userId = authResult.user.id;
       const newUser: UserType = {
         id: userId,
         email: cleanEmail,
         phone,
         role,
         status: 'active',
-        password: password,
         createdAt: new Date().toISOString().slice(0, 10),
       };
 
@@ -83,9 +101,9 @@ export const RegisterPage: React.FC = () => {
           city: location,
           state: 'Karnataka',
           driverCategory,
-          licenseNumber: 'KA01 ' + Math.floor(10000000 + Math.random() * 90000000),
+          licenseNumber: '',
           licenseType,
-          licenseExpiry: '2034-01-01',
+          licenseExpiry: '',
           experienceYears,
           skills: ['Safe Driving', 'Route Navigation'],
           availability: 'Immediate',
@@ -119,7 +137,7 @@ export const RegisterPage: React.FC = () => {
           location,
           city: location,
           state: 'Karnataka',
-          verified: true,
+          verified: false,
           status: 'active',
           createdAt: new Date().toISOString().slice(0, 10)
         };
@@ -152,7 +170,10 @@ export const RegisterPage: React.FC = () => {
       } else {
         navigate('/driver/dashboard');
       }
-    }, 500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -215,6 +236,8 @@ export const RegisterPage: React.FC = () => {
               <span className="font-medium">{error}</span>
             </div>
           )}
+
+          {successMessage && <div role="status" className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200">{successMessage}<Link to="/login" className="ml-2 font-bold underline">Sign in</Link></div>}
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {role === 'driver' ? (

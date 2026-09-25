@@ -8,6 +8,7 @@ import { Navbar } from '../components/common/Navbar';
 import { Sidebar, getNavLinks } from '../components/common/Sidebar';
 import { AIChatbot } from '../components/common/AIChatbot';
 import { DataStore } from '../services/store';
+import { supabase } from '../services/supabaseClient';
 import { UserRole } from '../types';
 
 interface DashboardLayoutProps {
@@ -16,9 +17,48 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }) => {
   const [currentUser, setCurrentUser] = useState(DataStore.getCurrentUser());
+  const [sessionReady, setSessionReady] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    let live = true;
+    const demoAuth = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
+    if (demoAuth) {
+      setSessionReady(true);
+      return () => { live = false; };
+    }
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      const stored = DataStore.getCurrentUser();
+      if (!live) return;
+      if (!data.user || !stored || stored.id !== data.user.id) {
+        DataStore.setCurrentUser(null);
+        setCurrentUser(null);
+        setSessionReady(true);
+        return;
+      }
+      const { data: profile } = await supabase.from('profiles').select('role,status').eq('id', data.user.id).maybeSingle();
+      if (!live) return;
+      if (!profile || profile.role !== stored.role || profile.status === 'blocked' || profile.status === 'suspended') {
+        await supabase.auth.signOut();
+        DataStore.setCurrentUser(null);
+        setCurrentUser(null);
+      } else {
+        const verified = { ...stored, status: profile.status === 'suspended' ? 'blocked' as const : profile.status };
+        DataStore.setCurrentUser(verified);
+        setCurrentUser(verified);
+      }
+      setSessionReady(true);
+    })().catch(() => {
+      if (!live) return;
+      DataStore.setCurrentUser(null);
+      setCurrentUser(null);
+      setSessionReady(true);
+    });
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     const handleStorage = () => {
@@ -34,11 +74,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
       return;
     }
 
-    if (requiredRole && currentUser.role !== requiredRole && currentUser.role !== 'admin') {
+    if (requiredRole && currentUser.role !== requiredRole) {
       // Redirect to user's proper role dashboard
       if (currentUser.role === 'employer') navigate('/employer/dashboard');
       else if (currentUser.role === 'driver') navigate('/driver/dashboard');
-      else if (currentUser.role === 'admin') navigate('/admin/dashboard');
+      else navigate('/admin/dashboard');
     }
   }, [currentUser, requiredRole, location.pathname, navigate]);
 
@@ -47,7 +87,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     setIsMobileSidebarOpen(false);
   }, [location.pathname]);
 
-  if (!currentUser) {
+  if (!sessionReady || !currentUser || (requiredRole && currentUser.role !== requiredRole)) {
     return null;
   }
 
@@ -197,4 +237,3 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     </div>
   );
 };
-

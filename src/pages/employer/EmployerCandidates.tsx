@@ -13,7 +13,7 @@ export const EmployerCandidates: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const currentUser = DataStore.getCurrentUser();
-  const employerId = currentUser?.id || 'usr-employer-1';
+  const employerId = currentUser?.role === 'employer' ? currentUser.id : '';
 
   const activeTab = (searchParams.get('tab') as 'search' | 'saved' | 'unlocked') || 'search';
 
@@ -152,8 +152,9 @@ export const EmployerCandidates: React.FC = () => {
     (mustHaveSkill ? 1 : 0) +
     selectedCities.length;
 
-  const handleUnlockPhone = (driver: DriverProfile) => {
-    const res = DataStore.unlockCandidate(employerId, driver.id);
+  const handleUnlockPhone = async (driver: DriverProfile) => {
+    if (!employerId) return;
+    const res = await DataStore.unlockCandidate(employerId, driver.id);
     if (!res.success) {
       showToast(res.message, 'warning');
       return;
@@ -179,13 +180,14 @@ export const EmployerCandidates: React.FC = () => {
   };
 
   const handleDownloadExcel = () => {
-    const targetDrivers =
+    const selectedDrivers =
       selectedDriverIds.length > 0
         ? filteredDrivers.filter(d => selectedDriverIds.includes(d.id))
         : filteredDrivers;
+    const targetDrivers = selectedDrivers.filter(d => unlockedDriverIds.has(d.id));
 
     if (targetDrivers.length === 0) {
-      showToast('No candidates selected to export.', 'warning');
+      showToast('Unlock candidates before exporting their contact or license details.', 'warning');
       return;
     }
 
@@ -205,14 +207,13 @@ export const EmployerCandidates: React.FC = () => {
     ];
 
     const rows = targetDrivers.map(d => {
-      const isUnl = unlockedDriverIds.has(d.id);
       return [
         `"${d.fullName}"`,
         `"${d.driverCategory}"`,
         `"${d.experienceYears} yrs ${d.experienceMonths || 0} mos"`,
         `"${d.licenseNumber}"`,
         `"${d.licenseType}"`,
-        `"${isUnl ? d.phone : d.phone.slice(0, 7) + '••••• (Unlock to view)'}"`,
+        `"${d.phone}"`,
         `"${d.email}"`,
         `"${d.location}, ${d.city}"`,
         `"Rs. ${d.expectedSalary || 25000}/month"`,
@@ -918,8 +919,8 @@ export const EmployerCandidates: React.FC = () => {
                                 </span>
                                 <span className="sm:col-span-9 text-slate-700">
                                   {driver.previousRole ||
-                                    `${driver.experiences?.[1]?.roleTitle || 'Commercial Fleet Driver'} at ${
-                                      driver.experiences?.[1]?.companyName || 'South Corridor Transport Corp'
+                                    `${driver.experiences?.[1]?.roleTitle || 'Previous role not provided'} at ${
+                                      driver.experiences?.[1]?.companyName || 'Previous employer not provided'
                                     }`}
                                 </span>
                               </div>
@@ -1073,11 +1074,11 @@ export const EmployerCandidates: React.FC = () => {
               </div>
               <div>
                 <span className="text-slate-400 block">License Number</span>
-                <span className="font-bold text-slate-900">{selectedDriverModal.licenseNumber}</span>
+                <span className="font-bold text-slate-900">{unlockedDriverIds.has(selectedDriverModal.id) ? selectedDriverModal.licenseNumber : 'Unlock profile to view'}</span>
               </div>
               <div>
                 <span className="text-slate-400 block">License Validity</span>
-                <span className="font-bold text-emerald-700">Valid till {selectedDriverModal.licenseExpiry}</span>
+                <span className="font-bold text-emerald-700">{unlockedDriverIds.has(selectedDriverModal.id) ? `Valid till ${selectedDriverModal.licenseExpiry}` : 'Unlock profile to view'}</span>
               </div>
               <div>
                 <span className="text-slate-400 block">Expected Salary</span>
@@ -1089,7 +1090,7 @@ export const EmployerCandidates: React.FC = () => {
               </div>
               <div>
                 <span className="text-slate-400 block">Police Verification</span>
-                <span className="font-bold text-emerald-700">✓ Verified Clear</span>
+                <span className={`font-bold ${selectedDriverModal.policeVerified ? 'text-emerald-700' : 'text-slate-600'}`}>{selectedDriverModal.policeVerified ? 'Verified clear' : 'Not verified'}</span>
               </div>
             </div>
 

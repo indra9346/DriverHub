@@ -104,22 +104,40 @@ ALTER TABLE public.candidate_unlocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.saved_searches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Employers manage own subscriptions"
-  ON public.employer_subscriptions FOR ALL
-  USING (auth.uid() = employer_id OR true);
+DROP POLICY IF EXISTS "Employers manage own subscriptions" ON public.employer_subscriptions;
+DROP POLICY IF EXISTS "Employers view own subscriptions" ON public.employer_subscriptions;
+CREATE POLICY "Employers view own subscriptions"
+  ON public.employer_subscriptions FOR SELECT
+  USING (auth.uid() = employer_id);
 
+DROP POLICY IF EXISTS "Employers view own billing transactions" ON public.billing_transactions;
 CREATE POLICY "Employers view own billing transactions"
-  ON public.billing_transactions FOR ALL
-  USING (auth.uid() = employer_id OR true);
+  ON public.billing_transactions FOR SELECT
+  USING (auth.uid() = employer_id);
 
+DROP POLICY IF EXISTS "Employers manage own candidate unlocks" ON public.candidate_unlocks;
 CREATE POLICY "Employers manage own candidate unlocks"
   ON public.candidate_unlocks FOR ALL
-  USING (auth.uid() = employer_id OR true);
+  USING (auth.uid() = employer_id)
+  WITH CHECK (auth.uid() = employer_id);
 
+DROP POLICY IF EXISTS "Employers manage own saved searches" ON public.saved_searches;
 CREATE POLICY "Employers manage own saved searches"
   ON public.saved_searches FOR ALL
-  USING (auth.uid() = employer_id OR true);
+  USING (auth.uid() = employer_id)
+  WITH CHECK (auth.uid() = employer_id);
 
-CREATE POLICY "Users view and send own direct messages"
-  ON public.direct_messages FOR ALL
-  USING (auth.uid() = sender_id OR auth.uid() = receiver_id OR true);
+DROP POLICY IF EXISTS "Users view and send own direct messages" ON public.direct_messages;
+DROP POLICY IF EXISTS "Users view own direct messages" ON public.direct_messages;
+DROP POLICY IF EXISTS "Users send own direct messages" ON public.direct_messages;
+DROP POLICY IF EXISTS "Users update received direct messages" ON public.direct_messages;
+CREATE POLICY "Users view own direct messages"
+  ON public.direct_messages FOR SELECT
+  USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+CREATE POLICY "Users send own direct messages"
+  ON public.direct_messages FOR INSERT
+  WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "Users update received direct messages"
+  ON public.direct_messages FOR UPDATE
+  USING (auth.uid() = receiver_id)
+  WITH CHECK (auth.uid() = receiver_id);

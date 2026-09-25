@@ -23,7 +23,7 @@ export const EmployerApplications: React.FC = () => {
 
   // Candidate detail / status modal
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
-  const [interviewDateInput, setInterviewDateInput] = useState('2026-09-20 at 10:30 AM');
+  const [interviewDateInput, setInterviewDateInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [driverDetails, setDriverDetails] = useState<DriverProfile | null>(null);
 
@@ -45,11 +45,16 @@ export const EmployerApplications: React.FC = () => {
     return () => window.removeEventListener('driverhub_storage_updated', loadData);
   }, [currentUser]);
 
-  const handleStatusUpdate = (appId: string, status: ApplicationStatus) => {
-    DataStore.updateApplicationStatus(appId, status, {
+  const handleStatusUpdate = async (appId: string, status: ApplicationStatus) => {
+    const saved = await DataStore.updateApplicationStatus(appId, status, {
       employerNotes: notesInput.trim() || undefined,
       interviewDate: status === 'interview' ? interviewDateInput : undefined,
     });
+    if (!saved) {
+      setToastMessage('This application could not be updated. Refresh and try again.');
+      setTimeout(() => setToastMessage(null), 3500);
+      return;
+    }
     setToastMessage(`Status updated to "${status.replace('_', ' ').toUpperCase()}"`);
     loadData();
     if (selectedApp?.id === appId) {
@@ -251,8 +256,8 @@ export const EmployerApplications: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs">
               <div>
                 <span className="text-slate-400 block">Phone Number</span>
-                <a href={`tel:${selectedApp.driverPhone || '9876543210'}`} className="font-bold text-blue-600 hover:underline">
-                  {selectedApp.driverPhone || '+91 98765 43210'}
+                <a href={selectedApp.driverPhone ? `tel:${selectedApp.driverPhone}` : undefined} className="font-bold text-blue-600 hover:underline">
+                  {selectedApp.driverPhone || 'Not provided'}
                 </a>
               </div>
               <div>

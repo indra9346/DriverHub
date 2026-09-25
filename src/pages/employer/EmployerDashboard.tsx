@@ -17,18 +17,10 @@ export const EmployerDashboard: React.FC = () => {
   useEffect(() => {
     if (!currentUser) return;
     const c = DataStore.getEmployerById(currentUser.id) || {
-      id: currentUser.id,
-      companyName: 'Bharat Logistics Pvt Ltd',
-      contactPerson: 'Deepa Nair',
-      email: currentUser.email,
-      phone: '+91 80 2200 0001',
-      industry: 'Logistics & Freight',
-      location: 'Bengaluru',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      verified: true,
-      status: 'active',
-      createdAt: '2026-08-10'
+      id: currentUser.id, companyName: '', contactPerson: '',
+      email: currentUser.email, phone: currentUser.phone || '', industry: '', location: '',
+      city: '', state: '', verified: false, status: 'pending' as const,
+      createdAt: new Date().toISOString().slice(0, 10)
     };
     setCompany(c);
 
@@ -50,7 +42,7 @@ export const EmployerDashboard: React.FC = () => {
       <div className="bg-brand-navy rounded-2xl p-6 sm:p-8 text-white shadow-elevated flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
         <div className="space-y-2 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-amber text-xs font-bold uppercase tracking-wider">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Verified Fleet Employer
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> {company?.verified ? 'Verified Fleet Employer' : 'Verification pending'}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold font-display">
             {company?.companyName || 'Employer Desk'}

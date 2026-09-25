@@ -52,33 +52,10 @@ import { LanguageProvider } from './services/i18n';
 
 export const App: React.FC = () => {
   React.useEffect(() => {
-    // 1. Fetch latest accounts & data from Supabase for cross-device consistency
-    SupabaseSync.fetchAndMergeRemoteData(DataStore).then(async () => {
-      // 2. Sync all current local drivers, employers, jobs, applications to Supabase
-      await SupabaseSync.syncAllData(
-        DataStore.getJobs(),
-        DataStore.getEmployers(),
-        DataStore.getDrivers(),
-        DataStore.getApplications()
-      );
-      // 3. Sync ApnaHire subscriptions, billing history, saved searches, unlocks & messages to Supabase
-      const sub = DataStore.getSubscription('usr-employer-1');
-      await SupabaseSync.syncSubscription(sub);
-      for (const txn of DataStore.getBillingTransactions('usr-employer-1')) {
-        await SupabaseSync.syncBillingTransaction(txn);
-      }
-      for (const srch of DataStore.getSavedSearches('usr-employer-1')) {
-        await SupabaseSync.syncSavedSearch(srch);
-      }
-      for (const unl of DataStore.getCandidateUnlocks('usr-employer-1')) {
-        await SupabaseSync.syncCandidateUnlock(unl);
-      }
-      for (const msg of DataStore.getMessages('usr-employer-1')) {
-        await SupabaseSync.syncDirectMessage(msg);
-      }
-    });
+    // Fetch role-scoped authenticated data. Never upload local/demo records on startup.
+    void SupabaseSync.fetchAndMergeRemoteData(DataStore);
 
-    // 3. Listen to Realtime updates
+    // Listen for database changes and refresh only data visible to the current session.
     const cleanup = SupabaseSync.initRealtimeListeners(() => {
       SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
         window.dispatchEvent(new Event('driverhub_storage_updated'));
@@ -112,6 +89,7 @@ export const App: React.FC = () => {
           <Route path="/register/driver" element={<RegisterPage />} />
           <Route path="/register/employer" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ForgotPasswordPage />} />
           <Route path="/post-job" element={<Navigate to="/employer/post-job" replace />} />
         </Route>
 

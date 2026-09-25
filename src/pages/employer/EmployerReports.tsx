@@ -10,7 +10,7 @@ export const EmployerReports: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const currentUser = DataStore.getCurrentUser();
-  const employerId = currentUser?.id || 'usr-employer-1';
+  const employerId = currentUser?.role === 'employer' ? currentUser.id : '';
 
   const isDownloadView =
     location.pathname.includes('download-applications') ||
@@ -19,7 +19,8 @@ export const EmployerReports: React.FC = () => {
   const [daysRange, setDaysRange] = useState<'7' | '30' | 'all'>('7');
   const [downloadedMsg, setDownloadedMsg] = useState<string | null>(null);
 
-  const applications = DataStore.getApplications();
+  const ownJobIds = new Set(DataStore.getJobs().filter(job => job.employerId === employerId).map(job => job.id));
+  const applications = DataStore.getApplications().filter(app => ownJobIds.has(app.jobId));
   const unlocks = DataStore.getCandidateUnlocks(employerId);
 
   const handleDownloadApplicationsCSV = () => {
@@ -39,11 +40,11 @@ export const EmployerReports: React.FC = () => {
     const rows = applications.map(app => [
       `"${app.id}"`,
       `"${app.jobTitle || 'Commercial Driver'}"`,
-      `"${app.companyName || 'Bharat Logistics Pvt Ltd'}"`,
+      `"${app.companyName || ''}"`,
       `"${app.driverName || 'Driver Candidate'}"`,
       `"${app.driverCategory || 'HMV'}"`,
       `"${app.driverExperienceYears || 3} Years"`,
-      `"${app.driverPhone || '+91 98765 43210'}"`,
+      `"${app.driverPhone || ''}"`,
       `"${app.driverLocation || 'Bengaluru'}"`,
       `"${app.status.toUpperCase()}"`,
       `"${app.appliedDate}"`

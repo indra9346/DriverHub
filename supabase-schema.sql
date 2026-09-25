@@ -69,15 +69,15 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE TABLE IF NOT EXISTS public.driver_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
-  driver_category TEXT DEFAULT 'HMV',
+  driver_category TEXT,
   years_experience INTEGER DEFAULT 0,
   license_number TEXT,
-  license_type TEXT DEFAULT 'Commercial Transport',
+  license_type TEXT,
   license_expiry DATE,
   skills TEXT[] DEFAULT '{}',
   preferred_location TEXT,
-  expected_salary INTEGER DEFAULT 25000,
-  availability TEXT DEFAULT 'Immediate',
+  expected_salary INTEGER,
+  availability TEXT DEFAULT 'Flexible',
   bio TEXT,
   resume_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -118,10 +118,10 @@ CREATE TABLE IF NOT EXISTS public.companies (
   contact_person TEXT,
   email TEXT,
   phone TEXT,
-  industry TEXT DEFAULT 'Logistics & Interstate Freight',
+  industry TEXT,
   location TEXT,
-  city TEXT DEFAULT 'Bengaluru',
-  state TEXT DEFAULT 'Karnataka',
+  city TEXT,
+  state TEXT,
   address TEXT,
   website TEXT,
   logo_url TEXT,
@@ -295,23 +295,23 @@ BEGIN
     NEW.email,
     assigned_role,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
-    COALESCE(NEW.raw_user_meta_data->>'phone', '+91 98765 00000'),
-    COALESCE(NEW.raw_user_meta_data->>'city', 'Bengaluru'),
-    COALESCE(NEW.raw_user_meta_data->>'state', 'Karnataka'),
+    NULLIF(NEW.raw_user_meta_data->>'phone', ''),
+    NULLIF(NEW.raw_user_meta_data->>'city', ''),
+    NULLIF(NEW.raw_user_meta_data->>'state', ''),
     'active'
   );
 
   -- If driver, initialize driver profile
   IF assigned_role = 'driver' THEN
     INSERT INTO public.driver_profiles (user_id, driver_category, years_experience)
-    VALUES (NEW.id, 'HMV', 2)
+    VALUES (NEW.id, NULL, 0)
     ON CONFLICT (user_id) DO NOTHING;
   END IF;
 
   -- If employer, initialize company profile
   IF assigned_role = 'employer' THEN
     INSERT INTO public.companies (user_id, company_name, email)
-    VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'company_name', split_part(NEW.email, '@', 1) || ' Fleet'), NEW.email)
+    VALUES (NEW.id, COALESCE(NULLIF(NEW.raw_user_meta_data->>'company_name', ''), split_part(NEW.email, '@', 1)), NEW.email)
     ON CONFLICT (user_id) DO NOTHING;
   END IF;
 
@@ -341,9 +341,10 @@ ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_actions ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Anyone can view; only owner or admin can update
-CREATE POLICY "Public profiles are viewable by everyone" 
-  ON public.profiles FOR SELECT USING (true);
+-- Profiles are private by default. Apply supabase-security-hardening.sql for
+-- participant-scoped reads (employers can see only applicants to their jobs).
+CREATE POLICY "Users can view their own profile"
+  ON public.profiles FOR SELECT USING (auth.uid() = id);
 
 CREATE POLICY "Users can update their own profile" 
   ON public.profiles FOR UPDATE USING (auth.uid() = id);
@@ -376,16 +377,14 @@ CREATE POLICY "Employers and drivers can update applications"
     OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
   );
 
--- Driver Profiles: Public/Employers can search active drivers; driver edits own
+-- Driver profiles are private. Paid employer search must use a credit-checking
+-- server endpoint; never expose the full directory through public table access.
 CREATE POLICY "Drivers can manage own profile" 
   ON public.driver_profiles FOR ALL USING (auth.uid() = user_id);
 
-CREATE POLICY "Anyone can view driver profiles" 
-  ON public.driver_profiles FOR SELECT USING (true);
-
 -- Companies: Public can view verified companies; employer edits own
 CREATE POLICY "Public can view companies" 
-  ON public.companies FOR SELECT USING (true);
+  ON public.companies FOR SELECT USING (verified = true OR auth.uid() = user_id);
 
 CREATE POLICY "Employers can edit own company" 
   ON public.companies FOR ALL USING (auth.uid() = user_id);

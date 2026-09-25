@@ -5,7 +5,6 @@ import {
   XCircle, Award, AlertTriangle, ArrowRight, TrendingUp 
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
-import { SupabaseSync } from '../../services/supabaseSync';
 import { Job, DriverProfile, EmployerProfile, Application } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
@@ -16,10 +15,15 @@ export const AdminDashboard: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
 
   useEffect(() => {
+    const refresh = () => {
     setDrivers(DataStore.getDrivers());
     setEmployers(DataStore.getEmployers());
     setJobs(DataStore.getJobs());
     setApplications(DataStore.getApplications());
+    };
+    refresh();
+    window.addEventListener('driverhub_storage_updated', refresh);
+    return () => window.removeEventListener('driverhub_storage_updated', refresh);
   }, []);
 
   const pendingJobs = jobs.filter(j => j.status === 'pending');
@@ -44,22 +48,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 relative z-10">
-          <button
-            onClick={async () => {
-              const btn = document.getElementById('supabase-sync-btn');
-              if (btn) btn.innerText = 'Syncing to Supabase...';
-              await SupabaseSync.syncAllData(jobs, employers, drivers, applications);
-              if (btn) btn.innerText = '✓ Synced with Supabase';
-              setTimeout(() => {
-                if (btn) btn.innerText = 'Sync with Supabase DB';
-              }, 3000);
-            }}
-            id="supabase-sync-btn"
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            Sync with Supabase DB
-          </button>
-          
           <Link
             to="/admin/jobs"
             className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs shadow-xs text-center"

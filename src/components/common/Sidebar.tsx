@@ -8,6 +8,7 @@ import {
   Database, Coins
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { supabase } from '../../services/supabaseClient';
 import { UserRole } from '../../types';
 
 export interface NavItem {
@@ -89,6 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [dbExpanded, setDbExpanded] = useState(true);
 
   const handleLogout = () => {
+    if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) void supabase.auth.signOut();
     DataStore.setCurrentUser(null);
     if (onCloseMobile) onCloseMobile();
     navigate('/login');

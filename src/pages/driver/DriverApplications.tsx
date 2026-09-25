@@ -23,9 +23,13 @@ export const DriverApplications: React.FC = () => {
     loadApps();
   }, [currentUser]);
 
-  const handleWithdraw = (appId: string) => {
+  const handleWithdraw = async (appId: string) => {
     if (confirm('Are you sure you want to withdraw this application?')) {
-      DataStore.updateApplicationStatus(appId, 'withdrawn');
+      const updated = await DataStore.updateApplicationStatus(appId, 'withdrawn');
+      if (!updated) {
+        alert('Your application could not be withdrawn. Refresh and try again.');
+        return;
+      }
       loadApps();
     }
   };

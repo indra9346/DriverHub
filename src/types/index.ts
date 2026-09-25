@@ -17,7 +17,7 @@ export type DriverCategory =
   | 'MCWG';
 
 export type JobStatus = 'active' | 'pending' | 'closed' | 'rejected' | 'draft';
-export type ApplicationStatus = 'applied' | 'under_review' | 'shortlisted' | 'interview' | 'selected' | 'rejected' | 'withdrawn';
+export type ApplicationStatus = 'applied' | 'viewed' | 'under_review' | 'shortlisted' | 'contacted' | 'interview' | 'selected' | 'hired' | 'rejected' | 'withdrawn';
 export type DocumentType = 'resume' | 'driving_license' | 'aadhar' | 'pan' | 'experience_cert' | 'police_verification' | 'other';
 export type VerificationStatus = 'verified' | 'pending' | 'rejected';
 
@@ -38,6 +38,7 @@ export interface EmployerSubscription {
   dbUnlockCredits: number;
   totalJobCredits: number;
   totalDbUnlockCredits: number;
+  activeJobSlots?: number;
   gstin: string;
   gstinVerified: boolean;
   billingCompanyName: string;
@@ -102,7 +103,7 @@ export interface DriverProfile {
   location: string;
   city: string;
   state: string;
-  driverCategory: DriverCategory;
+  driverCategory: DriverCategory | '';
   licenseNumber: string;
   licenseType: string;
   licenseExpiry: string;
@@ -206,6 +207,10 @@ export interface Job {
   vacancies: number;
   status: JobStatus;
   postedDate: string;
+  applicationDeadline?: string;
+  creditConsumed?: boolean;
+  slotConsumed?: boolean;
+  expiresAt?: string;
   applicationsCount?: number;
   activeLeadsCount?: number;
   databaseMatchesCount?: number;
@@ -273,4 +278,3 @@ export interface AIMessage {
     url: string;
   };
 }
-

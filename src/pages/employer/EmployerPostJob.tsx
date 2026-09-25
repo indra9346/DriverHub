@@ -149,7 +149,7 @@ export const EmployerPostJob: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const currentUser = DataStore.getCurrentUser();
-  const employerId = currentUser?.id || 'usr-employer-1';
+  const employerId = currentUser?.id || '';
   const employer = DataStore.getEmployerById(employerId);
   const subscription = DataStore.getSubscription(employerId);
 
@@ -157,7 +157,7 @@ export const EmployerPostJob: React.FC = () => {
   const [showTemplateModal, setShowTemplateModal] = useState<boolean>(searchParams.get('template') === 'open');
 
   // Form State (Matches ApnaHire Screenshot 6 `employer.apna.co/post-job#basic`)
-  const [hiringForCompany, setHiringForCompany] = useState(employer?.companyName || 'Bharat Logistics Pvt Ltd');
+  const [hiringForCompany, setHiringForCompany] = useState(employer?.companyName || '');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<DriverCategory>('HMV');
   const [jobTypePill, setJobTypePill] = useState<'Full Time' | 'Part Time' | 'Both (Full-Time And Part-Time)'>('Full Time');
@@ -165,26 +165,24 @@ export const EmployerPostJob: React.FC = () => {
 
   // Location
   const [workLocationType, setWorkLocationType] = useState<'Work From Depot / Office' | 'Client / Household Site' | 'Interstate / Field Route'>('Work From Depot / Office');
-  const [city, setCity] = useState(employer?.city || 'Bengaluru');
-  const [location, setLocation] = useState(employer?.location || 'Electronic City Phase 1');
-  const [vacancies, setVacancies] = useState<number>(3);
+  const [city, setCity] = useState(employer?.city || '');
+  const [location, setLocation] = useState(employer?.location || '');
+  const [vacancies, setVacancies] = useState<number>(1);
 
   // Compensation & Perks
   const [payType, setPayType] = useState<'Fixed Only' | 'Fixed + Incentive' | 'Incentive Only'>('Fixed + Incentive');
-  const [salaryMin, setSalaryMin] = useState<number>(22000);
-  const [salaryMax, setSalaryMax] = useState<number>(32000);
-  const [selectedPerks, setSelectedPerks] = useState<string[]>(['Overtime Pay', 'Food/Meals', 'Accommodation', 'PF']);
+  const [salaryMin, setSalaryMin] = useState<number>(0);
+  const [salaryMax, setSalaryMax] = useState<number>(0);
+  const [selectedPerks, setSelectedPerks] = useState<string[]>([]);
   const [joiningFeeRequired, setJoiningFeeRequired] = useState<boolean>(false);
 
   // Step 2 & 3: Experience, Vehicle, Docs, Screening
-  const [experienceRequired, setExperienceRequired] = useState('2-5 Years');
-  const [experienceMinYears, setExperienceMinYears] = useState(2);
-  const [vehicleType, setVehicleType] = useState('Heavy Commercial Truck / Multi-Axle');
+  const [experienceRequired, setExperienceRequired] = useState('');
+  const [experienceMinYears, setExperienceMinYears] = useState(0);
+  const [vehicleType, setVehicleType] = useState('');
   const [workingHours, setWorkingHours] = useState('Full-time, Regular Roster');
-  const [skillsText, setSkillsText] = useState('Commercial Driving License, Highway Navigation, Safe Driving, Pre-Trip Inspection');
-  const [description, setDescription] = useState(
-    'Hiring verified commercial drivers with a clean driving record. Timely monthly salary, trip incentives, insurance coverage, and rest facilities provided.'
-  );
+  const [skillsText, setSkillsText] = useState('');
+  const [description, setDescription] = useState('');
   const [docsSelected, setDocsSelected] = useState<string[]>([
     'Commercial Driving License',
     'Aadhaar Card',
@@ -198,12 +196,28 @@ export const EmployerPostJob: React.FC = () => {
 
   const [submitted, setSubmitted] = useState(false);
   const [publishedLive, setPublishedLive] = useState(false);
+  const [entitlementError, setEntitlementError] = useState('');
+  const [submittingJob, setSubmittingJob] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('template') === 'open') {
       setShowTemplateModal(true);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!employerId) return;
+    if (!employer?.companyName) {
+      navigate('/employer/company', { replace: true });
+      return;
+    }
+    const sub = DataStore.getSubscription(employerId);
+    const expiry = new Date(sub.expiresAt).getTime();
+    const occupied = DataStore.getJobs().filter(job => job.employerId === employerId && (job.status === 'active' || job.status === 'pending')).length;
+    if (sub.status !== 'active' || !Number.isFinite(expiry) || expiry <= Date.now() || (sub.jobCredits <= 0 && (sub.activeJobSlots || 0) <= occupied)) {
+      navigate('/employer/plans', { replace: true });
+    }
+  }, [employerId, employer?.companyName, navigate]);
 
   const applyTemplate = (tpl: JobTemplate) => {
     setTitle(tpl.title);
@@ -231,27 +245,32 @@ export const EmployerPostJob: React.FC = () => {
     }
   };
 
-  const handlePublishJob = (useInstantCredit: boolean) => {
-    const canPublishInstant = useInstantCredit && subscription.jobCredits > 0;
+  const handlePublishJob = async (useInstantCredit: boolean) => {
+    setEntitlementError('');
+    if (!hiringForCompany.trim() || !title.trim() || !description.trim() || !city.trim() || !location.trim() || !experienceRequired.trim() || !vehicleType.trim() || salaryMin <= 0 || salaryMax < salaryMin || vacancies <= 0) {
+      setEntitlementError('Complete the job title, description, location and valid salary/opening details before publishing.');
+      return;
+    }
+    const entitlement = DataStore.consumeJobCredit(employerId);
+    if (!entitlement.success) {
+      setEntitlementError(entitlement.message);
+      navigate('/employer/plans');
+      return;
+    }
+    const canPublishInstant = useInstantCredit && employer?.verified === true;
     const finalStatus = canPublishInstant ? 'active' : 'pending';
 
-    if (canPublishInstant) {
-      DataStore.updateSubscription(employerId, {
-        jobCredits: Math.max(0, subscription.jobCredits - 1)
-      });
-    }
-
     const newJob: Job = {
-      id: 'job-' + Date.now(),
+      id: crypto.randomUUID(),
       employerId,
-      companyName: hiringForCompany || employer?.companyName || 'Bharat Logistics Pvt Ltd',
+      companyName: hiringForCompany.trim(),
       companyLogo: employer?.logoUrl,
-      postedBy: employer?.contactPerson || 'Deepa Nair',
-      title: title || `Verified ${category} Vacancy`,
+      postedBy: employer?.contactPerson || '',
+      title: title.trim(),
       category,
       location: `${location}, ${city}`,
       city,
-      state: employer?.state || 'Karnataka',
+      state: employer?.state || '',
       workLocationType,
       experienceRequired,
       experienceMinYears,
@@ -272,10 +291,20 @@ export const EmployerPostJob: React.FC = () => {
       vacancies,
       status: finalStatus,
       postedDate: new Date().toISOString().slice(0, 10),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      creditConsumed: entitlement.creditUsed === true,
+      slotConsumed: entitlement.slotUsed === true,
       applicationsCount: 0
     };
 
-    DataStore.addJob(newJob);
+    setSubmittingJob(true);
+    const saved = await DataStore.addJob(newJob);
+    setSubmittingJob(false);
+    if (!saved) {
+      if (entitlement.creditUsed) DataStore.refundJobCredit(employerId);
+      setEntitlementError('The job could not be saved. No job credit was used. Check your connection or contact support.');
+      return;
+    }
     setPublishedLive(canPublishInstant);
     setSubmitted(true);
   };
@@ -288,12 +317,12 @@ export const EmployerPostJob: React.FC = () => {
         </div>
         <div className="space-y-2">
           <h2 className="text-2xl font-extrabold text-[#08233F] font-display">
-            {publishedLive ? 'Job Published Live with 1 Job Credit!' : 'Job Submitted for Verification'}
+            {publishedLive ? 'Driver job is live' : 'Driver job submitted for admin review'}
           </h2>
           <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
             {publishedLive
-              ? `Your driver vacancy "${title}" is now LIVE on DriverHub. Matching drivers in ${city} have been alerted and you can immediately view matching profiles in the Database.`
-              : `Your driver vacancy "${title}" has been submitted to the moderation queue and will go live upon verification.`}
+              ? `Your driver vacancy "${title}" is live in ${city}. One job credit or subscription slot was used.`
+              : `Your driver vacancy "${title}" is waiting for admin review. The required hiring entitlement has been reserved.`}
           </p>
         </div>
 
@@ -329,7 +358,7 @@ export const EmployerPostJob: React.FC = () => {
           <div>
             <h1 className="text-xl font-extrabold text-[#08233F] font-display">Post a new job</h1>
             <p className="text-xs text-slate-500">
-              DriverHub Verified Fleet Job Creation Wizard • Available Job Credits: <strong className="text-emerald-700">{subscription.jobCredits}</strong>
+              DriverHub driver job posting • Available job credits: <strong className="text-emerald-700">{subscription.jobCredits}</strong>
             </p>
           </div>
         </div>
@@ -408,7 +437,7 @@ export const EmployerPostJob: React.FC = () => {
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs">
               <div>
                 <span className="text-slate-500">Company you belong to: </span>
-                <strong className="text-slate-900">{employer?.companyName || 'Bharat Logistics India Private Limited'}</strong>
+                <strong className="text-slate-900">{employer?.companyName || 'Add your company profile'}</strong>
                 <span className="text-slate-400 block text-[11px] mt-0.5">(Verified Fleet & Transport Employer)</span>
               </div>
               <Link to="/employer/company" className="font-bold text-emerald-700 hover:underline">
@@ -883,6 +912,7 @@ export const EmployerPostJob: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
+                disabled={submittingJob}
                 onClick={() => handlePublishJob(false)}
                 className="px-5 py-3 border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold rounded-xl text-xs cursor-pointer"
               >
@@ -891,6 +921,7 @@ export const EmployerPostJob: React.FC = () => {
 
               <button
                 type="button"
+                disabled={submittingJob}
                 onClick={() => handlePublishJob(true)}
                 className="px-6 py-3 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs shadow-md flex items-center gap-2 cursor-pointer"
               >
@@ -898,6 +929,7 @@ export const EmployerPostJob: React.FC = () => {
                 <span>Publish Instant Live (Use 1 Job Credit)</span>
               </button>
             </div>
+            {entitlementError && <p role="alert" className="text-xs font-semibold text-rose-700">{entitlementError}</p>}
           </div>
         </div>
       )}

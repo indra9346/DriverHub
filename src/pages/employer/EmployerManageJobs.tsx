@@ -51,8 +51,8 @@ export const EmployerManageJobs: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openActionMenuId]);
 
-  const handleStatusChange = (jobId: string, newStatus: JobStatus) => {
-    const updated = DataStore.updateJobStatus(jobId, newStatus);
+  const handleStatusChange = async (jobId: string, newStatus: JobStatus) => {
+    const updated = await DataStore.updateJobStatus(jobId, newStatus);
     if (!updated) {
       navigate('/employer/plans');
       return;
@@ -63,8 +63,8 @@ export const EmployerManageJobs: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const handleActivateWithCredit = (job: Job) => {
-    const activated = DataStore.updateJobStatus(job.id, 'active');
+  const handleActivateWithCredit = async (job: Job) => {
+    const activated = await DataStore.updateJobStatus(job.id, 'active');
     if (!activated) {
       navigate('/employer/plans');
       return;

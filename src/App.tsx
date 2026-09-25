@@ -5,45 +5,38 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { PublicLayout } from './layouts/PublicLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 
-// Public Pages
-import { HomePage } from './pages/public/HomePage';
-import { JobsPage } from './pages/public/JobsPage';
-import { JobDetailPage } from './pages/public/JobDetailPage';
-import { CompaniesPage } from './pages/public/CompaniesPage';
-import { AboutPage } from './pages/public/AboutPage';
-import { ContactPage } from './pages/public/ContactPage';
-import { LoginPage } from './pages/public/LoginPage';
-import { RegisterPage } from './pages/public/RegisterPage';
-import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
-
-// Driver Pages
-import { DriverDashboard } from './pages/driver/DriverDashboard';
-import { DriverApplications } from './pages/driver/DriverApplications';
-import { DriverSavedJobs } from './pages/driver/DriverSavedJobs';
-import { DriverProfilePage } from './pages/driver/DriverProfile';
-import { DriverDocuments } from './pages/driver/DriverDocuments';
-import { DriverNotifications } from './pages/driver/DriverNotifications';
-import { DriverSettings } from './pages/driver/DriverSettings';
-
-// Employer Pages
-import { EmployerDashboard } from './pages/employer/EmployerDashboard';
-import { EmployerPostJob } from './pages/employer/EmployerPostJob';
-import { EmployerManageJobs } from './pages/employer/EmployerManageJobs';
-import { EmployerApplications } from './pages/employer/EmployerApplications';
-import { EmployerCandidates } from './pages/employer/EmployerCandidates';
-import { EmployerCompanyProfile } from './pages/employer/EmployerCompanyProfile';
-import { EmployerReports } from './pages/employer/EmployerReports';
-import { EmployerBilling } from './pages/employer/EmployerBilling';
-
-// Common Pages
-import { MessagesPage } from './pages/common/MessagesPage';
-
-// Admin Pages
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminJobs } from './pages/admin/AdminJobs';
-import { AdminCandidates } from './pages/admin/AdminCandidates';
-import { AdminEmployers } from './pages/admin/AdminEmployers';
-import { AdminApplications } from './pages/admin/AdminApplications';
+// Load portal pages on demand so the public landing page doesn't ship every dashboard.
+const HomePage = React.lazy(() => import('./pages/public/HomePage').then(module => ({ default: module.HomePage })));
+const JobsPage = React.lazy(() => import('./pages/public/JobsPage').then(module => ({ default: module.JobsPage })));
+const JobDetailPage = React.lazy(() => import('./pages/public/JobDetailPage').then(module => ({ default: module.JobDetailPage })));
+const CompaniesPage = React.lazy(() => import('./pages/public/CompaniesPage').then(module => ({ default: module.CompaniesPage })));
+const AboutPage = React.lazy(() => import('./pages/public/AboutPage').then(module => ({ default: module.AboutPage })));
+const ContactPage = React.lazy(() => import('./pages/public/ContactPage').then(module => ({ default: module.ContactPage })));
+const LoginPage = React.lazy(() => import('./pages/public/LoginPage').then(module => ({ default: module.LoginPage })));
+const RegisterPage = React.lazy(() => import('./pages/public/RegisterPage').then(module => ({ default: module.RegisterPage })));
+const ForgotPasswordPage = React.lazy(() => import('./pages/public/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
+const DriverDashboard = React.lazy(() => import('./pages/driver/DriverDashboard').then(module => ({ default: module.DriverDashboard })));
+const DriverApplications = React.lazy(() => import('./pages/driver/DriverApplications').then(module => ({ default: module.DriverApplications })));
+const DriverSavedJobs = React.lazy(() => import('./pages/driver/DriverSavedJobs').then(module => ({ default: module.DriverSavedJobs })));
+const DriverProfilePage = React.lazy(() => import('./pages/driver/DriverProfile').then(module => ({ default: module.DriverProfilePage })));
+const DriverDocuments = React.lazy(() => import('./pages/driver/DriverDocuments').then(module => ({ default: module.DriverDocuments })));
+const DriverNotifications = React.lazy(() => import('./pages/driver/DriverNotifications').then(module => ({ default: module.DriverNotifications })));
+const DriverSettings = React.lazy(() => import('./pages/driver/DriverSettings').then(module => ({ default: module.DriverSettings })));
+const EmployerDashboard = React.lazy(() => import('./pages/employer/EmployerDashboard').then(module => ({ default: module.EmployerDashboard })));
+const EmployerPostJob = React.lazy(() => import('./pages/employer/EmployerPostJob').then(module => ({ default: module.EmployerPostJob })));
+const EmployerManageJobs = React.lazy(() => import('./pages/employer/EmployerManageJobs').then(module => ({ default: module.EmployerManageJobs })));
+const EmployerApplications = React.lazy(() => import('./pages/employer/EmployerApplications').then(module => ({ default: module.EmployerApplications })));
+const EmployerCandidates = React.lazy(() => import('./pages/employer/EmployerCandidates').then(module => ({ default: module.EmployerCandidates })));
+const EmployerCompanyProfile = React.lazy(() => import('./pages/employer/EmployerCompanyProfile').then(module => ({ default: module.EmployerCompanyProfile })));
+const EmployerReports = React.lazy(() => import('./pages/employer/EmployerReports').then(module => ({ default: module.EmployerReports })));
+const EmployerBilling = React.lazy(() => import('./pages/employer/EmployerBilling').then(module => ({ default: module.EmployerBilling })));
+const MessagesPage = React.lazy(() => import('./pages/common/MessagesPage').then(module => ({ default: module.MessagesPage })));
+const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const AdminJobs = React.lazy(() => import('./pages/admin/AdminJobs').then(module => ({ default: module.AdminJobs })));
+const AdminCandidates = React.lazy(() => import('./pages/admin/AdminCandidates').then(module => ({ default: module.AdminCandidates })));
+const AdminEmployers = React.lazy(() => import('./pages/admin/AdminEmployers').then(module => ({ default: module.AdminEmployers })));
+const AdminApplications = React.lazy(() => import('./pages/admin/AdminApplications').then(module => ({ default: module.AdminApplications })));
+const AdminDocuments = React.lazy(() => import('./pages/admin/AdminDocuments').then(module => ({ default: module.AdminDocuments })));
 
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { SupabaseSync } from './services/supabaseSync';
@@ -69,6 +62,7 @@ export const App: React.FC = () => {
   return (
     <LanguageProvider>
       <ScrollToTop />
+      <React.Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm font-medium text-slate-500">Loading DriverHub…</div>}>
       <Routes>
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
@@ -140,6 +134,7 @@ export const App: React.FC = () => {
           <Route path="drivers" element={<AdminCandidates />} />
           <Route path="employers" element={<AdminEmployers />} />
           <Route path="applications" element={<AdminApplications />} />
+          <Route path="documents" element={<AdminDocuments />} />
           <Route path="reports" element={<AdminDashboard />} />
           <Route path="settings" element={<DriverSettings />} />
         </Route>
@@ -147,6 +142,7 @@ export const App: React.FC = () => {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </React.Suspense>
     </LanguageProvider>
   );
 };

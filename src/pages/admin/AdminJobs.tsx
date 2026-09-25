@@ -20,8 +20,9 @@ export const AdminJobs: React.FC = () => {
     loadJobs();
   }, []);
 
-  const handleUpdateStatus = (jobId: string, status: JobStatus) => {
-    DataStore.updateJobStatus(jobId, status);
+  const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
+    const updated = await DataStore.updateJobStatus(jobId, status);
+    if (!updated) return;
     loadJobs();
     if (selectedJob?.id === jobId) {
       setSelectedJob({ ...selectedJob, status });

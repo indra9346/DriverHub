@@ -59,6 +59,7 @@ export const getNavLinks = (role: UserRole, unreadCount: number = 0): NavItem[] 
   const adminLinks: NavItem[] = [
     { to: '/admin/dashboard', label: 'Analytics Dashboard', icon: LayoutDashboard },
     { to: '/admin/jobs', label: 'Job Moderation Queue', icon: ShieldCheck },
+    { to: '/admin/documents', label: 'Driver Document Reviews', icon: FileCheck },
     { to: '/admin/candidates', label: 'Candidate Management', icon: Users },
     { to: '/admin/employers', label: 'Employer Verification', icon: Building2 },
     { to: '/admin/applications', label: 'Global Applications', icon: FileText },

@@ -10,7 +10,7 @@ import { StatusBadge } from './StatusBadge';
 interface JobCardProps {
   job: Job;
   isSaved?: boolean;
-  onToggleSave?: (jobId: string) => void;
+  onToggleSave?: (jobId: string) => void | Promise<void>;
   isApplied?: boolean;
 }
 

@@ -13,6 +13,8 @@ export const MessagesPage: React.FC = () => {
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState('');
 
   const loadMessages = () => {
     const all = DataStore.getMessages(userId);
@@ -28,7 +30,7 @@ export const MessagesPage: React.FC = () => {
     loadMessages();
     window.addEventListener('driverhub_storage_updated', loadMessages);
     return () => window.removeEventListener('driverhub_storage_updated', loadMessages);
-  }, [userId]);
+  }, [userId, selectedPartnerId]);
 
   // Group threads by partner
   const partnersMap = new Map<string, { id: string; name: string; lastMessage: DirectMessage }>();
@@ -47,16 +49,18 @@ export const MessagesPage: React.FC = () => {
       (m.receiverId === userId && m.senderId === activePartner?.id)
   );
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim() || !activePartner) return;
+    if (!replyText.trim() || !activePartner || sending) return;
 
     const senderName =
       userRole === 'employer'
         ? DataStore.getEmployerById(userId)?.companyName || 'Verified Fleet Employer'
         : DataStore.getDriverById(userId)?.fullName || 'Verified Driver';
 
-    DataStore.sendMessage({
+    setSending(true);
+    setSendError('');
+    const sent = await DataStore.sendMessage({
       id: 'msg-' + Date.now(),
       senderId: userId,
       senderName,
@@ -69,6 +73,11 @@ export const MessagesPage: React.FC = () => {
       read: false
     });
 
+    setSending(false);
+    if (!sent) {
+      setSendError('Message could not be sent. Check your connection and hiring access, then try again.');
+      return;
+    }
     setReplyText('');
     loadMessages();
   };
@@ -187,11 +196,13 @@ export const MessagesPage: React.FC = () => {
                 />
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+                  disabled={sending || !replyText.trim()}
+                  className="px-5 py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-3.5 h-3.5" /> Send
+                  <Send className="w-3.5 h-3.5" /> {sending ? 'Sending…' : 'Send'}
                 </button>
               </form>
+              {sendError && <p role="alert" className="px-4 pb-3 text-xs text-red-700">{sendError}</p>}
             </>
           ) : (
             <div className="p-12 text-center my-auto space-y-2">

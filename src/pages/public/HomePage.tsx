@@ -660,13 +660,18 @@ export const HomePage: React.FC = () => {
               job={job}
               isApplied={appliedJobIds.includes(job.id)}
               isSaved={savedJobIds.includes(job.id)}
-              onToggleSave={(jobId) => {
+              onToggleSave={async (jobId) => {
                 const user = DataStore.getCurrentUser();
                 if (!user) {
                   alert('Please log in as a driver to save jobs.');
                   return;
                 }
-                DataStore.toggleFavorite(user.id, jobId);
+                const wasSaved = savedJobIds.includes(jobId);
+                const saved = await DataStore.toggleFavorite(user.id, jobId);
+                if (saved === wasSaved) {
+                  alert('Could not update saved jobs. Check your connection and try again.');
+                  return;
+                }
                 loadData();
               }}
             />

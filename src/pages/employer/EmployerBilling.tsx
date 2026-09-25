@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { EmployerSubscription, BillingTransaction } from '../../types';
+import { SupabaseSync } from '../../services/supabaseSync';
 
 export const EmployerBilling: React.FC = () => {
   const currentUser = DataStore.getCurrentUser();
@@ -28,6 +29,7 @@ export const EmployerBilling: React.FC = () => {
   const [companyNameInput, setCompanyNameInput] = useState(subscription.billingCompanyName);
   const [addressInput, setAddressInput] = useState(subscription.billingAddress);
   const [toast, setToast] = useState<string | null>(null);
+  const [savingBilling, setSavingBilling] = useState(false);
 
   const refreshData = () => {
     setSubscription(DataStore.getSubscription(employerId));
@@ -40,17 +42,29 @@ export const EmployerBilling: React.FC = () => {
     return () => window.removeEventListener('driverhub_storage_updated', refreshData);
   }, [employerId]);
 
-  const handleSaveGstin = (e: React.FormEvent) => {
+  const handleSaveGstin = async (e: React.FormEvent) => {
     e.preventDefault();
-    DataStore.updateSubscription(employerId, {
+    setSavingBilling(true);
+    const billing = {
       gstin: gstinInput.trim().toUpperCase(),
-      billingCompanyName: companyNameInput.trim().toUpperCase(),
-      billingAddress: addressInput.trim(),
-      gstinVerified: true
-    });
+      billingCompanyName: companyNameInput.trim(),
+      billingAddress: addressInput.trim()
+    };
+    const saved = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true'
+      ? (DataStore.updateSubscription(employerId, billing), true)
+      : await SupabaseSync.updateEmployerBillingProfile(employerId, billing);
+    if (!saved) {
+      setSavingBilling(false);
+      setToast('Billing profile could not be saved. Check your connection and try again.');
+      return;
+    }
+    if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true')) {
+      await SupabaseSync.fetchAndMergeRemoteData(DataStore);
+    }
     setShowGstinModal(false);
     refreshData();
-    setToast('GSTIN & Billing Profile updated and verified!');
+    setSavingBilling(false);
+    setToast('Billing profile saved. GSTIN verification is pending administrator review.');
     setTimeout(() => setToast(null), 3500);
   };
 
@@ -119,8 +133,8 @@ export const EmployerBilling: React.FC = () => {
             <div className="flex items-center gap-2 text-xs">
               <span className="font-bold text-slate-800">GSTIN:</span>
               <span className="text-slate-700 font-mono">{subscription.gstin}</span>
-              <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
-                <CheckCircle2 className="w-3.5 h-3.5 fill-emerald-600 text-white" /> Verified
+              <span className={`inline-flex items-center gap-1 font-bold ${subscription.gstinVerified ? 'text-emerald-700' : 'text-amber-700'}`}>
+                {subscription.gstinVerified ? <><CheckCircle2 className="w-3.5 h-3.5 fill-emerald-600 text-white" /> Verified</> : 'Verification pending'}
               </span>
             </div>
 
@@ -311,9 +325,10 @@ export const EmployerBilling: React.FC = () => {
               </button>
               <button
                 type="submit"
+                disabled={savingBilling}
                 className="px-5 py-2 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs cursor-pointer"
               >
-                Verify & Save GSTIN
+                {savingBilling ? 'Saving…' : 'Save Billing Profile'}
               </button>
             </div>
           </form>

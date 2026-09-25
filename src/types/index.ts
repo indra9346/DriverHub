@@ -67,6 +67,10 @@ export interface SavedSearch {
   title: string;
   category: string;
   city: string;
+  state?: string;
+  keyword?: string;
+  vehicleType?: string;
+  activeInDays?: number;
   minExp: number;
   mustHaveSkills: string[];
   createdAt: string;

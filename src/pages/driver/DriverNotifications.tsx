@@ -15,16 +15,18 @@ export const DriverNotifications: React.FC = () => {
 
   useEffect(() => {
     loadNotifs();
-  }, [currentUser]);
+    window.addEventListener('driverhub_storage_updated', loadNotifs);
+    return () => window.removeEventListener('driverhub_storage_updated', loadNotifs);
+  }, [currentUser?.id]);
 
-  const handleMarkAllRead = () => {
+  const handleMarkAllRead = async () => {
     if (!currentUser) return;
-    DataStore.markAllNotificationsAsRead(currentUser.id);
+    if (!(await DataStore.markAllNotificationsAsRead(currentUser.id))) return;
     loadNotifs();
   };
 
-  const handleMarkRead = (id: string) => {
-    DataStore.markNotificationAsRead(id);
+  const handleMarkRead = async (id: string) => {
+    if (!(await DataStore.markNotificationAsRead(id))) return;
     loadNotifs();
   };
 
@@ -78,7 +80,7 @@ export const DriverNotifications: React.FC = () => {
 
               {!notif.read && (
                 <button
-                  onClick={() => handleMarkRead(notif.id)}
+                  onClick={() => { void handleMarkRead(notif.id); }}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
                   title="Mark as read"
                 >

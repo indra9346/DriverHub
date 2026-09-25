@@ -15,17 +15,17 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'driverhub_current_user',
   LAST_ROLE_USERS: 'driverhub_last_role_users',
   USERS: 'driverhub_users',
-  JOBS: 'driverhub_jobs',
-  DRIVERS: 'driverhub_drivers_v2',
-  EMPLOYERS: 'driverhub_employers',
-  APPLICATIONS: 'driverhub_applications',
-  NOTIFICATIONS: 'driverhub_notifications',
-  FAVORITES: 'driverhub_favorites',
-  SUBSCRIPTIONS: 'driverhub_subscriptions',
-  BILLING: 'driverhub_billing_txns',
-  SAVED_SEARCHES: 'driverhub_saved_searches',
-  UNLOCKS: 'driverhub_candidate_unlocks',
-  MESSAGES: 'driverhub_direct_messages',
+  JOBS: 'driverhub_jobs_v3',
+  DRIVERS: 'driverhub_drivers_v3',
+  EMPLOYERS: 'driverhub_employers_v2',
+  APPLICATIONS: 'driverhub_applications_v2',
+  NOTIFICATIONS: 'driverhub_notifications_v2',
+  FAVORITES: 'driverhub_favorites_v2',
+  SUBSCRIPTIONS: 'driverhub_subscriptions_v2',
+  BILLING: 'driverhub_billing_txns_v2',
+  SAVED_SEARCHES: 'driverhub_saved_searches_v2',
+  UNLOCKS: 'driverhub_candidate_unlocks_v2',
+  MESSAGES: 'driverhub_direct_messages_v2',
 };
 
 // Helper for local storage
@@ -143,7 +143,7 @@ export const DataStore = {
 
   // Drivers
   getDrivers(): DriverProfile[] {
-    return getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers);
+    return getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, DEMO_DATA_ENABLED ? allDefaultDrivers : []);
   },
 
   getDriverById(id: string): DriverProfile {
@@ -176,7 +176,7 @@ export const DataStore = {
     return match?.documents || [];
   },
 
-  updateDriverProfile(profile: DriverProfile): void {
+  setDriverProfileLocal(profile: DriverProfile): void {
     const drivers = this.getDrivers();
     const index = drivers.findIndex(d => d.id === profile.id);
     if (index >= 0) {
@@ -186,7 +186,10 @@ export const DataStore = {
       setStorage(STORAGE_KEYS.DRIVERS, [...drivers, profile]);
     }
 
-    // Sync to Supabase DB in real-time
+  },
+
+  updateDriverProfile(profile: DriverProfile): void {
+    this.setDriverProfileLocal(profile);
     const user = this.getUsers().find(u => u.id === profile.id) || {
       id: profile.id,
       email: profile.email,
@@ -195,7 +198,7 @@ export const DataStore = {
       phone: profile.phone,
       createdAt: '2026-08-15'
     };
-    SupabaseSync.registerUser(user, profile);
+    void SupabaseSync.registerUser(user, profile);
   },
 
   mergeRemoteDrivers(remoteDrivers: DriverProfile[]): void {
@@ -209,16 +212,28 @@ export const DataStore = {
     if (driver) {
       const existingDocs = driver.documents || [];
       const documents = [...existingDocs.filter(d => d.id !== doc.id), doc];
-      this.updateDriverProfile({ ...driver, documents });
+      this.setDriverDocuments(driverId, documents);
     }
   },
 
-  deleteDriverDocument(driverId: string, docId: string): void {
+  setDriverDocuments(driverId: string, documents: DriverDocument[]): void {
+    const drivers = this.getDrivers();
+    const profile = this.getDriverById(driverId);
+    const next = { ...profile, documents };
+    const index = drivers.findIndex(driver => driver.id === driverId);
+    if (index >= 0) drivers[index] = next;
+    else drivers.push(next);
+    setStorage(STORAGE_KEYS.DRIVERS, drivers);
+  },
+
+  async deleteDriverDocument(driverId: string, docId: string): Promise<boolean> {
     const driver = this.getDriverById(driverId);
-    if (driver && driver.documents) {
-      const documents = driver.documents.filter(d => d.id !== docId);
-      this.updateDriverProfile({ ...driver, documents });
-    }
+    if (!driver?.documents) return false;
+    const document = driver.documents.find(doc => doc.id === docId);
+    if (!document) return false;
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.deleteDriverDocument(driverId, document))) return false;
+    this.setDriverDocuments(driverId, driver.documents.filter(doc => doc.id !== docId));
+    return true;
   },
 
   // Employers
@@ -279,15 +294,13 @@ export const DataStore = {
     const jobs = this.getJobs();
     if (jobs.some(existing => existing.id === job.id)) return false;
 
-    // Persist immediately in client storage so employer never loses work
-    setStorage(STORAGE_KEYS.JOBS, [job, ...jobs]);
-
-    // Background Supabase Sync
-    try {
+    if (!DEMO_DATA_ENABLED) {
       const employer = this.getEmployerById(job.employerId);
-      void SupabaseSync.syncJob(job, employer);
-    } catch (e) {
-      console.warn('Supabase job sync deferred:', e);
+      const synced = await SupabaseSync.syncJob(job, employer);
+      if (!synced) return false;
+      await SupabaseSync.fetchAndMergeRemoteData(this);
+    } else {
+      setStorage(STORAGE_KEYS.JOBS, [job, ...jobs]);
     }
 
     // Add admin notification
@@ -316,7 +329,7 @@ export const DataStore = {
     SupabaseSync.syncJob(job);
   },
 
-  updateJobStatus(jobId: string, status: Job['status']): boolean {
+  async updateJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
     const original = this.getJobs().find(job => job.id === jobId);
     const actor = this.getCurrentUser();
     if (!original || !actor) return false;
@@ -329,7 +342,7 @@ export const DataStore = {
     if (original.status !== status && !allowed[original.status].includes(status)) return false;
     let creditConsumed = original.creditConsumed || false;
     let slotConsumed = original.slotConsumed || false;
-    if (status === 'active' && actor.role === 'employer' && original.status !== 'active' && !creditConsumed && !slotConsumed) {
+    if (DEMO_DATA_ENABLED && status === 'active' && actor.role === 'employer' && original.status !== 'active' && !creditConsumed && !slotConsumed) {
       const entitlement = this.consumeJobCredit(actor.id);
       if (!entitlement.success) return false;
       creditConsumed = entitlement.creditUsed === true;
@@ -341,13 +354,16 @@ export const DataStore = {
       creditConsumed = false;
     }
     if (status === 'rejected' && actor.role === 'admin') slotConsumed = false;
-    const jobs = this.getJobs().map(j => j.id === jobId ? { ...j, status, creditConsumed, slotConsumed } : j);
-    setStorage(STORAGE_KEYS.JOBS, jobs);
-    const updated = jobs.find(j => j.id === jobId);
-    if (updated) {
-      SupabaseSync.syncJob(updated);
+    const updated = { ...original, status, creditConsumed, slotConsumed };
+    if (!DEMO_DATA_ENABLED) {
+      const synced = await SupabaseSync.syncJob(updated);
+      if (!synced) return false;
+      await SupabaseSync.fetchAndMergeRemoteData(this);
+      return true;
     }
-    return Boolean(updated);
+    const jobs = this.getJobs().map(j => j.id === jobId ? updated : j);
+    setStorage(STORAGE_KEYS.JOBS, jobs);
+    return true;
   },
 
   // Applications
@@ -367,12 +383,18 @@ export const DataStore = {
     if (applications.some(existing => existing.jobId === app.jobId && existing.driverId === app.driverId && existing.status !== 'withdrawn')) return false;
     if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < Date.now()) return false;
 
-    // Persist immediately in client storage so application is NEVER lost
+    if (!DEMO_DATA_ENABLED) {
+      const synced = await SupabaseSync.syncApplication(app);
+      if (!synced) return false;
+    }
     setStorage(STORAGE_KEYS.APPLICATIONS, [app, ...applications]);
 
     // Increment job applicationsCount
     if (job) {
-      this.updateJob({ ...job, applicationsCount: (job.applicationsCount || 0) + 1 });
+      const jobs = this.getJobs().map(existing => existing.id === job.id
+        ? { ...existing, applicationsCount: (existing.applicationsCount || 0) + 1 }
+        : existing);
+      setStorage(STORAGE_KEYS.JOBS, jobs);
       
       // Notify Employer in real-time
       this.addNotification({
@@ -385,13 +407,6 @@ export const DataStore = {
         createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
         link: '/employer/applications'
       });
-    }
-
-    // Background Supabase Sync
-    try {
-      void SupabaseSync.syncApplication(app);
-    } catch (e) {
-      console.warn('Supabase application sync deferred:', e);
     }
 
     return true;
@@ -426,7 +441,13 @@ export const DataStore = {
     };
     if (existing.status !== status && !transitions[existing.status].includes(status)) return false;
 
-    // Persist immediately in client storage
+    const updatedApplication = { ...existing, status };
+    if (!DEMO_DATA_ENABLED && updatedApplication) {
+      const synced = await SupabaseSync.syncApplicationStatus(appId, status, options);
+      if (!synced) return false;
+    }
+
+    // Persist after the authoritative Supabase write succeeds.
     const apps = this.getApplications().map(a => {
       if (a.id === appId) {
         return {
@@ -442,13 +463,6 @@ export const DataStore = {
       return a;
     });
     setStorage(STORAGE_KEYS.APPLICATIONS, apps);
-
-    // Background Supabase sync
-    try {
-      void SupabaseSync.syncApplicationStatus(appId, status, options);
-    } catch (e) {
-      console.warn('Supabase application status sync deferred:', e);
-    }
 
     // Notify Driver of status change
     const app = this.getApplicationById(appId);
@@ -482,13 +496,13 @@ export const DataStore = {
 
   // Saved / Favorite Jobs
   getFavorites(driverId: string): string[] {
-    const favs = getStorage<FavoriteJob[]>(STORAGE_KEYS.FAVORITES, [
+    const favs = getStorage<FavoriteJob[]>(STORAGE_KEYS.FAVORITES, DEMO_DATA_ENABLED ? [
       { id: 'fav-1', driverId: 'usr-driver-1', jobId: 'job-1', createdAt: '2026-09-02' }
-    ]);
+    ] : []);
     return favs.filter(f => f.driverId === driverId).map(f => f.jobId);
   },
 
-  toggleFavorite(driverId: string, jobId: string): boolean {
+  async toggleFavorite(driverId: string, jobId: string): Promise<boolean> {
     const favs = getStorage<FavoriteJob[]>(STORAGE_KEYS.FAVORITES, []);
     const exists = favs.some(f => f.driverId === driverId && f.jobId === jobId);
     let updated: FavoriteJob[];
@@ -497,60 +511,93 @@ export const DataStore = {
     } else {
       updated = [...favs, { id: 'fav-' + Date.now(), driverId, jobId, createdAt: new Date().toISOString() }];
     }
+    if (!DEMO_DATA_ENABLED) {
+      const synced = await SupabaseSync.syncFavorite(driverId, jobId, !exists);
+      if (!synced) return exists;
+    }
     setStorage(STORAGE_KEYS.FAVORITES, updated);
     return !exists;
+  },
+
+  mergeRemoteFavorites(driverId: string, rows: any[]): void {
+    const existing = getStorage<FavoriteJob[]>(STORAGE_KEYS.FAVORITES, []);
+    const keep = existing.filter(favorite => favorite.driverId !== driverId);
+    const remote = rows.map(row => ({ id: row.id, driverId, jobId: row.job_id, createdAt: row.created_at }));
+    setStorage(STORAGE_KEYS.FAVORITES, [...remote, ...keep]);
   },
 
   // Notifications strictly scoped to individual user account
   getNotifications(userId: string): Notification[] {
     if (!userId) return [];
-    const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications);
+    const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, DEMO_DATA_ENABLED ? initialNotifications : []);
     return notifs.filter(n => n.userId === userId);
   },
 
+  mergeRemoteNotifications(userId: string, rows: any[]): void {
+    const existing = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
+    const keep = existing.filter(notification => notification.userId !== userId);
+    const remote = rows.map((row): Notification => ({
+      id: row.id, userId: row.user_id, title: row.title, message: row.message,
+      type: row.type || 'system', read: Boolean(row.read),
+      createdAt: row.created_at || '', link: row.link || undefined
+    }));
+    setStorage(STORAGE_KEYS.NOTIFICATIONS, [...remote, ...keep]);
+  },
+
   addNotification(notif: Notification): void {
+    if (!DEMO_DATA_ENABLED) return;
     const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications);
     setStorage(STORAGE_KEYS.NOTIFICATIONS, [notif, ...notifs]);
   },
 
-  markNotificationAsRead(id: string): void {
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.markNotificationRead(id))) return false;
     const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications).map(n => 
       n.id === id ? { ...n, read: true } : n
     );
     setStorage(STORAGE_KEYS.NOTIFICATIONS, notifs);
+    return true;
   },
 
-  markAllNotificationsAsRead(userId: string): void {
+  async markAllNotificationsAsRead(userId: string): Promise<boolean> {
+    if (!DEMO_DATA_ENABLED) {
+      const pending = this.getNotifications(userId).filter(notification => !notification.read);
+      const results = await Promise.all(pending.map(notification => SupabaseSync.markNotificationRead(notification.id)));
+      if (results.some(result => !result)) return false;
+    }
     const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications).map(n => 
       n.userId === userId ? { ...n, read: true } : n
     );
     setStorage(STORAGE_KEYS.NOTIFICATIONS, notifs);
+    return true;
   },
 
   // =======================================================================
   // APNAHIRE-STYLE SUBSCRIPTION, CREDITS, BILLING, UNLOCKS & SAVED SEARCHES
   // =======================================================================
   getSubscription(employerId: string): EmployerSubscription {
-    const subs = getStorage<Record<string, EmployerSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, initialEmployerSubscriptions);
+    const subs = getStorage<Record<string, EmployerSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, DEMO_DATA_ENABLED ? initialEmployerSubscriptions : {});
     if (subs[employerId] && subs[employerId].status === 'active') return subs[employerId];
     const employer = this.getEmployerById(employerId);
     const defaultSub: EmployerSubscription = {
       employerId,
-      planName: 'Starter Fleet Hiring Plan (5 Job Credits + 50 Driver Unlocks)',
-      jobCredits: subs[employerId]?.jobCredits && subs[employerId].jobCredits > 0 ? subs[employerId].jobCredits : 5,
-      dbUnlockCredits: subs[employerId]?.dbUnlockCredits && subs[employerId].dbUnlockCredits > 0 ? subs[employerId].dbUnlockCredits : 50,
-      totalJobCredits: 5,
-      totalDbUnlockCredits: 50,
-      activeJobSlots: 3,
-      gstin: employer?.gstin || '29AAKCB0612Q1ZC',
-      gstinVerified: true,
-      billingCompanyName: employer?.companyName?.toUpperCase() || 'ENTERPRISE FLEET',
-      billingAddress: employer?.address || 'Bengaluru, Karnataka',
-      expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active'
+      planName: DEMO_DATA_ENABLED ? 'Development demo plan' : 'No active hiring plan',
+      jobCredits: DEMO_DATA_ENABLED ? 5 : 0,
+      dbUnlockCredits: DEMO_DATA_ENABLED ? 50 : 0,
+      totalJobCredits: DEMO_DATA_ENABLED ? 5 : 0,
+      totalDbUnlockCredits: DEMO_DATA_ENABLED ? 50 : 0,
+      activeJobSlots: DEMO_DATA_ENABLED ? 3 : 0,
+      gstin: employer?.gstin || '',
+      gstinVerified: false,
+      billingCompanyName: employer?.companyName?.toUpperCase() || '',
+      billingAddress: employer?.address || '',
+      expiresAt: DEMO_DATA_ENABLED ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() : new Date(0).toISOString(),
+      status: DEMO_DATA_ENABLED ? 'active' : 'expired'
     };
-    subs[employerId] = defaultSub;
-    setStorage(STORAGE_KEYS.SUBSCRIPTIONS, subs);
+    if (DEMO_DATA_ENABLED) {
+      subs[employerId] = defaultSub;
+      setStorage(STORAGE_KEYS.SUBSCRIPTIONS, subs);
+    }
     return defaultSub;
   },
 
@@ -567,17 +614,19 @@ export const DataStore = {
   },
 
   updateSubscription(employerId: string, patch: Partial<EmployerSubscription>): EmployerSubscription {
-    const subs = getStorage<Record<string, EmployerSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, initialEmployerSubscriptions);
+    const subs = getStorage<Record<string, EmployerSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, DEMO_DATA_ENABLED ? initialEmployerSubscriptions : {});
     const current = this.getSubscription(employerId);
     const updated = { ...current, ...patch };
-    subs[employerId] = updated;
-    setStorage(STORAGE_KEYS.SUBSCRIPTIONS, subs);
-    SupabaseSync.syncSubscription(updated);
+    if (DEMO_DATA_ENABLED) {
+      subs[employerId] = updated;
+      setStorage(STORAGE_KEYS.SUBSCRIPTIONS, subs);
+    }
     return updated;
   },
 
   /** Entitlement & recharge helper. Allows testing all plan tiers and instant credit recharges. */
   activateDemoPlan(employerId: string, planDetails: string, amount: number, jobCreditsToAdd: number, dbCreditsToAdd: number, validityDays: number, jobSlotsToAdd = 0): boolean {
+    if (!DEMO_DATA_ENABLED) return false;
     const current = this.getSubscription(employerId);
     const now = new Date();
     const expiry = new Date(now.getTime() + validityDays * 24 * 60 * 60 * 1000);
@@ -607,6 +656,15 @@ export const DataStore = {
 
   consumeJobCredit(employerId: string): { success: boolean; message: string; creditUsed?: boolean; slotUsed?: boolean } {
     const subscription = this.getSubscription(employerId);
+    if (!DEMO_DATA_ENABLED) {
+      if (subscription.status !== 'active' || new Date(subscription.expiresAt).getTime() <= Date.now()) {
+        return { success: false, message: 'An active employer subscription is required to publish jobs.' };
+      }
+      if (subscription.jobCredits > 0) return { success: true, message: 'Job posting credit available.', creditUsed: true };
+      const activeJobs = this.getJobs().filter(job => job.employerId === employerId && (job.status === 'active' || job.status === 'pending')).length;
+      if ((subscription.activeJobSlots || 0) > activeJobs) return { success: true, message: 'Subscription job slot available.', slotUsed: true };
+      return { success: false, message: 'No job credits or active job slots remain. Choose a hiring plan to continue.' };
+    }
     if (subscription.jobCredits > 0) {
       this.updateSubscription(employerId, { jobCredits: Math.max(0, subscription.jobCredits - 1) });
       return { success: true, message: 'Job posting credit used.', creditUsed: true };
@@ -615,9 +673,7 @@ export const DataStore = {
     if ((subscription.activeJobSlots || 0) > activeJobs) {
       return { success: true, message: 'Subscription job slot in use.', slotUsed: true };
     }
-    // Auto-allocate 1 credit for test flow so employer is not blocked
-    this.updateSubscription(employerId, { jobCredits: 4, status: 'active' });
-    return { success: true, message: 'Job credit applied successfully.', creditUsed: true };
+    return { success: false, message: 'No job credits or active job slots remain.' };
   },
 
   refundJobCredit(employerId: string): void {
@@ -632,6 +688,7 @@ export const DataStore = {
     jobCreditsToAdd: number,
     dbCreditsToAdd: number
   ): void {
+    if (!DEMO_DATA_ENABLED) return;
     const current = this.getSubscription(employerId);
     this.updateSubscription(employerId, {
       planName: planDetails,
@@ -668,8 +725,18 @@ export const DataStore = {
   },
 
   getCandidateUnlocks(employerId: string): CandidateUnlock[] {
-    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, initialCandidateUnlocks);
+    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, DEMO_DATA_ENABLED ? initialCandidateUnlocks : []);
     return unlocks.filter(u => u.employerId === employerId);
+  },
+
+  mergeRemoteCandidateUnlocks(employerId: string, rows: any[]): void {
+    const existing = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, []);
+    const keep = existing.filter(unlock => unlock.employerId !== employerId);
+    const remote = rows.map((row): CandidateUnlock => ({
+      id: row.id, employerId: row.employer_id, driverId: row.driver_id,
+      unlockedAt: row.unlocked_at || '', downloadedExcel: Boolean(row.downloaded_excel)
+    }));
+    setStorage(STORAGE_KEYS.UNLOCKS, [...remote, ...keep]);
   },
 
   async unlockCandidate(employerId: string, driverId: string): Promise<{ success: boolean; message: string }> {
@@ -677,7 +744,7 @@ export const DataStore = {
     if (!currentUser || currentUser.role !== 'employer' || currentUser.id !== employerId) {
       return { success: false, message: 'Only this company’s signed-in employer can unlock driver details.' };
     }
-    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, initialCandidateUnlocks);
+    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, DEMO_DATA_ENABLED ? initialCandidateUnlocks : []);
     const already = unlocks.find(u => u.employerId === employerId && u.driverId === driverId);
     if (already) {
       return { success: true, message: 'Candidate phone number already unlocked.' };
@@ -697,8 +764,8 @@ export const DataStore = {
     };
     const synced = await SupabaseSync.syncCandidateUnlock(newUnlock);
     if (!synced) return { success: false, message: 'Could not securely unlock this driver. Check your plan or connection and try again.' };
-    this.updateSubscription(employerId, { dbUnlockCredits: Math.max(0, sub.dbUnlockCredits - 1) });
     setStorage(STORAGE_KEYS.UNLOCKS, [newUnlock, ...unlocks]);
+    await SupabaseSync.fetchAndMergeRemoteData(this);
 
     // Notify driver that a verified employer viewed/unlocked their contact
     const employer = this.getEmployerById(employerId);
@@ -740,31 +807,62 @@ export const DataStore = {
   },
 
   getSavedSearches(employerId: string): SavedSearch[] {
-    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, initialSavedSearches);
+    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, DEMO_DATA_ENABLED ? initialSavedSearches : []);
     return searches.filter(s => s.employerId === employerId);
   },
 
-  saveSearch(search: SavedSearch): void {
-    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, initialSavedSearches);
-    setStorage(STORAGE_KEYS.SAVED_SEARCHES, [search, ...searches]);
-    SupabaseSync.syncSavedSearch(search);
+  mergeRemoteSavedSearches(employerId: string, rows: any[]): void {
+    const existing = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, []);
+    const keep = existing.filter(search => search.employerId !== employerId);
+    const remote = rows.map((row): SavedSearch => ({
+      id: row.id, employerId: row.employer_id, title: row.title || '', category: row.category || '',
+      city: row.city || '', minExp: row.min_exp || 0, mustHaveSkills: row.must_have_skills || [],
+      state: row.state || '', keyword: row.keyword || '', vehicleType: row.vehicle_type || '',
+      activeInDays: row.active_in_days || 15,
+      createdAt: row.created_at?.slice(0, 10) || '', matchCount: row.match_count || 0
+    }));
+    setStorage(STORAGE_KEYS.SAVED_SEARCHES, [...remote, ...keep]);
   },
 
-  deleteSavedSearch(id: string): void {
-    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, initialSavedSearches).filter(s => s.id !== id);
-    setStorage(STORAGE_KEYS.SAVED_SEARCHES, searches);
+  async saveSearch(search: SavedSearch): Promise<boolean> {
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.syncSavedSearch(search))) return false;
+    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, DEMO_DATA_ENABLED ? initialSavedSearches : []);
+    setStorage(STORAGE_KEYS.SAVED_SEARCHES, [search, ...searches]);
+    return true;
+  },
+
+  async deleteSavedSearch(id: string): Promise<boolean> {
+    const searches = getStorage<SavedSearch[]>(STORAGE_KEYS.SAVED_SEARCHES, DEMO_DATA_ENABLED ? initialSavedSearches : []);
+    const savedSearch = searches.find(search => search.id === id);
+    if (!DEMO_DATA_ENABLED && savedSearch && !(await SupabaseSync.deleteSavedSearch(id, savedSearch.employerId))) return false;
+    const updated = searches.filter(s => s.id !== id);
+    setStorage(STORAGE_KEYS.SAVED_SEARCHES, updated);
+    return true;
   },
 
   // Direct Messages (Employer <-> Driver)
   getMessages(userId: string): DirectMessage[] {
-    const msgs = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, initialDirectMessages);
+    const msgs = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, DEMO_DATA_ENABLED ? initialDirectMessages : []);
     return msgs.filter(m => m.senderId === userId || m.receiverId === userId);
   },
 
-  sendMessage(msg: DirectMessage): void {
-    const msgs = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, initialDirectMessages);
+  mergeRemoteMessages(userId: string, rows: any[]): void {
+    const existing = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, []);
+    const keep = existing.filter(message => message.senderId !== userId && message.receiverId !== userId);
+    const remote = rows.map((row): DirectMessage => ({
+      id: row.id, senderId: row.sender_id, senderName: row.sender_name || 'DriverHub user',
+      senderRole: row.sender_role || 'driver', receiverId: row.receiver_id,
+      receiverName: row.receiver_name || 'DriverHub user', jobId: row.job_id || undefined,
+      jobTitle: row.job_title || undefined, text: row.text || '',
+      timestamp: row.created_at || '', read: Boolean(row.read)
+    }));
+    setStorage(STORAGE_KEYS.MESSAGES, [...remote, ...keep]);
+  },
+
+  async sendMessage(msg: DirectMessage): Promise<boolean> {
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.syncDirectMessage(msg))) return false;
+    const msgs = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, DEMO_DATA_ENABLED ? initialDirectMessages : []);
     setStorage(STORAGE_KEYS.MESSAGES, [...msgs, msg]);
-    SupabaseSync.syncDirectMessage(msg);
 
     this.addNotification({
       id: 'notif-msg-' + Date.now(),
@@ -776,6 +874,7 @@ export const DataStore = {
       createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
       link: msg.senderRole === 'employer' ? '/driver/messages' : '/employer/messages'
     });
+    return true;
   },
 
   // Reset demo state if needed

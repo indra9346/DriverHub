@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Job, Application, DriverProfile, EmployerProfile, User, Notification } from '../types';
+import { Job, Application, DriverProfile, EmployerProfile, User, Notification, DriverDocument, DirectMessage, SavedSearch, FavoriteJob, DriverExperience } from '../types';
 
 // Helper to convert any string ID to a valid deterministic UUID
 export function toUUID(id: string): string {
@@ -18,6 +18,203 @@ export function toUUID(id: string): string {
 }
 
 export const SupabaseSync = {
+  async getAdminDocumentQueue(): Promise<Array<DriverDocument & {
+    driverName: string; driverEmail: string; driverPhone: string; driverCity: string; driverState: string;
+  }>> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) throw new Error('Sign in with an administrator account to review documents.');
+    const { data: actor, error: actorError } = await supabase.from('profiles').select('role')
+      .eq('id', authData.user.id).maybeSingle();
+    if (actorError || actor?.role !== 'admin') throw new Error('Administrator access is required to review driver documents.');
+
+    const { data: documentRows, error: documentError } = await supabase.from('driver_documents').select('*')
+      .order('upload_date', { ascending: false });
+    if (documentError) throw new Error(documentError.message);
+    const driverIds = [...new Set((documentRows || []).map((row: any) => row.driver_id))];
+    const { data: profileRows, error: profileError } = driverIds.length
+      ? await supabase.from('profiles').select('id,full_name,email,phone,city,state').in('id', driverIds)
+      : { data: [], error: null };
+    if (profileError) throw new Error(profileError.message);
+    const profileById = new Map((profileRows || []).map((row: any) => [row.id, row]));
+    return (documentRows || []).map((row: any) => {
+      const driver = profileById.get(row.driver_id) as any;
+      return {
+        id: row.id, driverId: row.driver_id, name: row.name, type: row.type,
+        fileUrl: row.file_url, fileSize: row.file_size || undefined,
+        uploadDate: row.upload_date?.slice(0, 10) || '', verificationStatus: row.verification_status,
+        driverName: driver?.full_name || 'Driver', driverEmail: driver?.email || '',
+        driverPhone: driver?.phone || '', driverCity: driver?.city || '', driverState: driver?.state || ''
+      };
+    });
+  },
+
+  async reviewDriverDocument(documentId: string, status: 'verified' | 'rejected'): Promise<boolean> {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) return false;
+      const { data: actor } = await supabase.from('profiles').select('role')
+        .eq('id', authData.user.id).maybeSingle();
+      if (actor?.role !== 'admin') return false;
+      const { error } = await supabase.rpc('review_driverhub_document', {
+        p_document_id: toUUID(documentId), p_status: status
+      });
+      if (error) console.warn('Supabase reviewDriverDocument error:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase reviewDriverDocument error:', e);
+      return false;
+    }
+  },
+
+  async updateEmployerBillingProfile(employerId: string, billing: {
+    gstin: string; billingCompanyName: string; billingAddress: string;
+  }): Promise<boolean> {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user || authData.user.id !== toUUID(employerId)) return false;
+      const { error } = await supabase.rpc('update_driverhub_billing_profile', {
+        p_gstin: billing.gstin,
+        p_billing_company_name: billing.billingCompanyName,
+        p_billing_address: billing.billingAddress
+      });
+      if (error) console.warn('Supabase billing profile update error:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase billing profile update error:', e);
+      return false;
+    }
+  },
+
+  async searchDriverCandidates(filters: {
+    keyword?: string; category?: string; city?: string; state?: string;
+    minExperience?: number; skill?: string; vehicleType?: string; userId?: string; activeInDays?: number; limit?: number;
+  }): Promise<DriverProfile[]> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) throw new Error('Sign in as an employer to search driver profiles.');
+    const { data, error } = await supabase.rpc('search_driverhub_candidates', {
+      p_keyword: filters.keyword?.trim() || null,
+      p_category: filters.category || null,
+      p_city: filters.city || null,
+      p_state: filters.state || null,
+      p_min_years: filters.minExperience || 0,
+      p_skill: filters.skill?.trim() || null,
+      p_vehicle_type: filters.vehicleType || null,
+      p_user_id: filters.userId || null,
+      p_active_in_days: filters.activeInDays || null,
+      p_limit: Math.min(Math.max(filters.limit || 100, 1), 250),
+      p_offset: 0
+    });
+    if (error) throw new Error(error.message.includes('search_driverhub_candidates')
+      ? 'Driver search needs the latest Supabase migration. Apply supabase-marketplace-flows.sql in the Supabase SQL Editor.'
+      : error.message);
+    return (data || []).map((row: any): DriverProfile => ({
+      id: row.user_id,
+      fullName: row.full_name || 'Driver',
+      phone: row.phone || '',
+      email: row.email || '',
+      location: [row.city, row.state].filter(Boolean).join(', '),
+      city: row.city || '',
+      state: row.state || '',
+      driverCategory: row.driver_category || '',
+      licenseNumber: row.license_number || '',
+      licenseType: row.license_type || '',
+      licenseExpiry: row.license_expiry || '',
+      experienceYears: row.years_experience || 0,
+      experienceMonths: row.months_experience || 0,
+      skills: row.skills || [],
+      languages: row.languages || [],
+      vehicleTypes: row.vehicle_types || [],
+      currentRole: row.current_role || '',
+      education: row.education || '',
+      preferredLocation: row.preferred_location || '',
+      expectedSalary: row.expected_salary || 0,
+      availability: row.availability || 'Flexible',
+      cvAttached: Boolean(row.cv_attached),
+      policeVerified: Boolean(row.police_verified),
+      lastActive: row.last_active || undefined,
+      bio: row.bio || '',
+      resumeUrl: row.resume_url || undefined,
+      status: 'active',
+      documents: []
+    }));
+  },
+
+  async syncFavorite(driverId: string, jobId: string, saved: boolean): Promise<boolean> {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user || authData.user.id !== toUUID(driverId)) return false;
+      const query = supabase.from('favorite_jobs');
+      const { error } = saved
+        ? await query.upsert({ driver_id: authData.user.id, job_id: toUUID(jobId) }, { onConflict: 'driver_id,job_id' })
+        : await query.delete().eq('driver_id', authData.user.id).eq('job_id', toUUID(jobId));
+      if (error) console.warn('Supabase syncFavorite error:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase syncFavorite error:', e);
+      return false;
+    }
+  },
+
+  async uploadDriverDocument(driverId: string, file: File, type: DriverDocument['type']): Promise<DriverDocument> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user || authData.user.id !== toUUID(driverId)) {
+      throw new Error('Sign in to your driver account before uploading documents.');
+    }
+    const id = crypto.randomUUID();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${authData.user.id}/${id}_${safeName}`;
+    const { error: uploadError } = await supabase.storage.from('driver-documents').upload(path, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: false
+    });
+    if (uploadError) throw new Error(uploadError.message);
+
+    const doc: DriverDocument = {
+      id,
+      driverId: authData.user.id,
+      name: file.name,
+      type,
+      fileUrl: path,
+      fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      uploadDate: new Date().toISOString().slice(0, 10),
+      verificationStatus: 'pending'
+    };
+    const { error: rowError } = await supabase.from('driver_documents').insert({
+      id, driver_id: authData.user.id, name: doc.name, type: doc.type,
+      file_url: path, file_size: doc.fileSize, verification_status: 'pending'
+    });
+    if (rowError) {
+      await supabase.storage.from('driver-documents').remove([path]);
+      throw new Error(rowError.message);
+    }
+    return doc;
+  },
+
+  async deleteDriverDocument(driverId: string, doc: DriverDocument): Promise<boolean> {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user || authData.user.id !== toUUID(driverId)) return false;
+      const { error: rowError } = await supabase.from('driver_documents').delete()
+        .eq('id', toUUID(doc.id)).eq('driver_id', authData.user.id);
+      if (rowError) throw rowError;
+      if (doc.fileUrl && !doc.fileUrl.startsWith('blob:') && !doc.fileUrl.startsWith('data:')) {
+        const { error: fileError } = await supabase.storage.from('driver-documents').remove([doc.fileUrl]);
+        if (fileError) console.warn('Supabase document file removal error:', fileError.message);
+      }
+      return true;
+    } catch (e) {
+      console.warn('Supabase deleteDriverDocument error:', e);
+      return false;
+    }
+  },
+
+  async getDriverDocumentUrl(filePath: string): Promise<string> {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('blob:')) return filePath;
+    const { data, error } = await supabase.storage.from('driver-documents').createSignedUrl(filePath, 60);
+    if (error || !data?.signedUrl) throw new Error(error?.message || 'Could not open this document.');
+    return data.signedUrl;
+  },
+
   // Sync a single job to Supabase
   async syncJob(job: Job, _employer?: EmployerProfile): Promise<boolean> {
     try {
@@ -28,13 +225,15 @@ export const SupabaseSync = {
       const { data: currentProfile } = await supabase.from('profiles').select('role').eq('id', authData.user.id).maybeSingle();
       const isAdmin = currentProfile?.role === 'admin';
       if (authData.user.id !== employerUUID && !isAdmin) return false;
-      const { data: company } = await supabase.from('companies').select('id').eq('user_id', employerUUID).maybeSingle();
+      const { data: company } = await supabase.from('companies').select('company_name,logo_url,contact_person').eq('user_id', employerUUID).maybeSingle();
       if (!company && !isAdmin) return false;
 
       const payload = {
         id: toUUID(job.id),
         employer_id: employerUUID,
-        company_id: company?.id || null,
+        company_name: job.companyName || company?.company_name || 'DriverHub Employer',
+        company_logo: job.companyLogo || company?.logo_url || null,
+        posted_by: job.postedBy || company?.contact_person || null,
         title: job.title,
         category: job.category,
         location: job.location,
@@ -54,6 +253,7 @@ export const SupabaseSync = {
         perks: job.perks || [],
         night_shift: Boolean(job.nightShift),
         vehicle_type: job.vehicleType || null,
+        route_type: job.routeType || 'Local City & Highway',
         work_location_type: job.workLocationType || 'Work From Depot / Office',
         joining_fee_required: Boolean(job.joiningFeeRequired),
         screening_questions: job.screeningQuestions || [],
@@ -112,12 +312,14 @@ export const SupabaseSync = {
   },
 
   // Register and sync new user to Supabase
-  async registerUser(user: User, profileData?: DriverProfile | EmployerProfile) {
+  async registerUser(user: User, profileData?: DriverProfile | EmployerProfile): Promise<boolean> {
     try {
       const userUUID = toUUID(user.id);
       const { data: authData } = await supabase.auth.getUser();
       // Public profile writes are only allowed for the signed-in owner. Demo/local users never sync.
-      if (!authData.user || authData.user.id !== userUUID) return;
+      if (!authData.user || authData.user.id !== userUUID) {
+        return Boolean(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true');
+      }
       const fullName = (profileData as DriverProfile)?.fullName || (profileData as EmployerProfile)?.contactPerson || user.email.split('@')[0];
       const phone = user.phone || (profileData as DriverProfile)?.phone || (profileData as EmployerProfile)?.phone || null;
       const city = (profileData as DriverProfile)?.city || (profileData as EmployerProfile)?.city || (profileData as DriverProfile)?.location || null;
@@ -139,6 +341,7 @@ export const SupabaseSync = {
 
       if (profileError) {
         console.warn('Supabase profiles upsert notice:', profileError.message);
+        return false;
       } else {
         console.log('✅ Supabase public.profiles record created for:', user.email);
       }
@@ -151,17 +354,54 @@ export const SupabaseSync = {
           user_id: userUUID,
           driver_category: dp.driverCategory || null,
           years_experience: dp.experienceYears || 0,
+          months_experience: dp.experienceMonths || 0,
           license_number: dp.licenseNumber || null,
           license_type: dp.licenseType || null,
           license_expiry: dp.licenseExpiry || null,
           skills: dp.skills || [],
+          languages: dp.languages || [],
+          vehicle_types: dp.vehicleTypes || [],
+          current_role: dp.currentRole || null,
+          previous_role: dp.previousRole || null,
+          education: dp.education || null,
           preferred_location: dp.preferredLocation || dp.location || dp.city || null,
           expected_salary: dp.expectedSalary || null,
           availability: dp.availability || 'Flexible',
+          cv_attached: Boolean(dp.cvAttached || dp.resumeUrl),
+          police_verified: Boolean(dp.policeVerified),
+          resume_url: dp.resumeUrl || null,
           bio: dp.bio || null
         }, { onConflict: 'user_id' });
 
-        if (drvError) console.warn('Supabase driver_profiles upsert notice:', drvError.message);
+        if (drvError) {
+          console.warn('Supabase driver_profiles upsert notice:', drvError.message);
+          return false;
+        }
+        const experienceRows = (dp.experiences || []).map((experience: DriverExperience) => ({
+          id: toUUID(experience.id), driver_id: userUUID, company_name: experience.companyName,
+          role_title: experience.roleTitle, vehicle_type: experience.vehicleType || null,
+          duration_years: experience.durationYears || 0, start_date: experience.startDate || null,
+          end_date: experience.endDate || null, description: experience.description || null
+        }));
+        if (experienceRows.length) {
+          const { error: experienceError } = await supabase.from('driver_experiences').upsert(experienceRows, { onConflict: 'id' });
+          if (experienceError) {
+            console.warn('Supabase driver_experiences upsert notice:', experienceError.message);
+            return false;
+          }
+        }
+        const documentRows = (dp.documents || []).filter(doc => !doc.fileUrl.startsWith('blob:') && !doc.fileUrl.startsWith('data:')).map((doc: DriverDocument) => ({
+          id: toUUID(doc.id), driver_id: userUUID, name: doc.name, type: doc.type,
+          file_url: doc.fileUrl, file_size: doc.fileSize || null,
+          upload_date: doc.uploadDate, verification_status: doc.verificationStatus
+        }));
+        if (documentRows.length) {
+          const { error: documentsError } = await supabase.from('driver_documents').upsert(documentRows, { onConflict: 'id' });
+          if (documentsError) {
+            console.warn('Supabase driver_documents upsert notice:', documentsError.message);
+            return false;
+          }
+        }
       } else if (user.role === 'employer' && profileData) {
         const ep = profileData as EmployerProfile;
         const { error: compError } = await supabase.from('companies').upsert({
@@ -179,29 +419,33 @@ export const SupabaseSync = {
           status: ep.verified ? 'active' : 'pending'
         }, { onConflict: 'user_id' });
 
-        if (compError) console.warn('Supabase companies upsert notice:', compError.message);
-
-        // Ensure starter subscription exists for the employer
-        try {
-          await supabase.from('employer_subscriptions').upsert({
-            id: userUUID,
-            employer_id: userUUID,
-            plan_name: 'Starter Fleet Hiring Plan (4 Job Credits + 50 Driver Unlocks)',
-            job_credits: 4,
-            db_unlock_credits: 50,
-            total_job_credits: 5,
-            total_db_unlock_credits: 50,
-            active_job_slots: 2,
-            status: 'active',
-            expires_at: new Date(Date.now() + 90 * 86400000).toISOString()
-          }, { onConflict: 'employer_id' });
-        } catch {
-          // Ignore if exists
+        if (compError) {
+          console.warn('Supabase companies upsert notice:', compError.message);
+          return false;
         }
+
       }
       console.log('✅ Registered user fully synced to Supabase tables:', user.email);
+      return true;
     } catch (e) {
       console.warn('Supabase registerUser error:', e);
+      return false;
+    }
+  },
+
+  async deleteDriverExperience(driverId: string, experienceId: string): Promise<boolean> {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user || authData.user.id !== toUUID(driverId)) {
+        return Boolean(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true');
+      }
+      const { error } = await supabase.from('driver_experiences').delete()
+        .eq('id', toUUID(experienceId)).eq('driver_id', authData.user.id);
+      if (error) console.warn('Supabase deleteDriverExperience error:', error.message);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase deleteDriverExperience error:', e);
+      return false;
     }
   },
 
@@ -240,8 +484,9 @@ export const SupabaseSync = {
         status,
         employer_notes: options?.employerNotes,
         interview_date: options?.interviewDate,
-        updated_date: new Date().toISOString().slice(0, 10),
-        updated_at: new Date().toISOString()
+        interview_mode: options?.interviewMode,
+        interview_location: options?.interviewLocation,
+        updated_date: new Date().toISOString()
       }).eq('id', appUUID);
       return !error;
     } catch (e) {
@@ -267,6 +512,14 @@ export const SupabaseSync = {
           console.log('⚡ Realtime Profiles Update from Supabase:', payload);
           if (onUpdate) onUpdate();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_profiles' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_documents' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_experiences' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'favorite_jobs' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'saved_searches' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_unlocks' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => onUpdate?.())
         .subscribe();
 
       return () => {
@@ -336,35 +589,79 @@ export const SupabaseSync = {
     }
   },
 
-  async syncSavedSearch(search: import('../types').SavedSearch) {
+  async syncSavedSearch(search: SavedSearch): Promise<boolean> {
     try {
-      await supabase.from('saved_searches').upsert({
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user || authData.user.id !== toUUID(search.employerId)) return false;
+      const { error } = await supabase.from('saved_searches').upsert({
         id: toUUID(search.id),
-        employer_id: toUUID(search.employerId),
+        employer_id: authData.user.id,
         title: search.title,
         category: search.category,
         city: search.city,
+        state: search.state || null,
+        keyword: search.keyword || null,
+        vehicle_type: search.vehicleType || null,
+        active_in_days: search.activeInDays || 15,
         min_exp: search.minExp,
         must_have_skills: search.mustHaveSkills || [],
         match_count: search.matchCount || 10
       }, { onConflict: 'id' });
+      if (error) console.warn('Supabase syncSavedSearch error:', error.message);
+      return !error;
     } catch (e) {
       console.warn('syncSavedSearch error:', e);
+      return false;
     }
   },
 
-  async syncDirectMessage(msg: import('../types').DirectMessage) {
+  async deleteSavedSearch(id: string, employerId: string): Promise<boolean> {
     try {
-      await supabase.from('direct_messages').upsert({
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user || authData.user.id !== toUUID(employerId)) return false;
+      const { error } = await supabase.from('saved_searches').delete()
+        .eq('id', toUUID(id)).eq('employer_id', authData.user.id);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase deleteSavedSearch error:', e);
+      return false;
+    }
+  },
+
+  async syncDirectMessage(msg: DirectMessage): Promise<boolean> {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user || authData.user.id !== toUUID(msg.senderId)) return false;
+      const { error } = await supabase.from('direct_messages').insert({
         id: toUUID(msg.id),
-        sender_id: toUUID(msg.senderId),
+        sender_id: authData.user.id,
+        sender_name: msg.senderName,
+        sender_role: msg.senderRole,
         receiver_id: toUUID(msg.receiverId),
+        receiver_name: msg.receiverName,
         job_id: msg.jobId ? toUUID(msg.jobId) : null,
+        job_title: msg.jobTitle || null,
         text: msg.text,
         read: msg.read || false
-      }, { onConflict: 'id' });
+      });
+      if (error) console.warn('Supabase syncDirectMessage error:', error.message);
+      return !error;
     } catch (e) {
       console.warn('syncDirectMessage error:', e);
+      return false;
+    }
+  },
+
+  async markNotificationRead(id: string): Promise<boolean> {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return false;
+      const { error } = await supabase.from('notifications').update({ read: true })
+        .eq('id', toUUID(id)).eq('user_id', authData.user.id);
+      return !error;
+    } catch (e) {
+      console.warn('Supabase markNotificationRead error:', e);
+      return false;
     }
   },
 
@@ -384,26 +681,80 @@ export const SupabaseSync = {
           status: profile.status === 'suspended' ? 'blocked' : profile.status || 'active',
           phone: profile.phone || '', createdAt: profile.created_at?.slice(0, 10) || ''
         });
+
+        if (role === 'driver') {
+          const [{ data: driverRow }, { data: experienceRows }, { data: documentRows }, { data: favoriteRows }] = await Promise.all([
+            supabase.from('driver_profiles').select('*').eq('user_id', authUser.id).maybeSingle(),
+            supabase.from('driver_experiences').select('*').eq('driver_id', authUser.id).order('start_date', { ascending: false }),
+            supabase.from('driver_documents').select('*').eq('driver_id', authUser.id).order('upload_date', { ascending: false }),
+            supabase.from('favorite_jobs').select('*').eq('driver_id', authUser.id)
+          ]);
+          if (driverRow) {
+            const driver: DriverProfile = {
+              id: authUser.id,
+              fullName: profile?.full_name || authUser.user_metadata?.full_name || '',
+              phone: profile?.phone || '', email: profile?.email || authUser.email || '',
+              location: profile?.location || profile?.city || '', city: profile?.city || '', state: profile?.state || '',
+              driverCategory: driverRow.driver_category || '', licenseNumber: driverRow.license_number || '',
+              licenseType: driverRow.license_type || '', licenseExpiry: driverRow.license_expiry || '',
+              experienceYears: driverRow.years_experience || 0, experienceMonths: driverRow.months_experience || 0,
+              skills: driverRow.skills || [], languages: driverRow.languages || [], vehicleTypes: driverRow.vehicle_types || [],
+              currentRole: driverRow.current_role || '', previousRole: driverRow.previous_role || '',
+              education: driverRow.education || '', preferredLocation: driverRow.preferred_location || '',
+              expectedSalary: driverRow.expected_salary || 0,
+              availability: driverRow.availability || 'Flexible',
+              nightShiftWilling: Boolean(driverRow.night_shift_willing), outstationWilling: Boolean(driverRow.outstation_willing),
+              cvAttached: Boolean(driverRow.cv_attached), policeVerified: Boolean(driverRow.police_verified),
+              lastActive: driverRow.updated_at || driverRow.created_at, bio: driverRow.bio || '',
+              resumeUrl: driverRow.resume_url || undefined, status: profile?.status || 'active',
+              experiences: (experienceRows || []).map((row: any): DriverExperience => ({
+                id: row.id, driverId: authUser.id, companyName: row.company_name || '', roleTitle: row.role_title || '',
+                vehicleType: row.vehicle_type || '', durationYears: Number(row.duration_years || 0),
+                startDate: row.start_date || '', endDate: row.end_date || undefined, description: row.description || ''
+              })),
+              documents: (documentRows || []).map((row: any): DriverDocument => ({
+                id: row.id, driverId: authUser.id, name: row.name, type: row.type,
+                fileUrl: row.file_url, fileSize: row.file_size || undefined,
+                uploadDate: row.upload_date?.slice(0, 10) || '', verificationStatus: row.verification_status
+              }))
+            };
+            dataStore.mergeRemoteDrivers([driver]);
+          }
+          dataStore.mergeRemoteFavorites(authUser.id, favoriteRows || []);
+        }
+
+        const [{ data: notificationRows }, { data: messageRows }] = await Promise.all([
+          supabase.from('notifications').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }).limit(100),
+          supabase.from('direct_messages').select('*')
+            .or(`sender_id.eq.${authUser.id},receiver_id.eq.${authUser.id}`)
+            .order('created_at', { ascending: true }).limit(500)
+        ]);
+        dataStore.mergeRemoteNotifications(authUser.id, notificationRows || []);
+        dataStore.mergeRemoteMessages(authUser.id, messageRows || []);
       }
 
       const { data: jobRows, error: jobError } = await supabase.from('jobs').select('*').order('posted_date', { ascending: false });
       if (jobError) throw jobError;
       const rows = jobRows || [];
-      const companyIds = [...new Set(rows.map((r: any) => r.company_id).filter(Boolean))];
-      const { data: companies } = companyIds.length
-        ? await supabase.from('companies').select('*').in('id', companyIds)
+      const employerIds = [...new Set(rows.map((r: any) => r.employer_id).filter(Boolean))];
+      const { data: companies } = employerIds.length
+        ? await supabase.from('companies').select('*').in('user_id', employerIds)
         : { data: [] as any[] };
-      const companyById = new Map((companies || []).map((company: any) => [company.id, company]));
+      const companyById = new Map((companies || []).map((company: any) => [company.user_id, company]));
       const jobs: Job[] = rows.map((row: any) => {
-        const company = companyById.get(row.company_id) as any;
+        const company = companyById.get(row.employer_id) as any;
         return {
-          id: row.id, employerId: row.employer_id, companyName: company?.company_name || 'Verified employer',
+          id: row.id, employerId: row.employer_id, companyName: row.company_name || company?.company_name || 'Verified employer',
           companyLogo: company?.logo_url || undefined, postedBy: company?.contact_person || undefined,
           title: row.title, category: row.category, location: row.location, city: row.city || '', state: row.state || '',
           experienceRequired: row.experience_required || '', experienceMinYears: row.experience_min_years || 0,
           salaryMin: row.salary_min || 0, salaryMax: row.salary_max || 0, salaryType: row.salary_type || 'monthly',
           workingHours: row.working_hours || '', employmentType: row.employment_type || 'Full-time',
           description: row.description || '', requiredSkills: row.required_skills || [], requiredDocs: row.required_docs || [],
+          routeType: row.route_type || undefined, vehicleType: row.vehicle_type || undefined,
+          payType: row.pay_type || undefined, perks: row.perks || [], nightShift: Boolean(row.night_shift),
+          workLocationType: row.work_location_type || undefined, joiningFeeRequired: Boolean(row.joining_fee_required),
+          screeningQuestions: row.screening_questions || [],
           vacancies: row.vacancies || 1, status: row.status, postedDate: row.posted_date || '',
           applicationDeadline: row.application_deadline || undefined, applicationsCount: 0,
           creditConsumed: Boolean(row.credit_consumed), slotConsumed: Boolean(row.slot_consumed),
@@ -436,10 +787,20 @@ export const SupabaseSync = {
             driverId: row.driver_id, driverName: driver?.full_name || 'Driver', driverPhone: driver?.phone || '',
             driverEmail: driver?.email || '', driverLocation: driver?.city || '',
             coverMessage: row.cover_message || '', resumeUrl: row.resume_url || undefined,
-            status: row.status, appliedDate: row.applied_date || '', updatedDate: row.updated_date || row.applied_date || ''
+            status: row.status, appliedDate: row.applied_date || '', updatedDate: row.updated_date || row.applied_date || '',
+            employerNotes: row.employer_notes || undefined, interviewDate: row.interview_date || undefined,
+            interviewMode: row.interview_mode || undefined, interviewLocation: row.interview_location || undefined
           };
         });
         dataStore.mergeRemoteApplications(apps);
+        if (role === 'employer') {
+          const applicationCounts = new Map<string, number>();
+          for (const row of appRows || []) applicationCounts.set(row.job_id, (applicationCounts.get(row.job_id) || 0) + 1);
+          dataStore.mergeRemoteJobs(jobs.map(job => ({
+            ...job,
+            applicationsCount: applicationCounts.get(job.id) || 0
+          })));
+        }
       }
 
       if (authUser && role === 'employer') {
@@ -464,6 +825,12 @@ export const SupabaseSync = {
           status: txn.status === 'Success' ? 'Success' : txn.status === 'Failed' ? 'Failed' : txn.status === 'Cancelled' ? 'Cancelled' : 'Pending',
           invoiceId: txn.invoice_id || undefined, jobCreditsAdded: txn.job_credits_added || 0, dbCreditsAdded: txn.db_credits_added || 0
         })));
+        const [{ data: unlockRows }, { data: savedSearchRows }] = await Promise.all([
+          supabase.from('candidate_unlocks').select('*').eq('employer_id', authUser.id).order('unlocked_at', { ascending: false }),
+          supabase.from('saved_searches').select('*').eq('employer_id', authUser.id).order('created_at', { ascending: false })
+        ]);
+        dataStore.mergeRemoteCandidateUnlocks(authUser.id, unlockRows || []);
+        dataStore.mergeRemoteSavedSearches(authUser.id, savedSearchRows || []);
         const { data: company } = await supabase.from('companies').select('*').eq('user_id', authUser.id).maybeSingle();
         if (company && profile) dataStore.mergeRemoteEmployers([{
           id: authUser.id, companyName: company.company_name, contactPerson: company.contact_person || profile.full_name || '',

@@ -268,23 +268,6 @@ export const EmployerPostJob: React.FC = () => {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (!employerId) return;
-    const sub = DataStore.getSubscription(employerId);
-    if (!sub || sub.status !== 'active' || (sub.jobCredits <= 0 && (sub.activeJobSlots || 0) <= 0)) {
-      DataStore.updateSubscription(employerId, {
-        planName: 'Starter Fleet Hiring Plan (5 Job Credits + 50 Driver Unlocks)',
-        jobCredits: 5,
-        dbUnlockCredits: 50,
-        totalJobCredits: 5,
-        totalDbUnlockCredits: 50,
-        activeJobSlots: 3,
-        status: 'active',
-        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
-      });
-    }
-  }, [employerId]);
-
   // Click outside to dismiss suggestion popups
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -425,8 +408,13 @@ export const EmployerPostJob: React.FC = () => {
     let creditUsed = false;
     let slotUsed = false;
 
-    if (targetStatus === 'active') {
+    if (targetStatus !== 'draft') {
       const entitlement = DataStore.consumeJobCredit(employerId);
+      if (!entitlement.success) {
+        setEntitlementError(entitlement.message);
+        navigate('/employer/plans');
+        return;
+      }
       creditUsed = entitlement.creditUsed === true;
       slotUsed = entitlement.slotUsed === true;
     }
@@ -472,13 +460,14 @@ export const EmployerPostJob: React.FC = () => {
     const saved = await DataStore.addJob(newJob);
     setSubmittingJob(false);
 
-    if (!saved) {
-      if (creditUsed) DataStore.refundJobCredit(employerId);
-      setEntitlementError('The job could not be saved. Check your network connection or try again.');
-      return;
-    }
+      if (!saved) {
+        if (creditUsed) DataStore.refundJobCredit(employerId);
+        setEntitlementError('The job could not be saved. Confirm your employer subscription and company verification, then try again.');
+        return;
+      }
 
-    setSubmissionType(targetStatus);
+      const savedStatus = DataStore.getJobById(newJob.id)?.status || targetStatus;
+      setSubmissionType(savedStatus === 'draft' ? 'draft' : savedStatus === 'active' ? 'active' : 'pending');
     setSubmitted(true);
   };
 

@@ -71,12 +71,16 @@ export const JobDetailPage: React.FC = () => {
     );
   }
 
-  const handleToggleSave = () => {
+  const handleToggleSave = async () => {
     if (!currentUser || currentUser.role !== 'driver') {
       alert('Please log in as a candidate to save jobs.');
       return;
     }
-    const saved = DataStore.toggleFavorite(currentUser.id, job.id);
+    const saved = await DataStore.toggleFavorite(currentUser.id, job.id);
+    if (saved === isSaved) {
+      window.alert('Could not update saved jobs. Check your connection and try again.');
+      return;
+    }
     setIsSaved(saved);
   };
 

@@ -18,11 +18,15 @@ export const DriverSavedJobs: React.FC = () => {
 
   useEffect(() => {
     loadSaved();
+    window.addEventListener('driverhub_storage_updated', loadSaved);
+    return () => window.removeEventListener('driverhub_storage_updated', loadSaved);
   }, [currentUser]);
 
-  const handleToggleSave = (jobId: string) => {
+  const handleToggleSave = async (jobId: string) => {
     if (!currentUser) return;
-    DataStore.toggleFavorite(currentUser.id, jobId);
+    const wasSaved = DataStore.getFavorites(currentUser.id).includes(jobId);
+    const saved = await DataStore.toggleFavorite(currentUser.id, jobId);
+    if (saved === wasSaved) return;
     loadSaved();
   };
 

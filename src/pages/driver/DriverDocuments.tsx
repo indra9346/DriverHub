@@ -4,6 +4,7 @@ import {
   CheckCircle2, Clock, UploadCloud 
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, DriverDocument } from '../../types';
 import { FileUploader } from '../../components/common/FileUploader';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -16,6 +17,7 @@ export const DriverDocuments: React.FC = () => {
     }
     return DataStore.getDrivers()[0];
   });
+  const [error, setError] = useState('');
 
   const loadProfile = () => {
     if (!currentUser) return;
@@ -32,9 +34,23 @@ export const DriverDocuments: React.FC = () => {
     loadProfile();
   };
 
-  const handleDelete = (docId: string) => {
+  const handleView = async (doc: DriverDocument) => {
+    try {
+      setError('');
+      const url = await SupabaseSync.getDriverDocumentUrl(doc.fileUrl);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not open this document.');
+    }
+  };
+
+  const handleDelete = async (docId: string) => {
     if (confirm('Are you sure you want to delete this document?')) {
-      DataStore.deleteDriverDocument(profile.id, docId);
+      const deleted = await DataStore.deleteDriverDocument(profile.id, docId);
+      if (!deleted) {
+        setError('The document could not be deleted. Check your connection and try again.');
+        return;
+      }
       loadProfile();
     }
   };
@@ -53,6 +69,8 @@ export const DriverDocuments: React.FC = () => {
         driverId={profile.id}
         onUploadComplete={handleUploadComplete}
       />
+
+      {error && <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>}
 
       {/* Uploaded Documents List */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-card space-y-4">
@@ -87,7 +105,14 @@ export const DriverDocuments: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <StatusBadge status={doc.verificationStatus} size="sm" />
                   <button
-                    onClick={() => handleDelete(doc.id)}
+                    onClick={() => void handleView(doc)}
+                    className="text-slate-400 hover:text-blue-700 p-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+                    title="View document"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => void handleDelete(doc.id)}
                     className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-50 transition-colors"
                     title="Delete document"
                   >

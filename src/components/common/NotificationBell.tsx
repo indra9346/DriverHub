@@ -35,14 +35,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleMarkAsRead = (id: string, e: React.MouseEvent) => {
+  const handleMarkAsRead = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    DataStore.markNotificationAsRead(id);
+    if (!(await DataStore.markNotificationAsRead(id))) return;
     loadNotifications();
   };
 
-  const handleMarkAllRead = () => {
-    DataStore.markAllNotificationsAsRead(userId);
+  const handleMarkAllRead = async () => {
+    if (!(await DataStore.markAllNotificationsAsRead(userId))) return;
     loadNotifications();
   };
 
@@ -74,7 +74,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
             </div>
             {unreadCount > 0 && (
               <button
-                onClick={handleMarkAllRead}
+                onClick={() => { void handleMarkAllRead(); }}
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -123,7 +123,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
 
                   {!notif.read && (
                     <button
-                      onClick={(e) => handleMarkAsRead(notif.id, e)}
+                      onClick={(e) => { void handleMarkAsRead(notif.id, e); }}
                       title="Mark as read"
                       className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-slate-100 shrink-0"
                     >

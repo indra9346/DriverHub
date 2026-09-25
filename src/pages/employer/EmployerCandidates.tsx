@@ -7,6 +7,7 @@ import {
   Wallet, Trash2, Check, X, Building2, Award
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, EmployerSubscription, SavedSearch, CandidateUnlock } from '../../types';
 import { ALL_INDIAN_STATES, getCitiesForState, POPULAR_INDIAN_SKILLS } from '../../data/indiaLocations';
 
@@ -19,6 +20,8 @@ export const EmployerCandidates: React.FC = () => {
   const activeTab = (searchParams.get('tab') as 'search' | 'saved' | 'unlocked') || 'search';
 
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [subscription, setSubscription] = useState<EmployerSubscription>(DataStore.getSubscription(employerId));
   const [unlocks, setUnlocks] = useState<CandidateUnlock[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
@@ -30,6 +33,8 @@ export const EmployerCandidates: React.FC = () => {
   const [selectedCities, setSelectedCities] = useState<string[]>(
     searchParams.get('city') ? [searchParams.get('city')!] : []
   );
+  const [minimumExperience, setMinimumExperience] = useState(0);
+  const [vehicleTypeFilter, setVehicleTypeFilter] = useState('');
   const [citySearch, setCitySearch] = useState<string>('');
   const [hideUnlocked, setHideUnlocked] = useState<boolean>(false);
   const [hideDownloaded, setHideDownloaded] = useState<boolean>(false);
@@ -47,7 +52,9 @@ export const EmployerCandidates: React.FC = () => {
   const [showModifySearchModal, setShowModifySearchModal] = useState(false);
 
   const loadAll = () => {
-    setDrivers(DataStore.getDrivers().filter(d => d.status === 'active'));
+    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true') {
+      setDrivers(DataStore.getDrivers().filter(d => d.status === 'active'));
+    }
     setSubscription(DataStore.getSubscription(employerId));
     setUnlocks(DataStore.getCandidateUnlocks(employerId));
     setSavedSearches(DataStore.getSavedSearches(employerId));
@@ -69,6 +76,36 @@ export const EmployerCandidates: React.FC = () => {
     if (qState !== null) setSelectedState(qState);
     if (qTerm !== null) setKeyword(qTerm);
   }, [searchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true') return;
+      setSearchLoading(true);
+      setSearchError('');
+      try {
+        const results = await SupabaseSync.searchDriverCandidates({
+          keyword, category: categoryFilter, city: selectedCities.length === 1 ? selectedCities[0] : '', state: selectedState,
+          minExperience: minimumExperience, skill: mustHaveSkill,
+          vehicleType: vehicleTypeFilter,
+          activeInDays: activeInDays === '6 months' ? 180 : Number.parseInt(activeInDays, 10),
+          limit: 250
+        });
+        if (!cancelled) setDrivers(results);
+      } catch (e) {
+        if (!cancelled) {
+          setDrivers([]);
+          setSearchError(e instanceof Error ? e.message : 'Could not load driver profiles. Try again.');
+        }
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [employerId, keyword, categoryFilter, selectedCities, selectedState, minimumExperience, mustHaveSkill, vehicleTypeFilter, activeInDays]);
 
   const showToast = (text: string, type: 'success' | 'warning' = 'success') => {
     setToast({ text, type });
@@ -167,6 +204,15 @@ export const EmployerCandidates: React.FC = () => {
       list = list.filter(d => d.skills.some(s => s.toLowerCase().includes(sk)));
     }
 
+    if (minimumExperience > 0) {
+      list = list.filter(driver => driver.experienceYears >= minimumExperience);
+    }
+
+    if (vehicleTypeFilter) {
+      const vehicle = vehicleTypeFilter.toLowerCase();
+      list = list.filter(driver => (driver.vehicleTypes || []).some(type => type.toLowerCase().includes(vehicle)) || driver.licenseType.toLowerCase().includes(vehicle));
+    }
+
     return list;
   }, [
     drivers,
@@ -180,6 +226,8 @@ export const EmployerCandidates: React.FC = () => {
     onlyCvAttached,
     onlyPoliceVerified,
     mustHaveSkill,
+    minimumExperience,
+    vehicleTypeFilter,
     unlockedDriverIds,
     downloadedDriverIds
   ]);
@@ -192,6 +240,8 @@ export const EmployerCandidates: React.FC = () => {
     (onlyCvAttached ? 1 : 0) +
     (onlyPoliceVerified ? 1 : 0) +
     (mustHaveSkill ? 1 : 0) +
+    (minimumExperience ? 1 : 0) +
+    (vehicleTypeFilter ? 1 : 0) +
     selectedCities.length;
 
   const totalPages = Math.max(1, Math.ceil(filteredDrivers.length / perPage));
@@ -209,6 +259,8 @@ export const EmployerCandidates: React.FC = () => {
     onlyCvAttached,
     onlyPoliceVerified,
     mustHaveSkill,
+    minimumExperience,
+    vehicleTypeFilter,
     perPage
   ]);
 
@@ -232,6 +284,12 @@ export const EmployerCandidates: React.FC = () => {
       return;
     }
     loadAll();
+    try {
+      const [unlocked] = await SupabaseSync.searchDriverCandidates({ userId: driver.id, limit: 1 });
+      if (unlocked) setSelectedDriverModal(unlocked);
+    } catch (error) {
+      console.warn('Could not refresh unlocked candidate details:', error);
+    }
     showToast(`Unlocked ${driver.fullName}'s phone number (${driver.phone}). 1 Database Credit used.`);
   };
 
@@ -311,26 +369,38 @@ export const EmployerCandidates: React.FC = () => {
     showToast(`Downloaded ${targetDrivers.length} driver profile(s) to Excel (.csv).`);
   };
 
-  const handleSaveCurrentSearch = () => {
+  const handleSaveCurrentSearch = async () => {
     const title = `${categoryFilter || 'All Commercial & Fleet Drivers'} — ${selectedCities.join(', ') || 'All India'}`;
     const newSaved: SavedSearch = {
-      id: 'srch-' + Date.now(),
+      id: crypto.randomUUID(),
       employerId,
       title,
       category: categoryFilter || 'HMV',
       city: selectedCities[0] || 'Bengaluru',
-      minExp: 2,
+      state: selectedState,
+      keyword,
+      vehicleType: vehicleTypeFilter,
+      activeInDays: activeInDays === '6 months' ? 180 : Number.parseInt(activeInDays, 10),
+      minExp: minimumExperience,
       mustHaveSkills: mustHaveSkill ? [mustHaveSkill] : ['Commercial License', 'Safe Driving'],
       createdAt: new Date().toISOString().slice(0, 10),
       matchCount: filteredDrivers.length
     };
-    DataStore.saveSearch(newSaved);
+    const saved = await DataStore.saveSearch(newSaved);
+    if (!saved) {
+      showToast('Could not save this search. Confirm you are signed in with an active hiring plan.', 'warning');
+      return;
+    }
     loadAll();
     showToast(`Saved search "${title}" to your Database Saved Searches.`);
   };
 
-  const handleMessageDriver = (driver: DriverProfile) => {
-    DataStore.sendMessage({
+  const handleMessageDriver = async (driver: DriverProfile) => {
+    if (!unlockedDriverIds.has(driver.id)) {
+      showToast('Unlock this driver profile before starting a hiring conversation.', 'warning');
+      return;
+    }
+    const sent = await DataStore.sendMessage({
       id: 'msg-' + Date.now(),
       senderId: employerId,
       senderName: subscription.billingCompanyName || 'Verified Fleet Employer',
@@ -341,6 +411,10 @@ export const EmployerCandidates: React.FC = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       read: false
     });
+    if (!sent) {
+      showToast('Message could not be sent. Check your connection and hiring access, then try again.', 'warning');
+      return;
+    }
     navigate('/employer/messages');
   };
 
@@ -350,6 +424,8 @@ export const EmployerCandidates: React.FC = () => {
     setSelectedState('');
     setSelectedCities([]);
     setCitySearch('');
+    setMinimumExperience(0);
+    setVehicleTypeFilter('');
     setHideUnlocked(false);
     setHideDownloaded(false);
     setOnlyCvAttached(false);
@@ -480,7 +556,7 @@ export const EmployerCandidates: React.FC = () => {
 
       {/* Quick Modify Search Bar Drawer */}
       {showModifySearchModal && (
-        <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-card grid grid-cols-1 sm:grid-cols-4 gap-3 animate-in fade-in">
+        <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-card grid grid-cols-1 sm:grid-cols-7 gap-3 animate-in fade-in">
           <div className="sm:col-span-2">
             <label className="block text-[11px] font-bold text-slate-600 mb-1">Role / License / Vehicle Keyword</label>
             <input
@@ -508,6 +584,21 @@ export const EmployerCandidates: React.FC = () => {
               <option value="Tempo Driver">LCV / Tempo Driver</option>
               <option value="Delivery Driver">Delivery Van Driver</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">State</label>
+            <select value={selectedState} onChange={e => setSelectedState(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+              <option value="">All India</option>
+              {ALL_INDIAN_STATES.map(state => <option key={state.state} value={state.state}>{state.state}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Min. Experience</label>
+            <input type="number" min="0" max="40" value={minimumExperience} onChange={e => setMinimumExperience(Number(e.target.value))} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 mb-1">Vehicle Type</label>
+            <input type="text" value={vehicleTypeFilter} onChange={e => setVehicleTypeFilter(e.target.value)} placeholder="e.g. Bus" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs" />
           </div>
           <div className="flex items-end">
             <button
@@ -566,8 +657,10 @@ export const EmployerCandidates: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
-                        DataStore.deleteSavedSearch(s.id);
-                        loadAll();
+                        void DataStore.deleteSavedSearch(s.id).then(deleted => {
+                          if (deleted) loadAll();
+                          else showToast('Could not delete the saved search. Try again.', 'warning');
+                        });
                       }}
                       className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg cursor-pointer"
                       title="Delete Saved Search"
@@ -578,6 +671,11 @@ export const EmployerCandidates: React.FC = () => {
                       onClick={() => {
                         setCategoryFilter(s.category);
                         setSelectedCities([s.city]);
+                        setSelectedState(s.state || '');
+                        setKeyword(s.keyword || '');
+                        setVehicleTypeFilter(s.vehicleType || '');
+                        setMinimumExperience(s.minExp || 0);
+                        setActiveInDays(s.activeInDays === 180 ? '6 months' : `${s.activeInDays || 15} days`);
                         setSearchParams({ tab: 'search' });
                       }}
                       className="px-3.5 py-1.5 bg-[#08233F] hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
@@ -1052,17 +1150,17 @@ export const EmployerCandidates: React.FC = () => {
             {/* Candidate Cards List */}
             {filteredDrivers.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-subtle space-y-3">
-                <Users className="w-12 h-12 text-slate-300 mx-auto" />
-                <h3 className="text-base font-bold text-[#08233F]">No matching driver profiles found</h3>
+                {searchLoading ? <div className="w-8 h-8 mx-auto border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : <Users className="w-12 h-12 text-slate-300 mx-auto" />}
+                <h3 className="text-base font-bold text-[#08233F]">{searchLoading ? 'Searching driver profiles…' : searchError ? 'Driver search is unavailable' : 'No matching driver profiles found'}</h3>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Try clearing some filters or selecting additional cities to view more verified drivers.
+                  {searchError || 'Try clearing some filters or selecting additional cities to view more verified drivers.'}
                 </p>
-                <button
+                {!searchError && !searchLoading && <button
                   onClick={resetAllFilters}
                   className="px-4 py-2 bg-[#08233F] text-white rounded-xl text-xs font-bold cursor-pointer"
                 >
                   Reset Filters
-                </button>
+                </button>}
               </div>
             ) : (
               <div className="space-y-4">
@@ -1071,9 +1169,12 @@ export const EmployerCandidates: React.FC = () => {
                   const isSelected = selectedDriverIds.includes(driver.id);
                   const matchingTags = [
                     driver.driverCategory,
-                    driver.licenseType.split(' ')[0] + ' License',
+                    driver.licenseType ? `${driver.licenseType.split(' ')[0]} License` : '',
                     ...(driver.skills || []).slice(0, 3)
-                  ];
+                  ].filter(Boolean);
+                  const lastActiveDate = driver.lastActive && !Number.isNaN(Date.parse(driver.lastActive))
+                    ? new Date(driver.lastActive).toLocaleDateString('en-IN')
+                    : 'Not recorded';
 
                   return (
                     <div
@@ -1111,9 +1212,7 @@ export const EmployerCandidates: React.FC = () => {
                                 >
                                   <span>{driver.fullName}</span>
                                   <ChevronRight className="w-4 h-4 text-slate-400" />
-                                  <span title="RTO License & ID Verified">
-                                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                                  </span>
+                                  {driver.policeVerified && <span title="Police verification verified"><ShieldCheck className="w-4 h-4 text-emerald-600" /></span>}
                                 </button>
 
                                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-1">
@@ -1126,7 +1225,7 @@ export const EmployerCandidates: React.FC = () => {
                                   </span>
                                   <span className="inline-flex items-center gap-1 font-medium">
                                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                    {driver.location}, {driver.city}/Bangalore
+                                    {[driver.city, driver.state].filter(Boolean).join(', ') || driver.location || 'Location not provided'}
                                   </span>
                                 </div>
                               </div>
@@ -1157,10 +1256,9 @@ export const EmployerCandidates: React.FC = () => {
                                   <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0" /> Current / Latest
                                 </span>
                                 <span className="sm:col-span-9 text-slate-800 font-medium">
-                                  {driver.currentRole ||
-                                    `${driver.experiences?.[0]?.roleTitle || `Senior ${driver.driverCategory} Operator`} at ${
-                                      driver.experiences?.[0]?.companyName || 'Verified Logistics Fleet Pvt Ltd'
-                                    }`}
+                                  {driver.currentRole || (driver.experiences?.[0]
+                                    ? `${driver.experiences[0].roleTitle} at ${driver.experiences[0].companyName}`
+                                    : 'Not provided')}
                                 </span>
                               </div>
 
@@ -1169,10 +1267,9 @@ export const EmployerCandidates: React.FC = () => {
                                   <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" /> Previous
                                 </span>
                                 <span className="sm:col-span-9 text-slate-700">
-                                  {driver.previousRole ||
-                                    `${driver.experiences?.[1]?.roleTitle || 'Previous role not provided'} at ${
-                                      driver.experiences?.[1]?.companyName || 'Previous employer not provided'
-                                    }`}
+                                  {driver.previousRole || (driver.experiences?.[1]
+                                    ? `${driver.experiences[1].roleTitle} at ${driver.experiences[1].companyName}`
+                                    : 'Not provided')}
                                 </span>
                               </div>
 
@@ -1181,7 +1278,7 @@ export const EmployerCandidates: React.FC = () => {
                                   <Award className="w-3.5 h-3.5 text-slate-400 shrink-0" /> License & Edu
                                 </span>
                                 <span className="sm:col-span-9 text-slate-700">
-                                  {driver.licenseType} ({driver.licenseNumber}) • {driver.education || '10th/12th Pass + RTO Badge'}
+                                  {driver.licenseType || 'License type not provided'}{driver.licenseNumber ? ` (${driver.licenseNumber})` : isUnlocked ? '' : ' · Unlock to view license number'} • {driver.education || 'Education not provided'}
                                 </span>
                               </div>
 
@@ -1190,7 +1287,7 @@ export const EmployerCandidates: React.FC = () => {
                                   <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" /> Pref. Location
                                 </span>
                                 <span className="sm:col-span-9 text-slate-700">
-                                  {driver.preferredLocation || `${driver.city}/Bangalore Region & Highway Routes`}
+                                  {driver.preferredLocation || [driver.city, driver.state].filter(Boolean).join(', ') || 'Not provided'}
                                 </span>
                               </div>
 
@@ -1199,7 +1296,7 @@ export const EmployerCandidates: React.FC = () => {
                                   <Sparkles className="w-3.5 h-3.5 text-slate-400 shrink-0" /> Skills & Vehicles
                                 </span>
                                 <span className="sm:col-span-9 text-slate-700">
-                                  {[...(driver.vehicleTypes || []), ...driver.skills].join(' | ')}
+                                  {[...(driver.vehicleTypes || []), ...driver.skills].join(' | ') || 'Not provided'}
                                 </span>
                               </div>
 
@@ -1208,7 +1305,7 @@ export const EmployerCandidates: React.FC = () => {
                                   <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" /> Languages
                                 </span>
                                 <span className="sm:col-span-9 text-slate-700">
-                                  {(driver.languages || ['Kannada (Fluent)', 'Hindi', 'English', 'Tamil']).join(' | ')}
+                                  {(driver.languages || []).join(' | ') || 'Not provided'}
                                 </span>
                               </div>
                             </div>
@@ -1224,7 +1321,7 @@ export const EmployerCandidates: React.FC = () => {
                                     <Phone className="w-3.5 h-3.5" /> {driver.phone} (Call Now)
                                   </a>
                                   <button
-                                    onClick={() => handleMessageDriver(driver)}
+                                    onClick={() => { void handleMessageDriver(driver); }}
                                     className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs cursor-pointer"
                                   >
                                     <MessageSquare className="w-3.5 h-3.5 text-brand-blue" /> Send Message
@@ -1250,12 +1347,6 @@ export const EmployerCandidates: React.FC = () => {
                                   >
                                     View Profile
                                   </button>
-                                  <button
-                                    onClick={() => handleMessageDriver(driver)}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold rounded-lg text-xs cursor-pointer"
-                                  >
-                                    <MessageSquare className="w-3.5 h-3.5" /> Message Driver
-                                  </button>
                                 </div>
                               )}
                             </div>
@@ -1265,10 +1356,11 @@ export const EmployerCandidates: React.FC = () => {
 
                       {/* Card Bottom Footer Bar (22 unlocks | CV attached | Active on 24 Sep '26) */}
                       <div className="px-6 py-2.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                        <span>🔓 {driver.unlockCount || 18} unlocks</span>
+                        <span>{driver.policeVerified ? 'Verified driver' : 'Verification pending'}</span>
                         <div className="flex items-center gap-4">
-                          <span>📎 DL & CV attached</span>
-                          <span>• Active on {driver.lastActive || "24 Sep '26"}</span>
+                          <span>{driver.licenseType ? 'License details provided' : 'License details missing'}</span>
+                          <span>{driver.cvAttached ? 'CV attached' : 'CV not attached'}</span>
+                          <span>Active on {lastActiveDate}</span>
                         </div>
                       </div>
                     </div>
@@ -1440,7 +1532,7 @@ export const EmployerCandidates: React.FC = () => {
                 onClick={() => {
                   const d = selectedDriverModal;
                   setSelectedDriverModal(null);
-                  handleMessageDriver(d);
+                  void handleMessageDriver(d);
                 }}
                 className="px-4 py-2 bg-[#08233F] text-white rounded-xl text-xs font-bold cursor-pointer"
               >

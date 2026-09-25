@@ -74,12 +74,16 @@ export const JobsPage: React.FC = () => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory, selectedState, selectedCity, selectedArea, selectedType, minSalary, selectedSkill]);
 
-  const handleToggleSave = (jobId: string) => {
+  const handleToggleSave = async (jobId: string) => {
     if (!currentUser) {
       alert('Please log in as a driver to save jobs.');
       return;
     }
-    DataStore.toggleFavorite(currentUser.id, jobId);
+    const saved = await DataStore.toggleFavorite(currentUser.id, jobId);
+    if (saved === savedJobIds.includes(jobId)) {
+      alert('Could not update saved jobs. Check your connection and try again.');
+      return;
+    }
     setSavedJobIds(DataStore.getFavorites(currentUser.id));
   };
 

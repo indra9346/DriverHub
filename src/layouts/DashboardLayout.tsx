@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link, NavLink } from 'react-router-dom';
 import { 
-  Menu, Sparkles, LayoutDashboard, Search, FileText, User, 
+  Menu, Sparkles, LayoutDashboard, Search, FileText, FileCheck, User,
   PlusCircle, Briefcase, Users, Building2, ShieldCheck, Settings 
 } from 'lucide-react';
 import { Navbar } from '../components/common/Navbar';
@@ -126,6 +126,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         { to: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
         { to: '/admin/jobs', label: 'Queue', icon: ShieldCheck },
         { to: '/admin/employers', label: 'Fleets', icon: Building2 },
+        { to: '/admin/documents', label: 'Documents', icon: FileCheck },
         { to: '/admin/candidates', label: 'Talent', icon: Users },
       ];
     }

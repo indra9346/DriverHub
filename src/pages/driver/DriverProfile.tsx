@@ -27,6 +27,7 @@ export const DriverProfilePage: React.FC = () => {
   });
   const [skillsText, setSkillsText] = useState(() => profile.skills?.join(', ') || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
 
   // New experience record modal
@@ -67,19 +68,21 @@ export const DriverProfilePage: React.FC = () => {
       licenseNumber: (profile.licenseNumber || '').trim().toUpperCase(),
       licenseExpiry: profile.licenseExpiry ? profile.licenseExpiry.slice(0, 10) : ''
     };
-    DataStore.updateDriverProfile(updated);
-    setProfile(updated);
-
-    if (currentUser) {
-      await SupabaseSync.registerUser(currentUser, updated);
+    setSaveError('');
+    const saved = currentUser ? await SupabaseSync.registerUser(currentUser, updated) : false;
+    if (!saved) {
+      setSaveError('Your profile could not be saved. Check your connection and try again.');
+      setSaving(false);
+      return;
     }
-
+    DataStore.setDriverProfileLocal(updated);
+    setProfile(updated);
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3500);
   };
 
-  const handleAddExperience = (e: React.FormEvent) => {
+  const handleAddExperience = async (e: React.FormEvent) => {
     e.preventDefault();
     const exp: DriverExperience = {
       id: 'exp-' + Date.now(),
@@ -94,23 +97,27 @@ export const DriverProfilePage: React.FC = () => {
 
     const exps = profile.experiences ? [...profile.experiences, exp] : [exp];
     const updated = { ...profile, experiences: exps };
-    DataStore.updateDriverProfile(updated);
-    setProfile(updated);
-    if (currentUser) {
-      void SupabaseSync.registerUser(currentUser, updated);
+    setSaveError('');
+    if (!currentUser || !(await SupabaseSync.registerUser(currentUser, updated))) {
+      setSaveError('Experience could not be saved. Check your connection and try again.');
+      return;
     }
+    DataStore.setDriverProfileLocal(updated);
+    setProfile(updated);
     setShowExpModal(false);
     setNewExp({ companyName: '', roleTitle: '', vehicleType: '', durationYears: 2, description: '' });
   };
 
-  const handleDeleteExperience = (expId: string) => {
+  const handleDeleteExperience = async (expId: string) => {
+    setSaveError('');
+    if (!currentUser || !(await SupabaseSync.deleteDriverExperience(currentUser.id, expId))) {
+      setSaveError('Experience could not be deleted. Check your connection and try again.');
+      return;
+    }
     const exps = profile.experiences?.filter(e => e.id !== expId) || [];
     const updated = { ...profile, experiences: exps };
-    DataStore.updateDriverProfile(updated);
+    DataStore.setDriverProfileLocal(updated);
     setProfile(updated);
-    if (currentUser) {
-      void SupabaseSync.registerUser(currentUser, updated);
-    }
   };
 
   return (
@@ -128,6 +135,7 @@ export const DriverProfilePage: React.FC = () => {
           </div>
         )}
       </div>
+      {saveError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{saveError}</p>}
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Personal & Contact Details */}
@@ -329,7 +337,7 @@ export const DriverProfilePage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleDeleteExperience(exp.id)}
+                    onClick={() => { void handleDeleteExperience(exp.id); }}
                     className="text-slate-400 hover:text-red-600 p-1 cursor-pointer"
                     title="Delete record"
                   >

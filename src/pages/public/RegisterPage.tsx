@@ -68,7 +68,10 @@ export const RegisterPage: React.FC = () => {
         options: { data: {
           role, full_name: fullName, phone, city: location, state: 'Karnataka',
           company_name: role === 'employer' ? companyName : undefined,
-          industry: role === 'employer' ? industry : undefined
+          industry: role === 'employer' ? industry : undefined,
+          driver_category: role === 'driver' ? driverCategory : undefined,
+          experience_years: role === 'driver' ? experienceYears : undefined,
+          license_type: role === 'driver' ? licenseType || driverCategory : undefined
         } }
       });
       if (authError) throw authError;

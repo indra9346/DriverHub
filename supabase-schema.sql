@@ -1,6 +1,8 @@
 -- =====================================================================
--- DRIVERHUB — COMPLETE SUPABASE DATABASE SCHEMA (15 TABLES)
--- Copy and paste this script into Supabase SQL Editor -> New Query -> Run
+-- DRIVERHUB — COMPLETE PRODUCTION SUPABASE DATABASE SCHEMA
+-- Includes: Extensions, Custom Types, 15 Tables, Security Functions,
+-- Triggers, RLS Policies, Indexes, Storage Buckets, and Grants.
+-- Run in: Supabase Dashboard -> SQL Editor -> New Query -> Run
 -- =====================================================================
 
 -- 1. EXTENSIONS
@@ -8,51 +10,22 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 2. ENUM TYPES
-DO $$ BEGIN
-  CREATE TYPE public.user_role AS ENUM ('driver', 'employer', 'admin');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE TYPE public.user_status AS ENUM ('active', 'pending', 'blocked', 'suspended');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE TYPE public.job_status AS ENUM ('draft', 'pending', 'active', 'closed', 'rejected');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE TYPE public.application_status AS ENUM (
-    'applied', 'viewed', 'under_review', 'shortlisted', 
-    'contacted', 'interview', 'selected', 'hired', 'rejected', 'withdrawn'
-  );
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE TYPE public.document_type AS ENUM (
-    'resume', 'driving_license', 'aadhar', 'pan', 
-    'experience_cert', 'police_verification', 'other'
-  );
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE TYPE public.verification_status AS ENUM ('pending', 'verified', 'rejected');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE TYPE public.user_role AS ENUM ('driver', 'employer', 'admin'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE public.user_status AS ENUM ('active', 'pending', 'blocked', 'suspended'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE public.job_status AS ENUM ('draft', 'pending', 'active', 'closed', 'rejected'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE public.application_status AS ENUM ('applied', 'viewed', 'under_review', 'shortlisted', 'contacted', 'interview', 'selected', 'hired', 'rejected', 'withdrawn'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE public.document_type AS ENUM ('resume', 'driving_license', 'aadhar', 'pan', 'experience_cert', 'police_verification', 'other'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE TYPE public.verification_status AS ENUM ('pending', 'verified', 'rejected'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- =====================================================================
--- 3. CORE TABLES DEFINITIONS
+-- 3. CORE TABLES DEFINITION
 -- =====================================================================
 
--- TABLE 1: PROFILES (Base user table linked to Supabase Auth)
+-- TABLE 1: PROFILES (Base user table linked to auth.users)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role public.user_role NOT NULL DEFAULT 'driver',
-  full_name TEXT NOT NULL,
+  full_name TEXT NOT NULL DEFAULT '',
   email TEXT UNIQUE NOT NULL,
   phone TEXT,
   avatar_url TEXT,
@@ -64,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- TABLE 2: DRIVER PROFILES (Driver specific candidate details)
+-- TABLE 2: DRIVER PROFILES (Driver details)
 CREATE TABLE IF NOT EXISTS public.driver_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -85,8 +58,8 @@ CREATE TABLE IF NOT EXISTS public.driver_profiles (
   availability TEXT DEFAULT 'Immediate',
   night_shift_willing BOOLEAN DEFAULT true,
   outstation_willing BOOLEAN DEFAULT true,
-  cv_attached BOOLEAN DEFAULT true,
-  police_verified BOOLEAN DEFAULT true,
+  cv_attached BOOLEAN DEFAULT false,
+  police_verified BOOLEAN DEFAULT false,
   unlock_count INTEGER DEFAULT 0,
   bio TEXT,
   resume_url TEXT,
@@ -108,7 +81,7 @@ CREATE TABLE IF NOT EXISTS public.driver_experiences (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- TABLE 4: DRIVER DOCUMENTS (DL, Aadhaar, Certs, Resumes)
+-- TABLE 4: DRIVER DOCUMENTS (DL, Aadhaar, PAN, Resume)
 CREATE TABLE IF NOT EXISTS public.driver_documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   driver_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -116,7 +89,7 @@ CREATE TABLE IF NOT EXISTS public.driver_documents (
   type public.document_type DEFAULT 'driving_license',
   file_url TEXT NOT NULL,
   file_size TEXT,
-  verification_status public.verification_status DEFAULT 'verified',
+  verification_status public.verification_status DEFAULT 'pending',
   upload_date TIMESTAMPTZ DEFAULT now()
 );
 
@@ -137,7 +110,7 @@ CREATE TABLE IF NOT EXISTS public.companies (
   logo_url TEXT,
   description TEXT,
   gstin TEXT,
-  verified BOOLEAN DEFAULT true,
+  verified BOOLEAN DEFAULT false,
   status public.user_status DEFAULT 'active',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -163,7 +136,7 @@ CREATE TABLE IF NOT EXISTS public.employer_subscriptions (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- TABLE 7: BILLING TRANSACTIONS (Invoices and top-ups)
+-- TABLE 7: BILLING TRANSACTIONS (Invoices and credit purchases)
 CREATE TABLE IF NOT EXISTS public.billing_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -177,7 +150,7 @@ CREATE TABLE IF NOT EXISTS public.billing_transactions (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- TABLE 8: SAVED SEARCHES (Candidate search bookmarks)
+-- TABLE 8: SAVED SEARCHES (Candidate search filters)
 CREATE TABLE IF NOT EXISTS public.saved_searches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -190,7 +163,7 @@ CREATE TABLE IF NOT EXISTS public.saved_searches (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- TABLE 9: CANDIDATE UNLOCKS (Tracking candidate phone unlocks)
+-- TABLE 9: CANDIDATE UNLOCKS (Tracking unlocked candidate profiles)
 CREATE TABLE IF NOT EXISTS public.candidate_unlocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   employer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -282,7 +255,7 @@ CREATE TABLE IF NOT EXISTS public.direct_messages (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- TABLE 14: NOTIFICATIONS (System & activity alerts)
+-- TABLE 14: NOTIFICATIONS (System alerts and status updates)
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -294,7 +267,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- TABLE 15: ADMIN ACTIONS (Audit log for admin decisions)
+-- TABLE 15: ADMIN ACTIONS (Audit log for admin approvals & moderation)
 CREATE TABLE IF NOT EXISTS public.admin_actions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -321,97 +294,37 @@ CREATE INDEX IF NOT EXISTS idx_direct_messages_receiver ON public.direct_message
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON public.notifications(user_id);
 
 -- =====================================================================
--- 5. ROW LEVEL SECURITY (RLS) POLICIES
+-- 5. HELPER FUNCTIONS & TRIGGERS
 -- =====================================================================
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.driver_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.driver_experiences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.driver_documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.employer_subscriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.billing_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.saved_searches ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.candidate_unlocks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.favorite_jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.admin_actions ENABLE ROW LEVEL SECURITY;
 
--- Permissive authenticated & public policies
-DO $$ BEGIN
-  CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
-  CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+-- Helper: Check if user is an admin
+CREATE OR REPLACE FUNCTION public.is_admin(_uid uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = _uid AND role = 'admin')
+$$;
 
-DO $$ BEGIN
-  CREATE POLICY "Driver profiles are viewable by authenticated users" ON public.driver_profiles FOR SELECT TO authenticated USING (true);
-  CREATE POLICY "Drivers can edit own driver profile" ON public.driver_profiles FOR ALL TO authenticated USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+-- Helper: Auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION public.update_updated_at_column() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
 
-DO $$ BEGIN
-  CREATE POLICY "Jobs viewable by everyone" ON public.jobs FOR SELECT USING (true);
-  CREATE POLICY "Employers manage own jobs" ON public.jobs FOR ALL TO authenticated USING (auth.uid() = employer_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+-- Helper: Prevent non-admin users from escalating their role/status
+CREATE OR REPLACE FUNCTION public.protect_profile_role() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF auth.uid() IS NOT NULL AND NOT public.is_admin(auth.uid()) THEN
+    NEW.role := OLD.role;
+    NEW.status := OLD.status;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
-DO $$ BEGIN
-  CREATE POLICY "Companies viewable by everyone" ON public.companies FOR SELECT USING (true);
-  CREATE POLICY "Employers manage own company" ON public.companies FOR ALL TO authenticated USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Applications viewable by applicant or job owner" ON public.applications FOR SELECT TO authenticated 
-  USING (
-    auth.uid() = driver_id OR 
-    EXISTS (SELECT 1 FROM public.jobs WHERE jobs.id = applications.job_id AND jobs.employer_id = auth.uid())
-  );
-  CREATE POLICY "Drivers can insert application" ON public.applications FOR INSERT TO authenticated WITH CHECK (auth.uid() = driver_id);
-  CREATE POLICY "Job owner can update application status" ON public.applications FOR UPDATE TO authenticated 
-  USING (
-    EXISTS (SELECT 1 FROM public.jobs WHERE jobs.id = applications.job_id AND jobs.employer_id = auth.uid()) OR
-    auth.uid() = driver_id
-  );
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Users manage own messages" ON public.direct_messages FOR ALL TO authenticated 
-  USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Employers manage candidate unlocks" ON public.candidate_unlocks FOR ALL TO authenticated 
-  USING (auth.uid() = employer_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Employers manage subscriptions" ON public.employer_subscriptions FOR ALL TO authenticated 
-  USING (auth.uid() = employer_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Users manage notifications" ON public.notifications FOR ALL TO authenticated 
-  USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Drivers manage favorite jobs" ON public.favorite_jobs FOR ALL TO authenticated 
-  USING (auth.uid() = driver_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
--- =====================================================================
--- 6. AUTOMATIC AUTH SIGNUP TRIGGER (Zero-config user initialization)
--- =====================================================================
+-- Helper: Handle new auth user registration
 CREATE OR REPLACE FUNCTION public.handle_new_driverhub_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -497,16 +410,172 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+-- Triggers for updated_at
+DO $$ DECLARE t text; BEGIN
+  FOREACH t IN ARRAY ARRAY['profiles','driver_profiles','companies','employer_subscriptions','jobs'] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS set_updated_at ON public.%I', t);
+    EXECUTE format('CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()', t);
+  END LOOP;
+END $$;
+
+-- Triggers for Auth & Role Protection
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP TRIGGER IF EXISTS on_auth_user_created_driverhub ON auth.users;
 CREATE TRIGGER on_auth_user_created_driverhub
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_driverhub_user();
 
+DROP TRIGGER IF EXISTS protect_profile_role_trg ON public.profiles;
+CREATE TRIGGER protect_profile_role_trg
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.protect_profile_role();
+
 -- =====================================================================
--- 7. GRANT PERMISSIONS
+-- 6. ROW LEVEL SECURITY (RLS) POLICIES
+-- =====================================================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.driver_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.driver_experiences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.driver_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employer_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.billing_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.saved_searches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.candidate_unlocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.favorite_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_actions ENABLE ROW LEVEL SECURITY;
+
+-- Profiles Policies
+DROP POLICY IF EXISTS "profiles read own or admin" ON public.profiles;
+DROP POLICY IF EXISTS "profiles employers read drivers" ON public.profiles;
+DROP POLICY IF EXISTS "profiles update own" ON public.profiles;
+CREATE POLICY "profiles read own or admin" ON public.profiles FOR SELECT TO authenticated USING (id = auth.uid() OR public.is_admin(auth.uid()));
+CREATE POLICY "profiles employers read drivers" ON public.profiles FOR SELECT TO authenticated USING (role = 'driver');
+CREATE POLICY "profiles update own" ON public.profiles FOR UPDATE TO authenticated USING (id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (id = auth.uid() OR public.is_admin(auth.uid()));
+
+-- Driver Profiles Policies
+DROP POLICY IF EXISTS "dp read" ON public.driver_profiles;
+DROP POLICY IF EXISTS "dp write own" ON public.driver_profiles;
+CREATE POLICY "dp read" ON public.driver_profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "dp write own" ON public.driver_profiles FOR ALL TO authenticated USING (user_id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (user_id = auth.uid() OR public.is_admin(auth.uid()));
+
+-- Driver Experiences Policies
+DROP POLICY IF EXISTS "exp read" ON public.driver_experiences;
+DROP POLICY IF EXISTS "exp write own" ON public.driver_experiences;
+CREATE POLICY "exp read" ON public.driver_experiences FOR SELECT TO authenticated USING (true);
+CREATE POLICY "exp write own" ON public.driver_experiences FOR ALL TO authenticated USING (driver_id = auth.uid()) WITH CHECK (driver_id = auth.uid());
+
+-- Driver Documents Policies
+DROP POLICY IF EXISTS "docs own or admin" ON public.driver_documents;
+DROP POLICY IF EXISTS "docs insert own" ON public.driver_documents;
+DROP POLICY IF EXISTS "docs delete own" ON public.driver_documents;
+DROP POLICY IF EXISTS "docs admin update" ON public.driver_documents;
+CREATE POLICY "docs own or admin" ON public.driver_documents FOR SELECT TO authenticated USING (driver_id = auth.uid() OR public.is_admin(auth.uid()) OR EXISTS (SELECT 1 FROM public.candidate_unlocks u WHERE u.driver_id = driver_documents.driver_id AND u.employer_id = auth.uid()));
+CREATE POLICY "docs insert own" ON public.driver_documents FOR INSERT TO authenticated WITH CHECK (driver_id = auth.uid());
+CREATE POLICY "docs delete own" ON public.driver_documents FOR DELETE TO authenticated USING (driver_id = auth.uid());
+CREATE POLICY "docs admin update" ON public.driver_documents FOR UPDATE TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()));
+
+-- Companies Policies
+DROP POLICY IF EXISTS "companies public read" ON public.companies;
+DROP POLICY IF EXISTS "companies write own" ON public.companies;
+CREATE POLICY "companies public read" ON public.companies FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "companies write own" ON public.companies FOR ALL TO authenticated USING (user_id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (user_id = auth.uid() OR public.is_admin(auth.uid()));
+
+-- Subscriptions & Billing Policies
+DROP POLICY IF EXISTS "subs read own" ON public.employer_subscriptions;
+DROP POLICY IF EXISTS "subs write own" ON public.employer_subscriptions;
+CREATE POLICY "subs read own" ON public.employer_subscriptions FOR SELECT TO authenticated USING (employer_id = auth.uid() OR public.is_admin(auth.uid()));
+CREATE POLICY "subs write own" ON public.employer_subscriptions FOR ALL TO authenticated USING (employer_id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (employer_id = auth.uid() OR public.is_admin(auth.uid()));
+
+DROP POLICY IF EXISTS "billing read own" ON public.billing_transactions;
+DROP POLICY IF EXISTS "billing write own" ON public.billing_transactions;
+CREATE POLICY "billing read own" ON public.billing_transactions FOR SELECT TO authenticated USING (employer_id = auth.uid() OR public.is_admin(auth.uid()));
+CREATE POLICY "billing write own" ON public.billing_transactions FOR ALL TO authenticated USING (employer_id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (employer_id = auth.uid() OR public.is_admin(auth.uid()));
+
+-- Saved Searches Policies
+DROP POLICY IF EXISTS "searches own" ON public.saved_searches;
+CREATE POLICY "searches own" ON public.saved_searches FOR ALL TO authenticated USING (employer_id = auth.uid()) WITH CHECK (employer_id = auth.uid());
+
+-- Candidate Unlocks Policies
+DROP POLICY IF EXISTS "unlocks read" ON public.candidate_unlocks;
+DROP POLICY IF EXISTS "unlocks insert own" ON public.candidate_unlocks;
+DROP POLICY IF EXISTS "unlocks update own" ON public.candidate_unlocks;
+CREATE POLICY "unlocks read" ON public.candidate_unlocks FOR SELECT TO authenticated USING (employer_id = auth.uid() OR driver_id = auth.uid() OR public.is_admin(auth.uid()));
+CREATE POLICY "unlocks insert own" ON public.candidate_unlocks FOR INSERT TO authenticated WITH CHECK (employer_id = auth.uid());
+CREATE POLICY "unlocks update own" ON public.candidate_unlocks FOR UPDATE TO authenticated USING (employer_id = auth.uid()) WITH CHECK (employer_id = auth.uid());
+
+-- Jobs Policies
+DROP POLICY IF EXISTS "jobs public read active" ON public.jobs;
+DROP POLICY IF EXISTS "jobs owner read" ON public.jobs;
+DROP POLICY IF EXISTS "jobs owner write" ON public.jobs;
+CREATE POLICY "jobs public read active" ON public.jobs FOR SELECT TO anon, authenticated USING (status = 'active');
+CREATE POLICY "jobs owner read" ON public.jobs FOR SELECT TO authenticated USING (employer_id = auth.uid() OR public.is_admin(auth.uid()));
+CREATE POLICY "jobs owner write" ON public.jobs FOR ALL TO authenticated USING (employer_id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (employer_id = auth.uid() OR public.is_admin(auth.uid()));
+
+-- Applications Policies
+DROP POLICY IF EXISTS "apps read" ON public.applications;
+DROP POLICY IF EXISTS "apps driver insert" ON public.applications;
+DROP POLICY IF EXISTS "apps update" ON public.applications;
+CREATE POLICY "apps read" ON public.applications FOR SELECT TO authenticated USING (driver_id = auth.uid() OR public.is_admin(auth.uid()) OR EXISTS (SELECT 1 FROM public.jobs j WHERE j.id = job_id AND j.employer_id = auth.uid()));
+CREATE POLICY "apps driver insert" ON public.applications FOR INSERT TO authenticated WITH CHECK (driver_id = auth.uid());
+CREATE POLICY "apps update" ON public.applications FOR UPDATE TO authenticated USING (driver_id = auth.uid() OR EXISTS (SELECT 1 FROM public.jobs j WHERE j.id = job_id AND j.employer_id = auth.uid())) WITH CHECK (driver_id = auth.uid() OR EXISTS (SELECT 1 FROM public.jobs j WHERE j.id = job_id AND j.employer_id = auth.uid()));
+
+-- Favorite Jobs Policies
+DROP POLICY IF EXISTS "favs own" ON public.favorite_jobs;
+CREATE POLICY "favs own" ON public.favorite_jobs FOR ALL TO authenticated USING (driver_id = auth.uid()) WITH CHECK (driver_id = auth.uid());
+
+-- Direct Messages Policies
+DROP POLICY IF EXISTS "dm read" ON public.direct_messages;
+DROP POLICY IF EXISTS "dm send" ON public.direct_messages;
+DROP POLICY IF EXISTS "dm mark read" ON public.direct_messages;
+CREATE POLICY "dm read" ON public.direct_messages FOR SELECT TO authenticated USING (sender_id = auth.uid() OR receiver_id = auth.uid());
+CREATE POLICY "dm send" ON public.direct_messages FOR INSERT TO authenticated WITH CHECK (sender_id = auth.uid());
+CREATE POLICY "dm mark read" ON public.direct_messages FOR UPDATE TO authenticated USING (receiver_id = auth.uid()) WITH CHECK (receiver_id = auth.uid());
+
+-- Notifications Policies
+DROP POLICY IF EXISTS "notif own" ON public.notifications;
+DROP POLICY IF EXISTS "notif update own" ON public.notifications;
+DROP POLICY IF EXISTS "notif delete own" ON public.notifications;
+DROP POLICY IF EXISTS "notif insert" ON public.notifications;
+CREATE POLICY "notif own" ON public.notifications FOR SELECT TO authenticated USING (user_id = auth.uid());
+CREATE POLICY "notif update own" ON public.notifications FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "notif delete own" ON public.notifications FOR DELETE TO authenticated USING (user_id = auth.uid());
+CREATE POLICY "notif insert" ON public.notifications FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Admin Actions Policies
+DROP POLICY IF EXISTS "admin log read" ON public.admin_actions;
+DROP POLICY IF EXISTS "admin log insert" ON public.admin_actions;
+CREATE POLICY "admin log read" ON public.admin_actions FOR SELECT TO authenticated USING (public.is_admin(auth.uid()));
+CREATE POLICY "admin log insert" ON public.admin_actions FOR INSERT TO authenticated WITH CHECK (public.is_admin(auth.uid()) AND admin_id = auth.uid());
+
+-- =====================================================================
+-- 7. STORAGE BUCKETS SETUP (For Documents, Resumes, Logos)
+-- =====================================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES 
+  ('driver-documents', 'driver-documents', true),
+  ('company-logos', 'company-logos', true),
+  ('resumes', 'resumes', true)
+ON CONFLICT (id) DO NOTHING;
+
+DO $$ BEGIN
+  CREATE POLICY "Public storage view" ON storage.objects FOR SELECT USING (bucket_id IN ('driver-documents', 'company-logos', 'resumes'));
+  CREATE POLICY "Authenticated storage upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('driver-documents', 'company-logos', 'resumes'));
+  CREATE POLICY "Authenticated storage update" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id IN ('driver-documents', 'company-logos', 'resumes'));
+  CREATE POLICY "Authenticated storage delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id IN ('driver-documents', 'company-logos', 'resumes'));
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+-- =====================================================================
+-- 8. GRANT GLOBAL SCHEMA PERMISSIONS
 -- =====================================================================
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT SELECT ON public.jobs TO anon, authenticated;
-GRANT SELECT ON public.companies TO anon, authenticated;
-GRANT SELECT ON public.profiles TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT SELECT ON public.jobs TO anon;
+GRANT SELECT ON public.companies TO anon;
+GRANT SELECT ON public.profiles TO anon;

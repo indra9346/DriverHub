@@ -10,6 +10,8 @@ ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS active_in_days intege
 
 -- Registration is free for drivers. Employers must receive entitlements from a
 -- trusted payment/admin flow; retire the legacy auto-granted starter accounts.
+ALTER TABLE public.employer_subscriptions
+  ADD COLUMN IF NOT EXISTS active_job_slots integer NOT NULL DEFAULT 0;
 ALTER TABLE public.employer_subscriptions ALTER COLUMN plan_name SET DEFAULT 'No active hiring plan';
 ALTER TABLE public.employer_subscriptions ALTER COLUMN job_credits SET DEFAULT 0;
 ALTER TABLE public.employer_subscriptions ALTER COLUMN db_unlock_credits SET DEFAULT 0;
@@ -132,7 +134,7 @@ RETURNS TABLE (
   skills text[],
   languages text[],
   vehicle_types text[],
-  current_role text,
+  "current_role" text,
   education text,
   preferred_location text,
   expected_salary integer,
@@ -219,7 +221,7 @@ BEGIN
   WHERE p.role::text = 'driver'
     AND p.status::text = 'active'
     AND (p_user_id IS NULL OR p.id = p_user_id)
-    AND (p_keyword IS NULL OR concat_ws(' ', p.full_name, d.driver_category, d.current_role,
+    AND (p_keyword IS NULL OR concat_ws(' ', p.full_name, d.driver_category, d."current_role",
       d.license_type, d.preferred_location, array_to_string(d.skills, ' '),
       array_to_string(d.vehicle_types, ' ')) ILIKE '%' || p_keyword || '%')
     AND (

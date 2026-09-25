@@ -31,11 +31,20 @@ export const EmployerApplications: React.FC = () => {
 
   const loadData = () => {
     if (!currentUser) return;
-    const empJobs = DataStore.getJobs().filter(j => j.employerId === currentUser.id);
+    const allJobs = DataStore.getJobs();
+    const emp = DataStore.getEmployerById(currentUser.id);
+    const empJobs = allJobs.filter(j => 
+      j.employerId === currentUser.id || 
+      (emp && emp.companyName && j.companyName.toLowerCase() === emp.companyName.toLowerCase())
+    );
     setJobs(empJobs);
 
-    const jobIds = empJobs.map(j => j.id);
-    const empApps = DataStore.getApplications().filter(a => jobIds.includes(a.jobId));
+    const jobIds = new Set(empJobs.map(j => j.id));
+    const allApps = DataStore.getApplications();
+    const empApps = allApps.filter(a => 
+      jobIds.has(a.jobId) || 
+      (emp && emp.companyName && a.companyName && a.companyName.toLowerCase() === emp.companyName.toLowerCase())
+    );
     setApplications(empApps);
   };
 
@@ -69,6 +78,7 @@ export const EmployerApplications: React.FC = () => {
     const driver = DataStore.getDriverById(app.driverId);
     setDriverDetails(driver || null);
     setNotesInput(app.employerNotes || '');
+    setInterviewDateInput(app.interviewDate || '');
   };
 
   const filtered = applications.filter((app) => {
@@ -193,7 +203,7 @@ export const EmployerApplications: React.FC = () => {
               <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                 <button
                   onClick={() => handleOpenCandidate(app)}
-                  className="px-4 py-2 bg-[#0A2540] hover:bg-[#06182B] text-white text-xs font-semibold rounded-xl"
+                  className="px-4 py-2 bg-[#0A2540] hover:bg-[#06182B] text-white text-xs font-semibold rounded-xl cursor-pointer transition-all shadow-xs"
                 >
                   View Details & Manage
                 </button>
@@ -201,7 +211,7 @@ export const EmployerApplications: React.FC = () => {
                 {app.status === 'applied' && (
                   <button
                     onClick={() => handleStatusUpdate(app.id, 'shortlisted')}
-                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl shadow-xs"
+                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl shadow-xs cursor-pointer transition-all"
                   >
                     Shortlist
                   </button>
@@ -212,7 +222,7 @@ export const EmployerApplications: React.FC = () => {
         </div>
       )}
 
-      {/* Candidate Details & Status Transition Modal */}
+      {/* Candidate Details & Status Transition Modal (Pic 5) */}
       {selectedApp && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 space-y-6 max-h-[90vh] overflow-y-auto">
@@ -222,57 +232,46 @@ export const EmployerApplications: React.FC = () => {
                 <h3 className="text-xl font-bold text-slate-900 mt-0.5">{selectedApp.driverName}</h3>
                 <p className="text-xs text-slate-500">Applied for {selectedApp.jobTitle}</p>
               </div>
-              <button onClick={() => setSelectedApp(null)} className="text-slate-400 hover:text-slate-900">
+              <button 
+                onClick={() => setSelectedApp(null)} 
+                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg cursor-pointer transition-colors"
+              >
                 ✕
               </button>
             </div>
 
-            {/* Active Duty Conflict Warning */}
-            {(() => {
-              const otherApps = applications.filter(a => 
-                (a.driverId === selectedApp.driverId || a.driverName.toLowerCase() === selectedApp.driverName.toLowerCase()) && 
-                a.id !== selectedApp.id
-              );
-              const hiredApp = otherApps.find(a => a.status === 'selected');
+            {/* Quick Reach & Communication Action Toolbar */}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+              {selectedApp.driverPhone && (
+                <>
+                  <a
+                    href={`tel:${selectedApp.driverPhone}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Call Driver ({selectedApp.driverPhone})</span>
+                  </a>
 
-              if (hiredApp) {
-                return (
-                  <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl flex items-start gap-3 shadow-xs animate-in fade-in">
-                    <div className="w-9 h-9 bg-rose-100 text-rose-700 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                      ⚠️
-                    </div>
-                    <div className="text-xs space-y-1.5 flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-rose-950 text-sm">
-                          Concurrent Driving Assignment Conflict!
-                        </span>
-                        <span className="bg-rose-200 text-rose-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          Already Hired & Active
-                        </span>
-                      </div>
-                      <p className="text-rose-900 leading-relaxed">
-                        Candidate <strong className="text-slate-950">{selectedApp.driverName}</strong> is already <strong>Hired & Working</strong> in your company for position:
-                        <br />
-                        <span className="font-semibold text-rose-950">"{hiredApp.jobTitle}"</span>.
-                      </p>
-                      <p className="text-rose-800 text-[11px]">
-                        Safety & Fleet Policy: A single driver cannot operate two active commercial driving shifts simultaneously under the same fleet.
-                      </p>
-                      <div className="pt-2 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleStatusUpdate(selectedApp.id, 'rejected')}
-                          className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-xs transition-colors"
-                        >
-                          ✕ Reject Concurrent Application (Recommended)
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })()}
+                  <a
+                    href={`https://wa.me/${selectedApp.driverPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${selectedApp.driverName}, we are reviewing your application for the ${selectedApp.jobTitle} vacancy on DriverHub.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-xl text-xs font-bold shadow-xs transition-all"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>WhatsApp</span>
+                  </a>
+                </>
+              )}
+
+              <Link
+                to={`/employer/messages?driverId=${selectedApp.driverId}&jobId=${selectedApp.jobId}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>In-App Chat</span>
+              </Link>
+            </div>
 
             {/* Candidate Info Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs">
@@ -303,6 +302,26 @@ export const EmployerApplications: React.FC = () => {
                 <StatusBadge status={selectedApp.status} size="sm" />
               </div>
             </div>
+
+            {/* License & Verification Specs if available */}
+            {driverDetails && (driverDetails.licenseNumber || driverDetails.licenseType) && (
+              <div className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-200/70 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    Verified License & Credentials
+                  </span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                    RTO Compliant
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-slate-700">
+                  <p><strong>License No:</strong> {driverDetails.licenseNumber || 'Verified on file'}</p>
+                  <p><strong>License Class:</strong> {driverDetails.licenseType || driverDetails.driverCategory || 'Commercial Transport'}</p>
+                  <p><strong>Expiry:</strong> {driverDetails.licenseExpiry || 'Active Valid'}</p>
+                </div>
+              </div>
+            )}
 
             {/* Application History with This Employer */}
             <div className="space-y-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 text-xs">
@@ -361,8 +380,8 @@ export const EmployerApplications: React.FC = () => {
                   type="text"
                   value={interviewDateInput}
                   onChange={(e) => setInterviewDateInput(e.target.value)}
-                  placeholder="e.g. 2026-09-22 at 11:00 AM at Depot Gate 2"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                  placeholder="e.g. 2026-09-28 at 11:00 AM at Chikkaballapur Depot Gate 2"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
 
@@ -375,7 +394,7 @@ export const EmployerApplications: React.FC = () => {
                   value={notesInput}
                   onChange={(e) => setNotesInput(e.target.value)}
                   placeholder="Notes on driving skills, route tests, background clearance..."
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
 
@@ -384,44 +403,29 @@ export const EmployerApplications: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleStatusUpdate(selectedApp.id, 'shortlisted')}
-                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs cursor-pointer"
+                  className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
                 >
                   ✓ Shortlist Candidate
                 </button>
                 <button
                   type="button"
                   onClick={() => handleStatusUpdate(selectedApp.id, 'interview')}
-                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs cursor-pointer"
+                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
                 >
                   🗓️ Schedule Interview
                 </button>
-                {(() => {
-                  const isConflictHired = applications.some(a => 
-                    (a.driverId === selectedApp.driverId || a.driverName.toLowerCase() === selectedApp.driverName.toLowerCase()) && 
-                    a.id !== selectedApp.id && 
-                    a.status === 'selected'
-                  );
-
-                  return (
-                    <button
-                      type="button"
-                      disabled={isConflictHired}
-                      onClick={() => handleStatusUpdate(selectedApp.id, 'selected')}
-                      title={isConflictHired ? "Driver is already hired in another vacancy under this company" : "Select & Hire Driver"}
-                      className={`px-3.5 py-2 font-bold rounded-xl text-xs transition-all ${
-                        isConflictHired
-                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
-                      }`}
-                    >
-                      🏆 {isConflictHired ? 'Already Hired in Fleet' : 'Select / Hire'}
-                    </button>
-                  );
-                })()}
+                <button
+                  type="button"
+                  onClick={() => handleStatusUpdate(selectedApp.id, 'selected')}
+                  title="Select & Hire Driver"
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
+                >
+                  🏆 Select / Hire
+                </button>
                 <button
                   type="button"
                   onClick={() => handleStatusUpdate(selectedApp.id, 'rejected')}
-                  className="px-3.5 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl text-xs cursor-pointer"
+                  className="px-3.5 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
                 >
                   ✕ Reject
                 </button>

@@ -43,10 +43,13 @@ export const EmployerManageJobs: React.FC = () => {
       if (postMenuRef.current && !postMenuRef.current.contains(e.target as Node)) {
         setShowPostMenu(false);
       }
+      if (openActionMenuId && !(e.target as HTMLElement).closest('.job-action-menu-container')) {
+        setOpenActionMenuId(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [openActionMenuId]);
 
   const handleStatusChange = (jobId: string, newStatus: JobStatus) => {
     const updated = DataStore.updateJobStatus(jobId, newStatus);
@@ -326,41 +329,52 @@ export const EmployerManageJobs: React.FC = () => {
                       </Link>
                     )}
 
-                    <div className="relative">
+                    <div className="relative job-action-menu-container">
                       <button
                         onClick={() => setOpenActionMenuId(openActionMenuId === job.id ? null : job.id)}
-                        className="p-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        className="p-1.5 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors"
+                        aria-label="Job actions"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
 
                       {openActionMenuId === job.id && (
-                        <div className="absolute right-0 mt-1.5 w-48 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 text-xs font-semibold">
+                        <div className="absolute right-0 mt-1.5 w-52 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-30 text-xs font-semibold animate-in fade-in zoom-in-95">
                           <Link
                             to={`/jobs/${job.id}`}
-                            className="block px-3.5 py-2 text-slate-700 hover:bg-slate-50"
+                            onClick={() => setOpenActionMenuId(null)}
+                            className="block px-3.5 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
                           >
-                            View Public Job Page
+                            👁️ View Public Job Page
                           </Link>
                           <Link
-                            to={`/employer/candidates?category=${encodeURIComponent(job.category)}&city=${encodeURIComponent(job.city || 'Bengaluru')}`}
-                            className="block px-3.5 py-2 text-emerald-700 hover:bg-emerald-50"
+                            to={`/employer/candidates?category=${encodeURIComponent(job.category)}&city=${encodeURIComponent(job.city || '')}`}
+                            onClick={() => setOpenActionMenuId(null)}
+                            className="block px-3.5 py-2 text-emerald-700 hover:bg-emerald-50 transition-colors font-bold"
                           >
-                            View Database Matches ({dbMatchesCount})
+                            👥 View Database Matches ({dbMatchesCount})
                           </Link>
+                          <Link
+                            to={`/employer/applications?jobId=${job.id}`}
+                            onClick={() => setOpenActionMenuId(null)}
+                            className="block px-3.5 py-2 text-blue-700 hover:bg-blue-50 transition-colors"
+                          >
+                            📋 View Applications ({appliedCount})
+                          </Link>
+                          <div className="border-t border-slate-100 my-1" />
                           {job.status === 'active' ? (
                             <button
                               onClick={() => handleStatusChange(job.id, 'closed')}
-                              className="w-full text-left px-3.5 py-2 text-red-600 hover:bg-red-50 cursor-pointer"
+                              className="w-full text-left px-3.5 py-2 text-red-600 hover:bg-red-50 cursor-pointer font-bold transition-colors"
                             >
-                              Close / Pause Job
+                              ⏸️ Close / Pause Job
                             </button>
                           ) : (
                             <button
                               onClick={() => handleActivateWithCredit(job)}
-                              className="w-full text-left px-3.5 py-2 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                              className="w-full text-left px-3.5 py-2 text-emerald-700 hover:bg-emerald-50 cursor-pointer font-bold transition-colors"
                             >
-                              Publish / Reopen Job
+                              🚀 Publish / Reopen Job (1 Credit)
                             </button>
                           )}
                         </div>

@@ -59,6 +59,17 @@ export const EmployerCandidates: React.FC = () => {
     return () => window.removeEventListener('driverhub_storage_updated', loadAll);
   }, [employerId]);
 
+  useEffect(() => {
+    const qCat = searchParams.get('category');
+    const qCity = searchParams.get('city');
+    const qState = searchParams.get('state');
+    const qTerm = searchParams.get('q');
+    if (qCat !== null) setCategoryFilter(qCat);
+    if (qCity !== null) setSelectedCities(qCity ? [qCity] : []);
+    if (qState !== null) setSelectedState(qState);
+    if (qTerm !== null) setKeyword(qTerm);
+  }, [searchParams]);
+
   const showToast = (text: string, type: 'success' | 'warning' = 'success') => {
     setToast({ text, type });
     setTimeout(() => setToast(null), 4000);

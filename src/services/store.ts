@@ -261,17 +261,23 @@ export const DataStore = {
     const jobs = this.getJobs();
     if (jobs.some(existing => existing.id === job.id)) return false;
 
-    const employer = this.getEmployerById(job.employerId);
-    const synced = await SupabaseSync.syncJob(job, employer);
-    if (!synced) return false;
+    // Persist immediately in client storage so employer never loses work
     setStorage(STORAGE_KEYS.JOBS, [job, ...jobs]);
+
+    // Background Supabase Sync
+    try {
+      const employer = this.getEmployerById(job.employerId);
+      void SupabaseSync.syncJob(job, employer);
+    } catch (e) {
+      console.warn('Supabase job sync deferred:', e);
+    }
 
     // Add admin notification
     this.addNotification({
       id: 'notif-' + Date.now(),
       userId: 'usr-admin-1',
-      title: 'New Job Listing Pending Review',
-      message: `${job.companyName} submitted a new vacancy: "${job.title}".`,
+      title: job.status === 'active' ? 'New Live Job Listing 🚛' : (job.status === 'draft' ? 'Organization Draft Created 📝' : 'New Job Listing Pending Review ⏳'),
+      message: `${job.companyName} posted vacancy: "${job.title}".`,
       type: 'system',
       read: false,
       createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),

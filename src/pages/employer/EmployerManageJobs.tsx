@@ -275,9 +275,13 @@ export const EmployerManageJobs: React.FC = () => {
                       >
                         {job.title}
                       </Link>
-                      {job.status === 'draft' || job.status === 'pending' ? (
+                      {job.status === 'draft' ? (
+                        <span className="px-2 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 rounded-md text-[11px] font-bold">
+                          Organization Draft 📝
+                        </span>
+                      ) : job.status === 'pending' ? (
                         <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-md text-[11px] font-bold">
-                          {job.status === 'draft' ? 'Select Plan' : 'Under Review'}
+                          Under Admin Review ⏳
                         </span>
                       ) : (
                         <StatusBadge status={job.status} size="sm" />
@@ -288,7 +292,7 @@ export const EmployerManageJobs: React.FC = () => {
                     </div>
 
                     <p className="text-xs text-slate-500">
-                      {job.location} &nbsp;|&nbsp; Posted on : {job.postedDate} &nbsp;|&nbsp; {job.postedBy || 'Deepa Nair'}
+                      {job.location} &nbsp;|&nbsp; Posted on : {job.postedDate} &nbsp;|&nbsp; {job.postedBy || 'Hiring Lead'}
                     </p>
                     <p className="text-xs text-slate-500">
                       For : <span className="font-semibold text-slate-700">{job.companyName}</span> • Salary: ₹{job.salaryMin.toLocaleString('en-IN')} – ₹{job.salaryMax.toLocaleString('en-IN')}/mo
@@ -296,13 +300,22 @@ export const EmployerManageJobs: React.FC = () => {
                   </div>
 
                   {/* Right Action Buttons */}
-                  <div className="flex items-center gap-2 self-start">
-                    {job.status !== 'active' ? (
+                  <div className="flex items-center gap-2 self-start flex-wrap">
+                    {job.status === 'draft' ? (
+                      <button
+                        onClick={() => handleActivateWithCredit(job)}
+                        className="px-3.5 py-1.5 bg-[#19745B] hover:bg-[#135A46] text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1"
+                        title="Approve draft and publish live to all drivers immediately"
+                      >
+                        <Wallet className="w-3 h-3" />
+                        <span>Approve & Make Live</span>
+                      </button>
+                    ) : job.status === 'pending' ? (
                       <button
                         onClick={() => handleActivateWithCredit(job)}
                         className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 shadow-2xs cursor-pointer"
                       >
-                        Finish posting
+                        Instant Approve Live
                       </button>
                     ) : (
                       <Link

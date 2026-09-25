@@ -155,6 +155,44 @@ const PREDEFINED_SCREENING_QUESTIONS = [
   'Do you have experience driving automatic transmission & luxury/heavy vehicles?'
 ];
 
+const JOB_TITLE_SUGGESTIONS = [
+  { title: 'Heavy Truck Driver (Multi-Axle / 16-Wheel)', category: 'HMV' as DriverCategory, vehicleType: 'BharatBenz 16-Wheel / Ashok Leyland 4220' },
+  { title: 'Interstate Long-Haul Freight Pilot', category: 'HMV' as DriverCategory, vehicleType: 'Multi-Axle Heavy Commercial Vehicle' },
+  { title: 'Executive Corporate & Family Chauffeur', category: 'Personal Driver' as DriverCategory, vehicleType: 'Innova Crysta / Fortuner / Mercedes Sedan' },
+  { title: 'LCV Tempo & EV Delivery Van Driver', category: 'Tempo Driver' as DriverCategory, vehicleType: 'Tata Ace Gold / Mahindra Bolero / EV Cargo' },
+  { title: 'Container Trailer Truck Driver (40ft Semi-Trailer)', category: 'Trailer Driver' as DriverCategory, vehicleType: '40ft Semi-Trailer / Prime Mover' },
+  { title: 'School Bus & Corporate Employee Shuttle Driver', category: 'Bus Driver' as DriverCategory, vehicleType: '32-52 Seater Ashok Leyland / Eicher Bus' },
+  { title: 'Airport Transfer & Outstation Cab Chauffeur', category: 'Cab Driver' as DriverCategory, vehicleType: 'Maruti Dzire / Toyota Etios Yellow-Board' },
+  { title: 'Hyperlocal E-Commerce Delivery Rider / Pilot', category: 'Delivery Driver' as DriverCategory, vehicleType: 'Tata Ace / 3-Wheeler EV Cargo' },
+  { title: 'Tipper & Dump Truck Mining/Infra Driver', category: 'HMV' as DriverCategory, vehicleType: 'Tata Signa 2823 Tipper' },
+  { title: 'Hazardous Chemical / Fuel Tanker Driver', category: 'HMV-Transport' as DriverCategory, vehicleType: 'Petroleum Tanker Truck' },
+  { title: 'Private Luxury Automatic Car Chauffeur', category: 'Personal Driver' as DriverCategory, vehicleType: 'Automatic SUV / Luxury Sedan' }
+];
+
+const VEHICLE_SUGGESTIONS = [
+  'BharatBenz 1617R / 2823R (16-Wheel Multi-Axle)',
+  'Ashok Leyland 4220 / 4825 Heavy Commercial Truck',
+  'Tata Signa 4825.TK Tipper / 5530.S Trailer',
+  '40ft High-Cube Container Semi-Trailer Prime Mover',
+  'Tata Ace Gold / EV / Super Ace Mini Truck',
+  'Mahindra Bolero Maxi Truck Plus / Pickup',
+  'Toyota Innova Crysta / Hycross (Automatic 7-Seater)',
+  'Toyota Fortuner / Land Cruiser (4x4 Automatic)',
+  'Maruti Suzuki Dzire / Tour S (Sedan CNG/Petrol)',
+  '32-Seater / 52-Seater Ashok Leyland School Bus',
+  'Eicher Pro 2049 / Pro 3015 LCV Goods Truck',
+  'Force Traveller 12-26 Seater Corporate Shuttle'
+];
+
+const SKILLS_SUGGESTIONS = [
+  'Interstate Highway Freight, Night Driving, FASTag Handling',
+  'VIP Etiquette, Automatic Transmission, City Traffic Navigation',
+  'Heavy Axle Reversing & Docking, Container Port Clearance, Pre-Trip Inspection',
+  'Cold Storage Reefer Temperature Monitoring, Safe Cargo Loading',
+  'Defensive Driving, GPS & Smartphone App Route Navigation, Clean Record',
+  'Hazchem / Hazardous Cargo Transport Safety Clearance'
+];
+
 export const EmployerPostJob: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -173,17 +211,24 @@ export const EmployerPostJob: React.FC = () => {
   const [jobTypePill, setJobTypePill] = useState<'Full Time' | 'Part Time' | 'Both (Full-Time And Part-Time)'>('Full Time');
   const [nightShift, setNightShift] = useState(false);
 
+  // Suggestions state
+  const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
+  const [showVehicleSuggestions, setShowVehicleSuggestions] = useState(false);
+  const [showSkillsSuggestions, setShowSkillsSuggestions] = useState(false);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+
+  const titleSuggestionsRef = useRef<HTMLDivElement>(null);
+  const vehicleSuggestionsRef = useRef<HTMLDivElement>(null);
+  const skillsSuggestionsRef = useRef<HTMLDivElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsBoxRef = useRef<HTMLDivElement>(null);
+
   // Location
   const [workLocationType, setWorkLocationType] = useState<'Work From Depot / Office' | 'Client / Household Site' | 'Interstate / Field Route'>('Work From Depot / Office');
   const [state, setState] = useState(employer?.state || 'Karnataka');
   const [city, setCity] = useState(employer?.city || 'Bengaluru');
   const [location, setLocation] = useState(employer?.location || 'Electronic City Phase 1');
   const [vacancies, setVacancies] = useState<number>(1);
-
-  // Auto-suggestion state
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
-  const locationInputRef = useRef<HTMLInputElement>(null);
-  const suggestionsBoxRef = useRef<HTMLDivElement>(null);
 
   // Compensation & Perks
   const [payType, setPayType] = useState<'Fixed Only' | 'Fixed + Incentive' | 'Incentive Only'>('Fixed + Incentive');
@@ -240,7 +285,7 @@ export const EmployerPostJob: React.FC = () => {
     }
   }, [employerId]);
 
-  // Click outside to dismiss location suggestions
+  // Click outside to dismiss suggestion popups
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -251,6 +296,24 @@ export const EmployerPostJob: React.FC = () => {
       ) {
         setShowLocationSuggestions(false);
       }
+      if (
+        titleSuggestionsRef.current &&
+        !titleSuggestionsRef.current.contains(e.target as Node)
+      ) {
+        setShowTitleSuggestions(false);
+      }
+      if (
+        vehicleSuggestionsRef.current &&
+        !vehicleSuggestionsRef.current.contains(e.target as Node)
+      ) {
+        setShowVehicleSuggestions(false);
+      }
+      if (
+        skillsSuggestionsRef.current &&
+        !skillsSuggestionsRef.current.contains(e.target as Node)
+      ) {
+        setShowSkillsSuggestions(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -259,16 +322,39 @@ export const EmployerPostJob: React.FC = () => {
   const availableCities = useMemo(() => getCitiesForState(state), [state]);
   const availableAreas = useMemo(() => getAreasForCity(city), [city]);
 
+  // Real-time title suggestions computed as user types
+  const titleSuggestions = useMemo(() => {
+    if (!title.trim()) return JOB_TITLE_SUGGESTIONS;
+    const q = title.toLowerCase().trim();
+    return JOB_TITLE_SUGGESTIONS.filter(t => 
+      t.title.toLowerCase().includes(q) || 
+      t.category.toLowerCase().includes(q) || 
+      (t.vehicleType && t.vehicleType.toLowerCase().includes(q))
+    );
+  }, [title]);
+
+  // Real-time vehicle suggestions
+  const vehicleSuggestionsList = useMemo(() => {
+    if (!vehicleType.trim()) return VEHICLE_SUGGESTIONS;
+    const q = vehicleType.toLowerCase().trim();
+    return VEHICLE_SUGGESTIONS.filter(v => v.toLowerCase().includes(q));
+  }, [vehicleType]);
+
+  // Real-time skills suggestions
+  const skillsSuggestionsList = useMemo(() => {
+    if (!skillsText.trim()) return SKILLS_SUGGESTIONS;
+    const q = skillsText.toLowerCase().trim();
+    return SKILLS_SUGGESTIONS.filter(s => s.toLowerCase().includes(q));
+  }, [skillsText]);
+
   // Real-time location suggestions computed as user types
   const locationSuggestions = useMemo(() => {
     if (!location.trim()) {
       return availableAreas.slice(0, 8);
     }
     const q = location.toLowerCase().trim();
-    // 1. Check current city areas
     const matchedCityAreas = availableAreas.filter(a => a.toLowerCase().includes(q));
     
-    // 2. Check all India areas/corridors
     const allIndiaMatches: string[] = [];
     for (const [c, areas] of Object.entries(CITY_AREAS_MAP)) {
       for (const area of areas) {
@@ -602,18 +688,68 @@ export const EmployerPostJob: React.FC = () => {
               <label className="block text-xs font-bold text-slate-800 mb-1.5">
                 Job title / Designation <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="relative">
                 <input
                   type="text"
+                  list="job-title-suggestions-list"
                   value={title}
-                  onChange={e => setTitle(e.target.value)}
+                  onFocus={() => setShowTitleSuggestions(true)}
+                  onChange={e => {
+                    setTitle(e.target.value);
+                    setShowTitleSuggestions(true);
+                  }}
                   placeholder="e.g. Senior Heavy Truck Driver / Executive Chauffeur"
-                  className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-blue-600 font-medium">
-                  <Info className="w-3.5 h-3.5 shrink-0" /> Only similar job title edits are allowed after publishing
-                </span>
+                <datalist id="job-title-suggestions-list">
+                  {JOB_TITLE_SUGGESTIONS.map(t => (
+                    <option key={t.title} value={t.title} />
+                  ))}
+                </datalist>
+
+                {/* Floating Autocomplete Dropdown for Job Title */}
+                {showTitleSuggestions && titleSuggestions.length > 0 && (
+                  <div
+                    ref={titleSuggestionsRef}
+                    className="absolute z-50 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 max-h-60 overflow-y-auto animate-in fade-in"
+                  >
+                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                      <span>Matching Driver Designations</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowTitleSuggestions(false)}
+                        className="text-slate-400 hover:text-slate-700"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {titleSuggestions.map(item => (
+                      <button
+                        key={item.title}
+                        type="button"
+                        onClick={() => {
+                          setTitle(item.title);
+                          if (item.category) setCategory(item.category);
+                          if (item.vehicleType && !vehicleType) setVehicleType(item.vehicleType);
+                          setShowTitleSuggestions(false);
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left text-xs text-slate-800 hover:bg-emerald-50 hover:text-emerald-900 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900 group-hover:text-emerald-900 block">{item.title}</span>
+                          <span className="text-[11px] text-slate-500">{item.category} • {item.vehicleType || 'Standard Fleet'}</span>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 group-hover:bg-emerald-200 text-slate-700 group-hover:text-emerald-900 px-2 py-0.5 rounded font-bold">
+                          Select ↵
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-blue-600 font-medium mt-1">
+                <Info className="w-3.5 h-3.5 shrink-0" /> Real-time auto-suggestions enabled for all driver designations
+              </span>
             </div>
 
             {/* Type of Job Pills + Night Shift Checkbox */}
@@ -650,7 +786,7 @@ export const EmployerPostJob: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 2: Location with Live Auto-Suggestions Dropdown (Screenshot 1 fix) */}
+          {/* Card 2: Location with Live Auto-Suggestions Dropdown (Pic 1 & 2 fix) */}
           <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-subtle space-y-5">
             <div>
               <h2 className="text-base font-extrabold text-slate-900">Location</h2>
@@ -727,24 +863,30 @@ export const EmployerPostJob: React.FC = () => {
                 </select>
               </div>
 
-              {/* Depot / Area Locality with Floating Auto-Suggestions Popup (Pic 1) */}
+              {/* Depot / Area Locality with Floating Auto-Suggestions Popup (Pic 1 & 2) */}
               <div className="relative">
                 <label className="block text-xs font-bold text-slate-800 mb-1">Depot / Area Locality *</label>
                 <div className="relative">
                   <input
                     ref={locationInputRef}
                     type="text"
+                    list="locality-suggestions-list"
                     value={location}
                     onFocus={() => setShowLocationSuggestions(true)}
                     onChange={e => {
                       setLocation(e.target.value);
                       setShowLocationSuggestions(true);
                     }}
-                    placeholder="e.g. Basavanagudi, Peenya, Whitefield..."
+                    placeholder="Type area e.g. Kamala Nagar, Peenya..."
                     className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                   />
                   <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
                 </div>
+                <datalist id="locality-suggestions-list">
+                  {availableAreas.map(a => (
+                    <option key={a} value={a} />
+                  ))}
+                </datalist>
 
                 {/* Floating Autocomplete Dropdown */}
                 {showLocationSuggestions && locationSuggestions.length > 0 && (
@@ -752,8 +894,15 @@ export const EmployerPostJob: React.FC = () => {
                     ref={suggestionsBoxRef}
                     className="absolute z-50 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-1"
                   >
-                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100">
-                      Suggested Areas & Corridors
+                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                      <span>Suggested Areas & Corridors</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowLocationSuggestions(false)}
+                        className="text-slate-400 hover:text-slate-700"
+                      >
+                        ✕
+                      </button>
                     </div>
                     {locationSuggestions.map((area) => (
                       <button
@@ -766,10 +915,10 @@ export const EmployerPostJob: React.FC = () => {
                         className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-800 hover:bg-emerald-50 hover:text-emerald-900 flex items-center justify-between group transition-colors cursor-pointer"
                       >
                         <span className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600" />
-                          <span>{area}</span>
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                          <span className="truncate">{area}</span>
                         </span>
-                        <span className="text-[10px] text-slate-400 group-hover:text-emerald-700">Select ↵</span>
+                        <span className="text-[10px] text-slate-400 group-hover:text-emerald-700 shrink-0">Select ↵</span>
                       </button>
                     ))}
                   </div>
@@ -788,29 +937,6 @@ export const EmployerPostJob: React.FC = () => {
                 />
               </div>
             </div>
-
-            {/* Quick Area Corridor Pills */}
-            {availableAreas.length > 0 && (
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[11px] font-bold text-slate-500">Popular Corridors in {city}:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {availableAreas.slice(0, 6).map(area => (
-                    <button
-                      key={area}
-                      type="button"
-                      onClick={() => setLocation(area)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
-                        location === area
-                          ? 'bg-emerald-700 text-white font-bold'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      📍 {area}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Live Location Preview */}
             <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-900 font-medium">
@@ -961,27 +1087,121 @@ export const EmployerPostJob: React.FC = () => {
               </select>
             </div>
 
-            <div>
+            <div className="relative">
               <label className="block text-xs font-bold text-slate-800 mb-1.5">Vehicle Type / Fleet Model *</label>
-              <input
-                type="text"
-                value={vehicleType}
-                onChange={e => setVehicleType(e.target.value)}
-                placeholder="e.g. BharatBenz 16-Wheel, Innova Crysta, Tata Ace EV..."
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  list="vehicle-suggestions-list"
+                  value={vehicleType}
+                  onFocus={() => setShowVehicleSuggestions(true)}
+                  onChange={e => {
+                    setVehicleType(e.target.value);
+                    setShowVehicleSuggestions(true);
+                  }}
+                  placeholder="e.g. BharatBenz 16-Wheel, Innova Crysta, Tata Ace EV..."
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                />
+                <Truck className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+              </div>
+              <datalist id="vehicle-suggestions-list">
+                {VEHICLE_SUGGESTIONS.map(v => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+
+              {/* Floating Autocomplete Dropdown for Vehicle Type */}
+              {showVehicleSuggestions && vehicleSuggestionsList.length > 0 && (
+                <div
+                  ref={vehicleSuggestionsRef}
+                  className="absolute z-50 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 max-h-56 overflow-y-auto animate-in fade-in"
+                >
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <span>Popular Vehicle & Fleet Models</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowVehicleSuggestions(false)}
+                      className="text-slate-400 hover:text-slate-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {vehicleSuggestionsList.map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setVehicleType(v);
+                        setShowVehicleSuggestions(false);
+                      }}
+                      className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-800 hover:bg-emerald-50 hover:text-emerald-900 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Truck className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                        <span className="truncate">{v}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 group-hover:text-emerald-700 shrink-0">Select ↵</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          <div>
+          <div className="relative">
             <label className="block text-xs font-bold text-slate-800 mb-1.5">Required Skills (Comma separated)</label>
-            <input
-              type="text"
-              value={skillsText}
-              onChange={e => setSkillsText(e.target.value)}
-              placeholder="e.g. Interstate Highway Freight, Night Driving, FASTag, Pre-Trip Inspection"
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                list="skills-suggestions-list"
+                value={skillsText}
+                onFocus={() => setShowSkillsSuggestions(true)}
+                onChange={e => {
+                  setSkillsText(e.target.value);
+                  setShowSkillsSuggestions(true);
+                }}
+                placeholder="e.g. Interstate Highway Freight, Night Driving, FASTag, Pre-Trip Inspection"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+              />
+            </div>
+            <datalist id="skills-suggestions-list">
+              {SKILLS_SUGGESTIONS.map(s => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+
+            {/* Floating Autocomplete Dropdown for Skills */}
+            {showSkillsSuggestions && skillsSuggestionsList.length > 0 && (
+              <div
+                ref={skillsSuggestionsRef}
+                className="absolute z-50 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 max-h-56 overflow-y-auto animate-in fade-in"
+              >
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <span>Suggested Driver Skill Sets</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowSkillsSuggestions(false)}
+                    className="text-slate-400 hover:text-slate-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {skillsSuggestionsList.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setSkillsText(skillsText ? `${skillsText}, ${s}` : s);
+                      setShowSkillsSuggestions(false);
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-800 hover:bg-emerald-50 hover:text-emerald-900 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                  >
+                    <span className="truncate">{s}</span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-emerald-700 shrink-0">+ Add</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

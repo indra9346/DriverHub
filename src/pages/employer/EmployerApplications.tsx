@@ -73,8 +73,10 @@ export const EmployerApplications: React.FC = () => {
 
   const filtered = applications.filter((app) => {
     if (selectedJobId !== 'all' && app.jobId !== selectedJobId) return false;
-    if (selectedStatus !== 'all' && app.status !== selectedStatus) return false;
-    return true;
+    if (selectedStatus === 'all') return true;
+    if (selectedStatus === 'under_review') return app.status === 'under_review' || app.status === 'viewed';
+    if (selectedStatus === 'selected') return app.status === 'selected' || app.status === 'hired';
+    return app.status === selectedStatus;
   });
 
   return (
@@ -99,27 +101,47 @@ export const EmployerApplications: React.FC = () => {
           <select
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
-            className="w-full sm:w-64 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800"
+            className="w-full sm:w-72 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none cursor-pointer"
           >
             <option value="all">All Jobs ({applications.length})</option>
-            {jobs.map((j) => (
-              <option key={j.id} value={j.id}>{j.title}</option>
-            ))}
+            {jobs.map((j) => {
+              const jApps = applications.filter(a => a.jobId === j.id);
+              return (
+                <option key={j.id} value={j.id}>
+                  {j.title} ({jApps.length} Candidates)
+                </option>
+              );
+            })}
           </select>
         </div>
 
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
-          {['all', 'applied', 'under_review', 'shortlisted', 'interview', 'selected', 'rejected'].map((st) => (
+          {[
+            { id: 'all', label: 'All', count: applications.filter(a => selectedJobId === 'all' || a.jobId === selectedJobId).length },
+            { id: 'applied', label: 'Applied', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'applied').length },
+            { id: 'under_review', label: 'Under Review', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && (a.status === 'under_review' || a.status === 'viewed')).length },
+            { id: 'shortlisted', label: 'Shortlisted', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'shortlisted').length },
+            { id: 'interview', label: 'Interview', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'interview').length },
+            { id: 'selected', label: 'Selected', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && (a.status === 'selected' || a.status === 'hired')).length },
+            { id: 'rejected', label: 'Rejected', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'rejected').length }
+          ].map((tab) => (
             <button
-              key={st}
-              onClick={() => setSelectedStatus(st)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold capitalize whitespace-nowrap transition-all ${
-                selectedStatus === st
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900'
+              key={tab.id}
+              onClick={() => setSelectedStatus(tab.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedStatus === tab.id
+                  ? 'bg-[#08233F] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
-              {st.replace('_', ' ')}
+              <span>{tab.label}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                selectedStatus === tab.id
+                  ? 'bg-white/20 text-white'
+                  : 'bg-slate-200 text-slate-700'
+              }`}>
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>

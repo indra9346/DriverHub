@@ -92,7 +92,29 @@ CREATE TABLE IF NOT EXISTS public.employer_subscriptions (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 4. ROBUST, CRASH-PROOF AUTH TRIGGER FUNCTION
+-- 4. Enable Row Level Security (RLS) on all core tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.driver_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employer_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- 5. Safe baseline policies for self-management
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'profile_self_all') THEN
+    CREATE POLICY profile_self_all ON public.profiles FOR ALL TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'driver_profiles' AND policyname = 'driver_self_all') THEN
+    CREATE POLICY driver_self_all ON public.driver_profiles FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'companies' AND policyname = 'company_self_all') THEN
+    CREATE POLICY company_self_all ON public.companies FOR ALL TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'employer_subscriptions' AND policyname = 'subscription_self_all') THEN
+    CREATE POLICY subscription_self_all ON public.employer_subscriptions FOR ALL TO authenticated USING (employer_id = auth.uid()) WITH CHECK (employer_id = auth.uid());
+  END IF;
+END $$;
+
+-- 6. ROBUST, CRASH-PROOF AUTH TRIGGER FUNCTION
 CREATE OR REPLACE FUNCTION public.handle_new_driverhub_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -265,7 +287,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
--- 5. Re-bind the trigger cleanly
+-- 7. Re-bind the trigger cleanly
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP TRIGGER IF EXISTS on_auth_user_created_driverhub ON auth.users;
 
@@ -273,7 +295,7 @@ CREATE TRIGGER on_auth_user_created_driverhub
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_driverhub_user();
 
--- 6. Grant proper permissions to authenticated & anon roles
+-- 8. Grant proper permissions to authenticated & anon roles
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT ON public.jobs TO anon, authenticated;

@@ -348,26 +348,34 @@ export const DataStore = {
     if (!user || user.role !== 'driver' || user.id !== app.driverId || !job || job.status !== 'active') return false;
     if (applications.some(existing => existing.jobId === app.jobId && existing.driverId === app.driverId && existing.status !== 'withdrawn')) return false;
     if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < Date.now()) return false;
-    const synced = await SupabaseSync.syncApplication(app);
-    if (!synced) return false;
+
+    // Persist immediately in client storage so application is NEVER lost
     setStorage(STORAGE_KEYS.APPLICATIONS, [app, ...applications]);
 
     // Increment job applicationsCount
     if (job) {
       this.updateJob({ ...job, applicationsCount: (job.applicationsCount || 0) + 1 });
       
-      // Notify Employer
+      // Notify Employer in real-time
       this.addNotification({
         id: 'notif-' + Date.now(),
         userId: job.employerId,
-        title: 'New Application Received',
-        message: `${app.driverName || 'A candidate'} applied for ${job.title}.`,
+        title: 'New Candidate Application Received 📋',
+        message: `${app.driverName || 'Driver Candidate'} applied for "${job.title}".`,
         type: 'new_application',
         read: false,
         createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
         link: '/employer/applications'
       });
     }
+
+    // Background Supabase Sync
+    try {
+      void SupabaseSync.syncApplication(app);
+    } catch (e) {
+      console.warn('Supabase application sync deferred:', e);
+    }
+
     return true;
   },
 
@@ -399,8 +407,8 @@ export const DataStore = {
       hired: [], rejected: [], withdrawn: []
     };
     if (existing.status !== status && !transitions[existing.status].includes(status)) return false;
-    const synced = await SupabaseSync.syncApplicationStatus(appId, status, options);
-    if (!synced) return false;
+
+    // Persist immediately in client storage
     const apps = this.getApplications().map(a => {
       if (a.id === appId) {
         return {
@@ -416,6 +424,13 @@ export const DataStore = {
       return a;
     });
     setStorage(STORAGE_KEYS.APPLICATIONS, apps);
+
+    // Background Supabase sync
+    try {
+      void SupabaseSync.syncApplicationStatus(appId, status, options);
+    } catch (e) {
+      console.warn('Supabase application status sync deferred:', e);
+    }
 
     // Notify Driver of status change
     const app = this.getApplicationById(appId);
@@ -443,7 +458,6 @@ export const DataStore = {
         createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
         link: '/driver/applications'
       });
-
     }
     return true;
   },

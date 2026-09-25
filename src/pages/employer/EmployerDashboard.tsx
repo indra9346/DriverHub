@@ -14,7 +14,7 @@ export const EmployerDashboard: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
 
-  useEffect(() => {
+  const loadDashboard = () => {
     if (!currentUser) return;
     const c = DataStore.getEmployerById(currentUser.id) || {
       id: currentUser.id, companyName: '', contactPerson: '',
@@ -30,6 +30,12 @@ export const EmployerDashboard: React.FC = () => {
     const jobIds = empJobs.map(j => j.id);
     const empApps = DataStore.getApplications().filter(a => jobIds.includes(a.jobId));
     setApplications(empApps);
+  };
+
+  useEffect(() => {
+    loadDashboard();
+    window.addEventListener('driverhub_storage_updated', loadDashboard);
+    return () => window.removeEventListener('driverhub_storage_updated', loadDashboard);
   }, [currentUser]);
 
   const activeJobs = jobs.filter(j => j.status === 'active').length;

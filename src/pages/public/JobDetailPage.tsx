@@ -28,7 +28,7 @@ export const JobDetailPage: React.FC = () => {
   const [applySuccess, setApplySuccess] = useState(false);
   const [applyError, setApplyError] = useState('');
 
-  useEffect(() => {
+  const loadJob = () => {
     if (!id) return;
     const found = DataStore.getJobById(id);
     if (found) {
@@ -37,7 +37,7 @@ export const JobDetailPage: React.FC = () => {
       // Check if driver has applied
       if (currentUser && currentUser.role === 'driver') {
         const apps = DataStore.getApplications();
-        const existing = apps.some(a => a.jobId === id && a.driverId === currentUser.id);
+        const existing = apps.some(a => a.jobId === id && a.driverId === currentUser.id && a.status !== 'withdrawn');
         setHasApplied(existing);
 
         const favs = DataStore.getFavorites(currentUser.id);
@@ -51,6 +51,12 @@ export const JobDetailPage: React.FC = () => {
       const all = DataStore.getJobs().filter(j => j.id !== id && j.status === 'active' && (j.category === found.category || j.city === found.city));
       setSimilarJobs(all.slice(0, 3));
     }
+  };
+
+  useEffect(() => {
+    loadJob();
+    window.addEventListener('driverhub_storage_updated', loadJob);
+    return () => window.removeEventListener('driverhub_storage_updated', loadJob);
   }, [id, currentUser]);
 
   if (!job) {

@@ -286,7 +286,7 @@ export const LoginPage: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold text-slate-700">Password</label>
-                  <Link to="/forgot-password" className="text-[11px] text-blue-700 font-bold hover:underline">
+                  <Link to={`/forgot-password?role=${encodeURIComponent(roleTab)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[11px] text-blue-700 font-bold hover:underline">
                     Forgot?
                   </Link>
                 </div>

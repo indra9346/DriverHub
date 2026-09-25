@@ -29,6 +29,20 @@ AS $$ SELECT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND rol
 REVOKE ALL ON FUNCTION public.is_driverhub_admin() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_driverhub_admin() TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.driverhub_user_applied_to_job(p_job_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, public
+SET row_security = off
+AS $driverhub$
+  SELECT EXISTS (
+    SELECT 1 FROM public.applications AS application
+    WHERE application.job_id = p_job_id AND application.driver_id = auth.uid()
+  );
+$driverhub$;
+REVOKE ALL ON FUNCTION public.driverhub_user_applied_to_job(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.driverhub_user_applied_to_job(uuid) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.enforce_driverhub_job_entitlement()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -210,9 +224,12 @@ CREATE POLICY company_owner_admin_update ON public.companies FOR UPDATE TO authe
 CREATE POLICY company_owner_insert ON public.companies FOR INSERT TO authenticated
   WITH CHECK (user_id = auth.uid() AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'employer'));
 
-CREATE POLICY jobs_public_active_owner_admin ON public.jobs FOR SELECT TO anon, authenticated
-  USING ((status = 'active' AND (expires_at IS NULL OR expires_at > now())) OR employer_id = auth.uid() OR public.is_driverhub_admin()
-    OR EXISTS (SELECT 1 FROM public.applications a WHERE a.job_id = jobs.id AND a.driver_id = auth.uid()));
+CREATE POLICY driverhub_jobs_public_active_read ON public.jobs FOR SELECT TO anon
+  USING (status = 'active' AND (expires_at IS NULL OR expires_at > now()));
+CREATE POLICY jobs_public_active_owner_admin ON public.jobs FOR SELECT TO authenticated
+  USING ((status = 'active' AND (expires_at IS NULL OR expires_at > now()))
+    OR employer_id = auth.uid() OR public.is_driverhub_admin()
+    OR public.driverhub_user_applied_to_job(jobs.id));
 CREATE POLICY jobs_employer_insert ON public.jobs FOR INSERT TO authenticated
   WITH CHECK (employer_id = auth.uid() AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'employer'));
 CREATE POLICY jobs_owner_admin_update ON public.jobs FOR UPDATE TO authenticated
@@ -323,3 +340,4 @@ CREATE POLICY entitlement_owner_admin_read ON public.job_entitlement_events FOR 
 -- Duplicate application and saved-job protection already exists in schema.
 CREATE UNIQUE INDEX IF NOT EXISTS applications_job_driver_unique ON public.applications(job_id, driver_id);
 CREATE UNIQUE INDEX IF NOT EXISTS favorites_driver_job_unique ON public.favorites(driver_id, job_id);
+

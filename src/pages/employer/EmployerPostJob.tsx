@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { DriverCategory, Job } from '../../types';
+import { ALL_INDIAN_STATES, getCitiesForState, getAreasForCity } from '../../data/indiaLocations';
 
 interface JobTemplate {
   id: string;
@@ -165,9 +166,13 @@ export const EmployerPostJob: React.FC = () => {
 
   // Location
   const [workLocationType, setWorkLocationType] = useState<'Work From Depot / Office' | 'Client / Household Site' | 'Interstate / Field Route'>('Work From Depot / Office');
-  const [city, setCity] = useState(employer?.city || '');
-  const [location, setLocation] = useState(employer?.location || '');
+  const [state, setState] = useState(employer?.state || 'Karnataka');
+  const [city, setCity] = useState(employer?.city || 'Bengaluru');
+  const [location, setLocation] = useState(employer?.location || 'Electronic City Phase 1');
   const [vacancies, setVacancies] = useState<number>(1);
+
+  const availableCities = React.useMemo(() => getCitiesForState(state), [state]);
+  const availableAreas = React.useMemo(() => getAreasForCity(city), [city]);
 
   // Compensation & Perks
   const [payType, setPayType] = useState<'Fixed Only' | 'Fixed + Incentive' | 'Incentive Only'>('Fixed + Incentive');
@@ -267,7 +272,7 @@ export const EmployerPostJob: React.FC = () => {
       category,
       location: `${location}, ${city}`,
       city,
-      state: employer?.state || '',
+      state,
       workLocationType,
       experienceRequired,
       experienceMinYears,
@@ -563,25 +568,61 @@ export const EmployerPostJob: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">City *</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs"
-                />
+                <label className="block text-xs font-bold text-slate-800 mb-1">State / UT *</label>
+                <select
+                  value={state}
+                  onChange={e => {
+                    const newState = e.target.value;
+                    setState(newState);
+                    const cities = getCitiesForState(newState);
+                    if (cities.length > 0) {
+                      setCity(cities[0]);
+                      const areas = getAreasForCity(cities[0]);
+                      setLocation(areas[0] || `${cities[0]} Central Hub`);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                >
+                  {ALL_INDIAN_STATES.map(s => (
+                    <option key={s.state} value={s.state}>
+                      {s.state} ({s.code})
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">City / District *</label>
+                <div className="space-y-1.5">
+                  <select
+                    value={city}
+                    onChange={e => {
+                      setCity(e.target.value);
+                      const areas = getAreasForCity(e.target.value);
+                      if (areas.length > 0) setLocation(areas[0]);
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                  >
+                    {availableCities.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">Depot / Area Locality *</label>
                 <input
                   type="text"
                   value={location}
                   onChange={e => setLocation(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs"
+                  placeholder="e.g. Peenya, Electronic City, Industrial Area..."
+                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">Number of Openings *</label>
                 <input
@@ -590,9 +631,41 @@ export const EmployerPostJob: React.FC = () => {
                   max={200}
                   value={vacancies}
                   onChange={e => setVacancies(Number(e.target.value))}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs"
+                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
+            </div>
+
+            {/* Area Corridor Suggestions Chips */}
+            {availableAreas.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold text-slate-500">Popular Corridors in {city}:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableAreas.slice(0, 6).map(area => (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() => setLocation(area)}
+                      className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all cursor-pointer ${
+                        location === area
+                          ? 'bg-emerald-700 text-white font-bold'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      📍 {area}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Live Location Preview */}
+            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-900 font-medium">
+              <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                <strong>Formatted Live Location: </strong>
+                {location ? `${location}, ` : ''}{city}, {state} (India)
+              </span>
             </div>
           </div>
 

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { DriverProfile, EmployerSubscription, SavedSearch, CandidateUnlock } from '../../types';
+import { ALL_INDIAN_STATES, getCitiesForState, POPULAR_INDIAN_SKILLS } from '../../data/indiaLocations';
 
 export const EmployerCandidates: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -25,8 +26,9 @@ export const EmployerCandidates: React.FC = () => {
   // Filters matching ApnaHire Screenshot 1 (media_1790252022828.jpg)
   const [keyword, setKeyword] = useState(searchParams.get('q') || '');
   const [categoryFilter, setCategoryFilter] = useState<string>(searchParams.get('category') || '');
+  const [selectedState, setSelectedState] = useState<string>(searchParams.get('state') || '');
   const [selectedCities, setSelectedCities] = useState<string[]>(
-    searchParams.get('city') ? [searchParams.get('city')!] : ['Bengaluru']
+    searchParams.get('city') ? [searchParams.get('city')!] : []
   );
   const [citySearch, setCitySearch] = useState<string>('');
   const [hideUnlocked, setHideUnlocked] = useState<boolean>(false);
@@ -68,6 +70,24 @@ export const EmployerCandidates: React.FC = () => {
     [unlocks]
   );
 
+  // Real-time State Counts
+  const stateCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const d of drivers) {
+      const st = d.state || 'Karnataka';
+      counts[st] = (counts[st] || 0) + 1;
+    }
+    return counts;
+  }, [drivers]);
+
+  // Available cities based on selected state
+  const availableCandidateCities = useMemo(() => {
+    if (!selectedState) {
+      return ['Bengaluru', 'Mumbai', 'Delhi NCR', 'Chennai', 'Hyderabad', 'Pune', 'Ahmedabad', 'Kolkata', 'Jaipur', 'Lucknow', 'Kochi', 'Mysuru', 'Hubballi-Dharwad', 'Belagavi', 'Chikkaballapur', 'Kolar', 'Tumakuru', 'Coimbatore', 'Surat', 'Chandigarh'];
+    }
+    return getCitiesForState(selectedState);
+  }, [selectedState]);
+
   const filteredDrivers = useMemo(() => {
     let list = [...drivers];
 
@@ -93,6 +113,14 @@ export const EmployerCandidates: React.FC = () => {
         d.driverCategory === categoryFilter ||
         (categoryFilter === 'HMV' && ['HMV', 'HMV-Transport', 'Truck Driver', 'Trailer Driver'].includes(d.driverCategory)) ||
         (categoryFilter === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].includes(d.driverCategory))
+      );
+    }
+
+    if (selectedState) {
+      list = list.filter(d =>
+        (d.state || '').toLowerCase().includes(selectedState.toLowerCase()) ||
+        (d.location || '').toLowerCase().includes(selectedState.toLowerCase()) ||
+        (d.preferredLocation || '').toLowerCase().includes(selectedState.toLowerCase())
       );
     }
 
@@ -134,6 +162,7 @@ export const EmployerCandidates: React.FC = () => {
     activeTab,
     keyword,
     categoryFilter,
+    selectedState,
     selectedCities,
     hideUnlocked,
     hideDownloaded,
@@ -766,16 +795,51 @@ export const EmployerCandidates: React.FC = () => {
               </div>
             </div>
 
-            {/* Section 5: Current City / Area */}
+            {/* Section 5: State & Union Territory */}
+            <div className="p-4 border-b border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800">Operating State / UT</span>
+                {selectedState && (
+                  <button
+                    onClick={() => {
+                      setSelectedState('');
+                      setSelectedCities([]);
+                    }}
+                    className="text-[11px] font-semibold text-emerald-700 hover:underline cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <select
+                value={selectedState}
+                onChange={e => {
+                  setSelectedState(e.target.value);
+                  setSelectedCities([]);
+                }}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+              >
+                <option value="">All Indian States & UTs ({drivers.length} Drivers)</option>
+                {ALL_INDIAN_STATES.map(st => (
+                  <option key={st.state} value={st.state}>
+                    {st.state} ({st.region}) {stateCounts[st.state] ? `• ${stateCounts[st.state]} active` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Section 6: Current City / Area */}
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800">Current City / Area</span>
+                <span className="text-xs font-bold text-slate-800">
+                  Current City / Area {selectedState ? `(${selectedState})` : ''}
+                </span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setSelectedCities(['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Chikkaballapur', 'Kolar'])}
+                    onClick={() => setSelectedCities(availableCandidateCities.slice(0, 6))}
                     className="text-[11px] font-semibold text-blue-700 hover:underline cursor-pointer"
                   >
-                    All
+                    Select Top
                   </button>
                   {selectedCities.length > 0 && (
                     <button
@@ -798,7 +862,7 @@ export const EmployerCandidates: React.FC = () => {
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               >
                 <option value="">-- Quick Select City / Region --</option>
-                {['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi', 'Chikkaballapur', 'Kolar', 'Tumakuru', 'Chennai', 'Hyderabad', 'Mumbai', 'Pune', 'Delhi-NCR', 'Coimbatore'].map(c => (
+                {availableCandidateCities.map(c => (
                   <option key={c} value={c}>{c} Region</option>
                 ))}
               </select>
@@ -810,18 +874,18 @@ export const EmployerCandidates: React.FC = () => {
                   type="text"
                   value={citySearch}
                   onChange={e => setCitySearch(e.target.value)}
-                  placeholder="Filter cities..."
+                  placeholder="Filter cities / districts..."
                   className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-amber-400 focus:bg-white focus:outline-none"
                 />
               </div>
 
               {/* Filterable Checkbox List */}
-              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                {['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi', 'Chikkaballapur', 'Kolar', 'Tumakuru', 'Davanagere', 'Kalaburagi', 'Ballari', 'Shimoga', 'Hassan', 'Udupi', 'Chennai', 'Hyderabad', 'Mumbai', 'Pune', 'Delhi-NCR', 'Coimbatore']
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {availableCandidateCities
                   .filter(city => !citySearch || city.toLowerCase().includes(citySearch.toLowerCase()))
                   .map(city => {
                     const checked = selectedCities.includes(city);
-                    const countInCity = drivers.filter(d => (d.city || d.location || '').toLowerCase().includes(city.toLowerCase())).length;
+                    const countInCity = drivers.filter(d => (d.city || d.location || d.preferredLocation || '').toLowerCase().includes(city.toLowerCase())).length;
                     return (
                       <label key={city} className="flex items-center justify-between text-xs text-slate-700 cursor-pointer p-1 hover:bg-slate-50 rounded-lg">
                         <div className="flex items-center gap-2">
@@ -837,8 +901,8 @@ export const EmployerCandidates: React.FC = () => {
                           <span className={checked ? 'font-bold text-slate-900' : ''}>{city}</span>
                         </div>
                         {countInCity > 0 && (
-                          <span className="text-[10px] font-semibold text-slate-400 px-1.5 py-0.5 bg-slate-100 rounded-full">
-                            {countInCity}
+                          <span className="text-[10px] font-semibold text-emerald-700 px-1.5 py-0.5 bg-emerald-50 rounded-full border border-emerald-200">
+                            {countInCity} drivers
                           </span>
                         )}
                       </label>

@@ -352,23 +352,39 @@ export const HomePage: React.FC = () => {
               </div>
             </form>
 
-            {/* Trending Tags */}
+            {/* Trending Tags & Pan-India Metros */}
             <div className="flex flex-wrap items-center justify-center gap-2 pt-3 text-xs text-slate-600 border-t border-slate-200/80 mt-2.5">
-              <span className="font-bold text-slate-800">Trending:</span>
-              <button onClick={() => { setCategory('HMV'); navigate('/jobs?category=HMV'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
-                Interstate HMV
+              <span className="font-bold text-slate-800">Pan-India Hubs:</span>
+              <button onClick={() => { setLocation('Bengaluru'); navigate('/jobs?city=Bengaluru&state=Karnataka'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Bengaluru
               </button>
               <span>•</span>
-              <button onClick={() => { setLocation('Bengaluru'); navigate('/jobs?location=Bengaluru'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
-                Bengaluru Sedans
+              <button onClick={() => { setLocation('Mumbai'); navigate('/jobs?city=Mumbai&state=Maharashtra'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Mumbai
               </button>
               <span>•</span>
-              <button onClick={() => { setCategory('Delivery Driver'); navigate('/jobs?category=Delivery+Driver'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
-                Hyperlocal Delivery
+              <button onClick={() => { setLocation('Delhi NCR'); navigate('/jobs?city=Delhi+NCR&state=Delhi+NCR'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Delhi NCR
               </button>
               <span>•</span>
-              <button onClick={() => { setCategory('Bus Driver'); navigate('/jobs?category=Bus+Driver'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
-                School Buses
+              <button onClick={() => { setLocation('Chennai'); navigate('/jobs?city=Chennai&state=Tamil+Nadu'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Chennai
+              </button>
+              <span>•</span>
+              <button onClick={() => { setLocation('Hyderabad'); navigate('/jobs?city=Hyderabad&state=Telangana'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Hyderabad
+              </button>
+              <span>•</span>
+              <button onClick={() => { setLocation('Pune'); navigate('/jobs?city=Pune&state=Maharashtra'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Pune
+              </button>
+              <span>•</span>
+              <button onClick={() => { setLocation('Ahmedabad'); navigate('/jobs?city=Ahmedabad&state=Gujarat'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Ahmedabad
+              </button>
+              <span>•</span>
+              <button onClick={() => { setLocation('Kolkata'); navigate('/jobs?city=Kolkata&state=West+Bengal'); }} className="hover:text-blue-600 hover:underline cursor-pointer font-medium">
+                Kolkata
               </button>
             </div>
           </div>

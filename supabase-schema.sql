@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS public.driver_profiles (
   skills TEXT[] DEFAULT ARRAY['Safe Driving', 'Route Navigation'],
   languages TEXT[] DEFAULT ARRAY['Kannada', 'Hindi', 'English'],
   vehicle_types TEXT[] DEFAULT '{}',
-  current_role TEXT,
+  "current_role" TEXT,
   previous_role TEXT,
   education TEXT DEFAULT '10th Pass',
   preferred_location TEXT,

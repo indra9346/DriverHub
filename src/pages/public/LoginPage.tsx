@@ -10,6 +10,7 @@ import { DataStore } from '../../services/store';
 import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { UserRole, User as UserType } from '../../types';
+import { getPostLoginPath, inferRoleFromPath, isUserRole } from '../../services/authRouting';
 
 export const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -19,7 +20,10 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const initialRole = (searchParams.get('role') as UserRole) || 'driver';
+  const requestedRole = searchParams.get('role');
+  const initialRole: UserRole = isUserRole(requestedRole)
+    ? requestedRole
+    : inferRoleFromPath(redirect) || 'driver';
   const [roleTab, setRoleTab] = useState<UserRole>(initialRole);
   const [error, setError] = useState<string | null>(null);
   const [suggestedRole, setSuggestedRole] = useState<UserRole | null>(null);
@@ -50,6 +54,8 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setSuggestedRole(null);
     setLoading(true);
+    // Remove any stale local identity before authenticating this attempt.
+    DataStore.setCurrentUser(null);
 
     try {
       const cleanEmail = email.trim().toLowerCase();
@@ -62,44 +68,18 @@ export const LoginPage: React.FC = () => {
         if (!isSupabaseConfigured) throw new Error('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (authError || !authData.user) throw new Error(authError?.message || 'Sign-in failed. Check your email and password.');
-        let { data: profile } = await supabase.from('profiles').select('*').eq('id', authData.user.id).maybeSingle();
-        if (!profile) {
-          // Self-heal: Create profile record from metadata if auth trigger had not created it yet
-          const metadata = authData.user.user_metadata || {};
-          const fallbackRole = (metadata.role as UserRole) || roleTab || 'driver';
-          const fallbackName = metadata.full_name || cleanEmail.split('@')[0];
-          const fallbackPhone = metadata.phone || '';
-          const fallbackCity = metadata.city || 'Bengaluru';
-          const fallbackState = metadata.state || 'Karnataka';
-
-          try {
-            await supabase.from('profiles').upsert({
-              id: authData.user.id,
-              role: fallbackRole,
-              full_name: fallbackName,
-              email: cleanEmail,
-              phone: fallbackPhone,
-              city: fallbackCity,
-              state: fallbackState,
-              status: 'active'
-            }, { onConflict: 'id' });
-          } catch {
-            // Ignore if already created
-          }
-
-          profile = {
-            id: authData.user.id,
-            role: fallbackRole,
-            full_name: fallbackName,
-            email: cleanEmail,
-            phone: fallbackPhone,
-            city: fallbackCity,
-            state: fallbackState,
-            status: 'active',
-            created_at: new Date().toISOString()
-          };
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+        if (profileError || !profile || !isUserRole(profile.role)) {
+          DataStore.setCurrentUser(null);
+          await supabase.auth.signOut({ scope: 'local' });
+          throw new Error(profileError
+            ? 'We could not verify your DriverHub role. Please try again or contact support.'
+            : 'This account has no valid DriverHub profile. Contact support to complete account setup.');
         }
-        if (!['driver', 'employer', 'admin'].includes(profile.role)) throw new Error('This account has no valid DriverHub role.');
         matched = {
           id: authData.user.id, email: authData.user.email || cleanEmail,
           role: profile.role as UserRole,
@@ -135,12 +115,14 @@ export const LoginPage: React.FC = () => {
 
       if (!matched) throw new Error('No account found. Please sign up first.');
       if (matched.status === 'blocked') {
-        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut();
+        DataStore.setCurrentUser(null);
+        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut({ scope: 'local' });
         throw new Error('This account is suspended. Contact DriverHub support.');
       }
       if (matched.role !== roleTab) {
         setSuggestedRole(matched.role);
-        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut();
+        DataStore.setCurrentUser(null);
+        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut({ scope: 'local' });
         throw new Error(`This account is registered as ${matched.role}. Switch to that sign-in role.`);
       }
 
@@ -151,15 +133,7 @@ export const LoginPage: React.FC = () => {
       }
       setLoading(false);
 
-      if (redirect) {
-        navigate(redirect);
-      } else if (matched.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (matched.role === 'employer') {
-        navigate('/employer/dashboard');
-      } else {
-        navigate('/driver/dashboard');
-      }
+      navigate(getPostLoginPath(matched.role, redirect), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
       setLoading(false);

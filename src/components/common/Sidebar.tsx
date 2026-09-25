@@ -10,6 +10,7 @@ import {
 import { DataStore } from '../../services/store';
 import { supabase } from '../../services/supabaseClient';
 import { UserRole } from '../../types';
+import { getLoginPathForRole } from '../../services/authRouting';
 
 export interface NavItem {
   to: string;
@@ -90,11 +91,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const [dbExpanded, setDbExpanded] = useState(true);
 
-  const handleLogout = () => {
-    if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) void supabase.auth.signOut();
+  const handleLogout = async () => {
     DataStore.setCurrentUser(null);
     if (onCloseMobile) onCloseMobile();
-    navigate('/login');
+    if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Always finish local logout navigation. */ }
+    }
+    navigate(getLoginPathForRole(role), { replace: true });
   };
 
   const links = getNavLinks(role, unreadCount);

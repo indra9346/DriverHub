@@ -10,6 +10,7 @@ import { AIChatbot } from '../components/common/AIChatbot';
 import { DataStore } from '../services/store';
 import { supabase } from '../services/supabaseClient';
 import { UserRole } from '../types';
+import { getDashboardPathForRole, getLoginPathForRole, inferRoleFromPath, isUserRole } from '../services/authRouting';
 
 interface DashboardLayoutProps {
   requiredRole?: UserRole;
@@ -30,23 +31,37 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
       return () => { live = false; };
     }
     void (async () => {
-      const { data } = await supabase.auth.getUser();
-      const stored = DataStore.getCurrentUser();
+      const { data, error: authError } = await supabase.auth.getUser();
       if (!live) return;
-      if (!data.user || !stored || stored.id !== data.user.id) {
+      if (authError) throw authError;
+      if (!data.user) {
         DataStore.setCurrentUser(null);
         setCurrentUser(null);
         setSessionReady(true);
         return;
       }
-      const { data: profile } = await supabase.from('profiles').select('role,status').eq('id', data.user.id).maybeSingle();
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role,status,email,phone,created_at')
+        .eq('id', data.user.id)
+        .maybeSingle();
       if (!live) return;
-      if (!profile || profile.role !== stored.role || profile.status === 'blocked' || profile.status === 'suspended') {
-        await supabase.auth.signOut();
+      if (profileError || !profile || !isUserRole(profile.role) || profile.status === 'blocked' || profile.status === 'suspended') {
+        await supabase.auth.signOut({ scope: 'local' });
         DataStore.setCurrentUser(null);
         setCurrentUser(null);
       } else {
-        const verified = { ...stored, status: profile.status === 'suspended' ? 'blocked' as const : profile.status };
+        // The database profile, not cached browser state or a role-tab selection,
+        // determines the authenticated role for this session.
+        const verified = {
+          id: data.user.id,
+          email: data.user.email || profile.email || '',
+          role: profile.role,
+          status: profile.status || 'active',
+          phone: profile.phone || undefined,
+          createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
+        };
+        DataStore.addUser(verified);
         DataStore.setCurrentUser(verified);
         setCurrentUser(verified);
       }
@@ -69,18 +84,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
   }, []);
 
   useEffect(() => {
+    if (!sessionReady) return;
+
     if (!currentUser) {
-      navigate('/login?redirect=' + encodeURIComponent(location.pathname));
+      const role = requiredRole || inferRoleFromPath(location.pathname) || 'driver';
+      const redirect = `${location.pathname}${location.search}${location.hash}`;
+      navigate(getLoginPathForRole(role, redirect), { replace: true });
       return;
     }
 
     if (requiredRole && currentUser.role !== requiredRole) {
-      // Redirect to user's proper role dashboard
-      if (currentUser.role === 'employer') navigate('/employer/dashboard');
-      else if (currentUser.role === 'driver') navigate('/driver/dashboard');
-      else navigate('/admin/dashboard');
+      navigate(getDashboardPathForRole(currentUser.role), { replace: true });
     }
-  }, [currentUser, requiredRole, location.pathname, navigate]);
+  }, [currentUser, requiredRole, location.pathname, location.search, location.hash, navigate, sessionReady]);
 
   // Close mobile drawer on route change
   useEffect(() => {

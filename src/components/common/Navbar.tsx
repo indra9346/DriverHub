@@ -7,8 +7,10 @@ import {
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
 import { DataStore } from '../../services/store';
+import { supabase } from '../../services/supabaseClient';
 import { useLanguage } from '../../services/i18n';
 import { User as UserType } from '../../types';
+import { getLoginPathForRole, inferRoleFromPath } from '../../services/authRouting';
 
 export const Navbar: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserType | null>(DataStore.getCurrentUser());
@@ -32,11 +34,15 @@ export const Navbar: React.FC = () => {
     setIsUserMenuOpen(false);
   }, [location.pathname]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const role = currentUser?.role || inferRoleFromPath(location.pathname) || 'driver';
     DataStore.setCurrentUser(null);
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
-    navigate('/login');
+    if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Always finish local logout navigation. */ }
+    }
+    navigate(getLoginPathForRole(role), { replace: true });
   };
 
   const getDashboardPath = () => {

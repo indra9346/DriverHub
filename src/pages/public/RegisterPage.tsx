@@ -10,6 +10,7 @@ import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserType } from '../../types';
+import { getLoginPathForRole, getPostLoginPath } from '../../services/authRouting';
 
 export const RegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -165,14 +166,7 @@ export const RegisterPage: React.FC = () => {
       DataStore.setCurrentUser(newUser);
       setLoading(false);
 
-      const redirect = searchParams.get('redirect');
-      if (redirect) {
-        navigate(redirect);
-      } else if (role === 'employer') {
-        navigate('/employer/dashboard');
-      } else {
-        navigate('/driver/dashboard');
-      }
+      navigate(getPostLoginPath(role, searchParams.get('redirect')), { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       if (/signups? not allowed|signup is disabled|sign up is disabled/i.test(message)) {
@@ -247,7 +241,7 @@ export const RegisterPage: React.FC = () => {
             </div>
           )}
 
-          {successMessage && <div role="status" className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200">{successMessage}<Link to="/login" className="ml-2 font-bold underline">Sign in</Link></div>}
+          {successMessage && <div role="status" className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200">{successMessage}<Link to={getLoginPathForRole(role, searchParams.get('redirect') || undefined)} className="ml-2 font-bold underline">Sign in</Link></div>}
 
           <form onSubmit={handleSubmit} className="space-y-3.5" autoComplete="on">
             {role === 'driver' ? (
@@ -427,7 +421,7 @@ export const RegisterPage: React.FC = () => {
           <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
             Already have an account?{' '}
             <Link 
-              to={'/login' + (searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '')} 
+              to={getLoginPathForRole(role, searchParams.get('redirect') || undefined)}
               className="text-blue-700 font-bold hover:underline"
             >
               Sign In

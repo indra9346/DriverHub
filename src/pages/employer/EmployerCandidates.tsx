@@ -28,6 +28,7 @@ export const EmployerCandidates: React.FC = () => {
   const [selectedCities, setSelectedCities] = useState<string[]>(
     searchParams.get('city') ? [searchParams.get('city')!] : ['Bengaluru']
   );
+  const [citySearch, setCitySearch] = useState<string>('');
   const [hideUnlocked, setHideUnlocked] = useState<boolean>(false);
   const [hideDownloaded, setHideDownloaded] = useState<boolean>(false);
   const [onlyCvAttached, setOnlyCvAttached] = useState<boolean>(false);
@@ -654,7 +655,7 @@ export const EmployerCandidates: React.FC = () => {
             </div>
 
             {/* Section 3: Driver Category */}
-            <div className="p-4 border-b border-slate-200 space-y-2.5">
+            <div className="p-4 border-b border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800">Driver Category / License</span>
                 {categoryFilter && (
@@ -669,7 +670,7 @@ export const EmployerCandidates: React.FC = () => {
               <select
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               >
                 <option value="">All Driver Categories</option>
                 <option value="HMV">Heavy Motor Vehicle (HMV)</option>
@@ -681,10 +682,39 @@ export const EmployerCandidates: React.FC = () => {
                 <option value="Tempo Driver">Tempo / LCV Goods Driver</option>
                 <option value="Delivery Driver">Delivery Van Driver</option>
               </select>
+
+              {/* Quick Category Chips */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {[
+                  { label: 'All', val: '' },
+                  { label: 'HMV Truck', val: 'HMV' },
+                  { label: 'LMV Fleet', val: 'LMV' },
+                  { label: 'Chauffeur', val: 'Personal Driver' },
+                  { label: 'Trailer', val: 'Trailer Driver' },
+                  { label: 'Bus Driver', val: 'Bus Driver' },
+                  { label: 'Delivery', val: 'Delivery Driver' }
+                ].map(cat => {
+                  const isActive = categoryFilter === cat.val;
+                  return (
+                    <button
+                      key={cat.label}
+                      type="button"
+                      onClick={() => setCategoryFilter(isActive ? '' : cat.val)}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#08233F] text-amber-300 shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Section 4: Must-Have Keywords */}
-            <div className="p-4 border-b border-slate-200 space-y-2.5">
+            {/* Section 4: Must-Have Keywords / Skills */}
+            <div className="p-4 border-b border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800">Must-Have Keywords / Skills</span>
                 {mustHaveSkill && (
@@ -696,46 +726,124 @@ export const EmployerCandidates: React.FC = () => {
                   </button>
                 )}
               </div>
-              <input
-                type="text"
-                value={mustHaveSkill}
-                onChange={e => setMustHaveSkill(e.target.value)}
-                placeholder="e.g. Night Driving, Automatic, Highway..."
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
-              />
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={mustHaveSkill}
+                  onChange={e => setMustHaveSkill(e.target.value)}
+                  placeholder="Search skill (e.g. Night Driving, FASTag)..."
+                  className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              {/* Clickable Popular Skill Tag Chips */}
+              <div className="space-y-1.5 pt-1">
+                <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Popular Capabilities:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Highway Navigation', 'Night Driving', 'Automatic Transmission',
+                    'FASTag & Tolls', 'Pre-Trip Inspection', 'VIP Protocol',
+                    'Heavy Freight', 'Ghat Roads', 'Fleet Safety', 'GPS Navigation'
+                  ].map(skill => {
+                    const isSelected = mustHaveSkill.toLowerCase() === skill.toLowerCase();
+                    return (
+                      <button
+                        key={skill}
+                        type="button"
+                        onClick={() => setMustHaveSkill(isSelected ? '' : skill)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                        }`}
+                      >
+                        {skill}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Section 5: Current City / Area */}
-            <div className="p-4 space-y-2.5">
+            <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800">Current City / Area</span>
-                {selectedCities.length > 0 && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setSelectedCities([])}
-                    className="text-[11px] font-semibold text-emerald-700 hover:underline cursor-pointer"
+                    onClick={() => setSelectedCities(['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Chikkaballapur', 'Kolar'])}
+                    className="text-[11px] font-semibold text-blue-700 hover:underline cursor-pointer"
                   >
-                    Clear
+                    All
                   </button>
-                )}
+                  {selectedCities.length > 0 && (
+                    <button
+                      onClick={() => setSelectedCities([])}
+                      className="text-[11px] font-semibold text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {citiesList.map(city => {
-                  const checked = selectedCities.includes(city);
-                  return (
-                    <label key={city} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          if (checked) setSelectedCities(selectedCities.filter(c => c !== city));
-                          else setSelectedCities([...selectedCities, city]);
-                        }}
-                        className="w-3.5 h-3.5 accent-blue-600 rounded"
-                      />
-                      <span>{city} Region</span>
-                    </label>
-                  );
-                })}
+
+              {/* City Quick Dropdown */}
+              <select
+                value={selectedCities[0] || ''}
+                onChange={e => {
+                  if (e.target.value) setSelectedCities([e.target.value]);
+                  else setSelectedCities([]);
+                }}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+              >
+                <option value="">-- Quick Select City / Region --</option>
+                {['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi', 'Chikkaballapur', 'Kolar', 'Tumakuru', 'Chennai', 'Hyderabad', 'Mumbai', 'Pune', 'Delhi-NCR', 'Coimbatore'].map(c => (
+                  <option key={c} value={c}>{c} Region</option>
+                ))}
+              </select>
+
+              {/* Live Search Input for Cities */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={citySearch}
+                  onChange={e => setCitySearch(e.target.value)}
+                  placeholder="Filter cities..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-amber-400 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              {/* Filterable Checkbox List */}
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                {['Bengaluru', 'Mysuru', 'Hubballi', 'Mangaluru', 'Belagavi', 'Chikkaballapur', 'Kolar', 'Tumakuru', 'Davanagere', 'Kalaburagi', 'Ballari', 'Shimoga', 'Hassan', 'Udupi', 'Chennai', 'Hyderabad', 'Mumbai', 'Pune', 'Delhi-NCR', 'Coimbatore']
+                  .filter(city => !citySearch || city.toLowerCase().includes(citySearch.toLowerCase()))
+                  .map(city => {
+                    const checked = selectedCities.includes(city);
+                    const countInCity = drivers.filter(d => (d.city || d.location || '').toLowerCase().includes(city.toLowerCase())).length;
+                    return (
+                      <label key={city} className="flex items-center justify-between text-xs text-slate-700 cursor-pointer p-1 hover:bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              if (checked) setSelectedCities(selectedCities.filter(c => c !== city));
+                              else setSelectedCities([...selectedCities, city]);
+                            }}
+                            className="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer"
+                          />
+                          <span className={checked ? 'font-bold text-slate-900' : ''}>{city}</span>
+                        </div>
+                        {countInCity > 0 && (
+                          <span className="text-[10px] font-semibold text-slate-400 px-1.5 py-0.5 bg-slate-100 rounded-full">
+                            {countInCity}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
               </div>
             </div>
           </aside>

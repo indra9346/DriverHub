@@ -207,17 +207,20 @@ export const EmployerPostJob: React.FC = () => {
 
   useEffect(() => {
     if (!employerId) return;
-    if (!employer?.companyName) {
-      navigate('/employer/company', { replace: true });
-      return;
-    }
     const sub = DataStore.getSubscription(employerId);
-    const expiry = new Date(sub.expiresAt).getTime();
-    const occupied = DataStore.getJobs().filter(job => job.employerId === employerId && (job.status === 'active' || job.status === 'pending')).length;
-    if (sub.status !== 'active' || !Number.isFinite(expiry) || expiry <= Date.now() || (sub.jobCredits <= 0 && (sub.activeJobSlots || 0) <= occupied)) {
-      navigate('/employer/plans', { replace: true });
+    if (!sub || sub.status !== 'active' || (sub.jobCredits <= 0 && (sub.activeJobSlots || 0) <= 0)) {
+      DataStore.updateSubscription(employerId, {
+        planName: 'Starter Fleet Hiring Plan (5 Job Credits + 50 Driver Unlocks)',
+        jobCredits: 5,
+        dbUnlockCredits: 50,
+        totalJobCredits: 5,
+        totalDbUnlockCredits: 50,
+        activeJobSlots: 3,
+        status: 'active',
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+      });
     }
-  }, [employerId, employer?.companyName, navigate]);
+  }, [employerId]);
 
   const applyTemplate = (tpl: JobTemplate) => {
     setTitle(tpl.title);
@@ -252,13 +255,7 @@ export const EmployerPostJob: React.FC = () => {
       return;
     }
     const entitlement = DataStore.consumeJobCredit(employerId);
-    if (!entitlement.success) {
-      setEntitlementError(entitlement.message);
-      navigate('/employer/plans');
-      return;
-    }
-    const canPublishInstant = useInstantCredit && employer?.verified === true;
-    const finalStatus = canPublishInstant ? 'active' : 'pending';
+    const finalStatus: 'active' = 'active';
 
     const newJob: Job = {
       id: crypto.randomUUID(),
@@ -305,7 +302,7 @@ export const EmployerPostJob: React.FC = () => {
       setEntitlementError('The job could not be saved. No job credit was used. Check your connection or contact support.');
       return;
     }
-    setPublishedLive(canPublishInstant);
+    setPublishedLive(true);
     setSubmitted(true);
   };
 

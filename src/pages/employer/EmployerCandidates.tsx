@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Users, Search, MapPin, ShieldCheck, Phone, Mail, Briefcase, 
-  CheckCircle2, Download, Bookmark, Filter, ChevronDown, ChevronRight, 
+  CheckCircle2, Download, Bookmark, Filter, ChevronDown, ChevronRight, ChevronLeft,
   ArrowLeft, Sparkles, Lock, Unlock, FileText, Globe, MessageSquare, 
   Wallet, Trash2, Check, X, Building2, Award
 } from 'lucide-react';
@@ -186,12 +186,43 @@ export const EmployerCandidates: React.FC = () => {
 
   const appliedFilterCount =
     (categoryFilter ? 1 : 0) +
+    (selectedState ? 1 : 0) +
     (hideUnlocked ? 1 : 0) +
     (hideDownloaded ? 1 : 0) +
     (onlyCvAttached ? 1 : 0) +
     (onlyPoliceVerified ? 1 : 0) +
     (mustHaveSkill ? 1 : 0) +
     selectedCities.length;
+
+  const totalPages = Math.max(1, Math.ceil(filteredDrivers.length / perPage));
+
+  // Reset to page 1 whenever search filters or perPage change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    keyword,
+    categoryFilter,
+    selectedState,
+    selectedCities,
+    hideUnlocked,
+    hideDownloaded,
+    onlyCvAttached,
+    onlyPoliceVerified,
+    mustHaveSkill,
+    perPage
+  ]);
+
+  // Ensure current page does not exceed total pages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const paginatedDrivers = useMemo(() => {
+    const start = (currentPage - 1) * perPage;
+    return filteredDrivers.slice(start, start + perPage);
+  }, [filteredDrivers, currentPage, perPage]);
 
   const handleUnlockPhone = async (driver: DriverProfile) => {
     if (!employerId) return;
@@ -316,12 +347,15 @@ export const EmployerCandidates: React.FC = () => {
   const resetAllFilters = () => {
     setKeyword('');
     setCategoryFilter('');
+    setSelectedState('');
     setSelectedCities([]);
+    setCitySearch('');
     setHideUnlocked(false);
     setHideDownloaded(false);
     setOnlyCvAttached(false);
     setOnlyPoliceVerified(false);
     setMustHaveSkill('');
+    setCurrentPage(1);
   };
 
   const getInitials = (name: string) => {
@@ -965,8 +999,11 @@ export const EmployerCandidates: React.FC = () => {
                   <span className="text-slate-400">Showing</span>
                   <select
                     value={perPage}
-                    onChange={e => setPerPage(Number(e.target.value))}
-                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
+                    onChange={e => {
+                      setPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 cursor-pointer"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
@@ -975,9 +1012,40 @@ export const EmployerCandidates: React.FC = () => {
                   <span className="text-slate-400">per page</span>
                 </div>
 
-                <span className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700">
-                  Page {currentPage} of {Math.max(1, Math.ceil(filteredDrivers.length / perPage))}
-                </span>
+                {/* Interactive Top Pagination Controls */}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage <= 1}
+                    className={`p-1 rounded-lg border text-xs font-bold transition-all ${
+                      currentPage <= 1
+                        ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
+                        : 'border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-xs active:scale-95'
+                    }`}
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+
+                  <span className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 select-none">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage >= totalPages}
+                    className={`p-1 rounded-lg border text-xs font-bold transition-all ${
+                      currentPage >= totalPages
+                        ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
+                        : 'border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-xs active:scale-95'
+                    }`}
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -998,7 +1066,7 @@ export const EmployerCandidates: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredDrivers.slice((currentPage - 1) * perPage, currentPage * perPage).map(driver => {
+                {paginatedDrivers.map(driver => {
                   const isUnlocked = unlockedDriverIds.has(driver.id);
                   const isSelected = selectedDriverIds.includes(driver.id);
                   const matchingTags = [
@@ -1206,6 +1274,72 @@ export const EmployerCandidates: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Bottom Pagination Footer */}
+            {filteredDrivers.length > 0 && totalPages > 1 && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-xs text-slate-500 font-medium">
+                  Showing <span className="font-bold text-slate-800">{(currentPage - 1) * perPage + 1}</span> to{' '}
+                  <span className="font-bold text-slate-800">{Math.min(currentPage * perPage, filteredDrivers.length)}</span> of{' '}
+                  <span className="font-bold text-slate-800">{filteredDrivers.length}</span> candidates
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentPage(prev => Math.max(1, prev - 1));
+                      window.scrollTo({ top: 200, behavior: 'smooth' });
+                    }}
+                    disabled={currentPage <= 1}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                      currentPage <= 1
+                        ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 cursor-pointer shadow-xs'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Previous
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                    const isActive = page === currentPage;
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => {
+                          setCurrentPage(page);
+                          window.scrollTo({ top: 200, behavior: 'smooth' });
+                        }}
+                        className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-[#08233F] text-white shadow-xs font-extrabold'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                      window.scrollTo({ top: 200, behavior: 'smooth' });
+                    }}
+                    disabled={currentPage >= totalPages}
+                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                      currentPage >= totalPages
+                        ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 cursor-pointer shadow-xs'
+                    }`}
+                  >
+                    Next <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -7,7 +7,7 @@ import {
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
-import { supabase } from '../../services/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserType } from '../../types';
 
 export const RegisterPage: React.FC = () => {
@@ -25,18 +25,18 @@ export const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [location, setLocation] = useState('Bengaluru');
+  const [location, setLocation] = useState('');
 
   // Driver fields
   const [driverName, setDriverName] = useState('');
-  const [driverCategory, setDriverCategory] = useState<DriverCategory>('HMV');
-  const [licenseType, setLicenseType] = useState('HMV Commercial Transport');
-  const [experienceYears, setExperienceYears] = useState(3);
+  const [driverCategory, setDriverCategory] = useState<DriverCategory | ''>('');
+  const [licenseType, setLicenseType] = useState('');
+  const [experienceYears, setExperienceYears] = useState(0);
 
   // Employer fields
   const [companyName, setCompanyName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
-  const [industry, setIndustry] = useState('Logistics & Freight');
+  const [industry, setIndustry] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,15 +47,13 @@ export const RegisterPage: React.FC = () => {
     setError(null);
     const cleanEmail = email.trim().toLowerCase();
 
-    // Business Logic: Prevent duplicate registration
-    const existingUsers = DataStore.getUsers();
-    if (existingUsers.some(u => u.email.toLowerCase() === cleanEmail)) {
-      setError(`An account with email "${cleanEmail}" is already registered. Please Sign In instead.`);
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (!isSupabaseConfigured) {
+      setError('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as Vercel Config environment variables, then redeploy.');
       return;
     }
 
@@ -100,9 +98,9 @@ export const RegisterPage: React.FC = () => {
           location,
           city: location,
           state: 'Karnataka',
-          driverCategory,
+          driverCategory: driverCategory as DriverCategory,
           licenseNumber: '',
-          licenseType,
+          licenseType: licenseType || driverCategory,
           licenseExpiry: '',
           experienceYears,
           skills: ['Safe Driving', 'Route Navigation'],
@@ -171,7 +169,10 @@ export const RegisterPage: React.FC = () => {
         navigate('/driver/dashboard');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setError(/signups? not allowed|signup is disabled|sign up is disabled/i.test(message)
+        ? 'New account registration is disabled in the connected Supabase project. Enable “Allow new users to sign up” in Supabase Authentication settings, then try again. Your account was not created.'
+        : message);
       setLoading(false);
     }
   };
@@ -208,7 +209,7 @@ export const RegisterPage: React.FC = () => {
           <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl">
             <button
               type="button"
-              onClick={() => setRole('driver')}
+              onClick={() => { setRole('driver'); setError(null); setSuccessMessage(null); }}
               className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 role === 'driver'
                   ? 'bg-white text-[#08233F] shadow-sm'
@@ -219,7 +220,7 @@ export const RegisterPage: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => setRole('employer')}
+              onClick={() => { setRole('employer'); setError(null); setSuccessMessage(null); }}
               className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 role === 'employer'
                   ? 'bg-white text-[#08233F] shadow-sm'
@@ -239,13 +240,15 @@ export const RegisterPage: React.FC = () => {
 
           {successMessage && <div role="status" className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200">{successMessage}<Link to="/login" className="ml-2 font-bold underline">Sign in</Link></div>}
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          <form onSubmit={handleSubmit} className="space-y-3.5" autoComplete="on">
             {role === 'driver' ? (
               <>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
                   <input
                     type="text"
+                    name="name"
+                    autoComplete="name"
                     required
                     value={driverName}
                     onChange={(e) => setDriverName(e.target.value)}
@@ -260,8 +263,10 @@ export const RegisterPage: React.FC = () => {
                     <select
                       value={driverCategory}
                       onChange={(e) => setDriverCategory(e.target.value as DriverCategory)}
+                      required
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
                     >
+                      <option value="" disabled>Select your license category</option>
                       <option value="HMV">Heavy Motor Vehicle (HMV)</option>
                       <option value="LMV">Light Motor Vehicle (LMV)</option>
                       <option value="Cab Driver">Cab / Taxi Driver</option>
@@ -279,8 +284,9 @@ export const RegisterPage: React.FC = () => {
                       type="number"
                       min="0"
                       max="40"
-                      value={experienceYears}
+                      value={experienceYears || ''}
                       onChange={(e) => setExperienceYears(Number(e.target.value))}
+                      required
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
                     />
                   </div>
@@ -292,6 +298,8 @@ export const RegisterPage: React.FC = () => {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Company / Fleet Name</label>
                   <input
                     type="text"
+                    name="organization"
+                    autoComplete="organization"
                     required
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
@@ -305,6 +313,8 @@ export const RegisterPage: React.FC = () => {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Person</label>
                     <input
                       type="text"
+                      name="name"
+                      autoComplete="name"
                       required
                       value={contactPerson}
                       onChange={(e) => setContactPerson(e.target.value)}
@@ -316,6 +326,7 @@ export const RegisterPage: React.FC = () => {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Industry Sector</label>
                     <input
                       type="text"
+                      name="industry"
                       required
                       value={industry}
                       onChange={(e) => setIndustry(e.target.value)}
@@ -332,6 +343,8 @@ export const RegisterPage: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
                 <input
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -343,6 +356,8 @@ export const RegisterPage: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
                 <input
                   type="tel"
+                  name="tel"
+                  autoComplete="tel"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -357,6 +372,8 @@ export const RegisterPage: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
                 <input
                   type="password"
+                  name="new-password"
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -368,6 +385,8 @@ export const RegisterPage: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
                 <input
                   type="text"
+                  name="address-level2"
+                  autoComplete="address-level2"
                   required
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}

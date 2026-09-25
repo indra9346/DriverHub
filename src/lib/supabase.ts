@@ -1,16 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || '';
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl !== 'https://your-project.supabase.co' &&
+  /^https:\/\/.+\.supabase\.co$/.test(supabaseUrl) &&
+  supabaseAnonKey &&
   supabaseAnonKey !== 'your-anon-key-here'
 );
 
-// Fallback dummy credentials if not yet set up to prevent client throw
+// VITE_ values are included in browser code. This is appropriate for the
+// Supabase anon/publishable key, which depends on RLS for authorization.
+// Never use a Supabase service_role or secret key in this client.
 export const supabase = createClient(
   isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
   isSupabaseConfigured ? supabaseAnonKey : 'placeholder-key',

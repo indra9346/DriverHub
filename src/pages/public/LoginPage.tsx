@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
-import { supabase } from '../../services/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { UserRole, User as UserType } from '../../types';
 
@@ -57,6 +57,7 @@ export const LoginPage: React.FC = () => {
         matched = DataStore.getUsers().find(u => u.email.trim().toLowerCase() === cleanEmail);
         if (!matched || password !== '123456') throw new Error('Demo sign-in requires a seeded account and the local demo password.');
       } else {
+        if (!isSupabaseConfigured) throw new Error('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (authError || !authData.user) throw new Error(authError?.message || 'Sign-in failed. Check your email and password.');
         const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();

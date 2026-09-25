@@ -60,8 +60,43 @@ export const LoginPage: React.FC = () => {
         if (!isSupabaseConfigured) throw new Error('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if (authError || !authData.user) throw new Error(authError?.message || 'Sign-in failed. Check your email and password.');
-        const { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
-        if (profileError || !profile) throw new Error('Your account profile is not ready. Contact DriverHub support.');
+        let { data: profile } = await supabase.from('profiles').select('*').eq('id', authData.user.id).maybeSingle();
+        if (!profile) {
+          // Self-heal: Create profile record from metadata if auth trigger had not created it yet
+          const metadata = authData.user.user_metadata || {};
+          const fallbackRole = (metadata.role as UserRole) || roleTab || 'driver';
+          const fallbackName = metadata.full_name || cleanEmail.split('@')[0];
+          const fallbackPhone = metadata.phone || '';
+          const fallbackCity = metadata.city || 'Bengaluru';
+          const fallbackState = metadata.state || 'Karnataka';
+
+          try {
+            await supabase.from('profiles').upsert({
+              id: authData.user.id,
+              role: fallbackRole,
+              full_name: fallbackName,
+              email: cleanEmail,
+              phone: fallbackPhone,
+              city: fallbackCity,
+              state: fallbackState,
+              status: 'active'
+            }, { onConflict: 'id' });
+          } catch {
+            // Ignore if already created
+          }
+
+          profile = {
+            id: authData.user.id,
+            role: fallbackRole,
+            full_name: fallbackName,
+            email: cleanEmail,
+            phone: fallbackPhone,
+            city: fallbackCity,
+            state: fallbackState,
+            status: 'active',
+            created_at: new Date().toISOString()
+          };
+        }
         if (!['driver', 'employer', 'admin'].includes(profile.role)) throw new Error('This account has no valid DriverHub role.');
         matched = {
           id: authData.user.id, email: authData.user.email || cleanEmail,

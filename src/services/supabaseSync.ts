@@ -124,15 +124,18 @@ export const SupabaseSync = {
       const state = (profileData as DriverProfile)?.state || (profileData as EmployerProfile)?.state || null;
       const location = (profileData as DriverProfile)?.location || (city && state ? `${city}, ${state}` : city) || null;
       
-      // The auth.users trigger creates the profile; update only that authenticated row.
-      const { error: profileError } = await supabase.from('profiles').update({
+      // Upsert into profiles so newly registered users are guaranteed a row even if trigger didn't run
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        id: userUUID,
+        role: user.role,
         full_name: fullName,
         email: user.email.trim().toLowerCase(),
         phone: phone,
         city: city,
         state: state,
         location: location,
-      }).eq('id', userUUID);
+        status: 'active',
+      }, { onConflict: 'id' });
 
       if (profileError) {
         console.warn('Supabase profiles upsert notice:', profileError.message);
@@ -177,6 +180,24 @@ export const SupabaseSync = {
         }, { onConflict: 'user_id' });
 
         if (compError) console.warn('Supabase companies upsert notice:', compError.message);
+
+        // Ensure starter subscription exists for the employer
+        try {
+          await supabase.from('employer_subscriptions').upsert({
+            id: userUUID,
+            employer_id: userUUID,
+            plan_name: 'Starter Fleet Hiring Plan (4 Job Credits + 50 Driver Unlocks)',
+            job_credits: 4,
+            db_unlock_credits: 50,
+            total_job_credits: 5,
+            total_db_unlock_credits: 50,
+            active_job_slots: 2,
+            status: 'active',
+            expires_at: new Date(Date.now() + 90 * 86400000).toISOString()
+          }, { onConflict: 'employer_id' });
+        } catch {
+          // Ignore if exists
+        }
       }
       console.log('✅ Registered user fully synced to Supabase tables:', user.email);
     } catch (e) {

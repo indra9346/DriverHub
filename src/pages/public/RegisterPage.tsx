@@ -72,7 +72,7 @@ export const RegisterPage: React.FC = () => {
       if (authError) throw authError;
       if (!authResult.user) throw new Error('Registration could not be completed. Please try again.');
       if (!authResult.session) {
-        setSuccessMessage('Your account was created. Check your email to confirm it, then sign in to continue.');
+        setSuccessMessage('Your account was created! If email confirmation is enabled in your Supabase project, check your inbox to activate it, then click Sign In below.');
         setLoading(false);
         return;
       }
@@ -170,9 +170,13 @@ export const RegisterPage: React.FC = () => {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
-      setError(/signups? not allowed|signup is disabled|sign up is disabled/i.test(message)
-        ? 'New account registration is disabled in the connected Supabase project. Enable “Allow new users to sign up” in Supabase Authentication settings, then try again. Your account was not created.'
-        : message);
+      if (/signups? not allowed|signup is disabled|sign up is disabled/i.test(message)) {
+        setError('New account registration is disabled in the connected Supabase project. Enable “Allow new users to sign up” and click "Save changes" in Supabase Authentication settings, then try again.');
+      } else if (/database error saving new user/i.test(message)) {
+        setError('Database trigger error saving new user. Run the provided supabase-fix.sql script in your Supabase SQL Editor to enable clean, crash-proof account provisioning.');
+      } else {
+        setError(message);
+      }
       setLoading(false);
     }
   };

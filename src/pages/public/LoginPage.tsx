@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   LogIn, User, Building2, Shield, Lock, Mail, ArrowRight, 
-  Sparkles, CheckCircle2, AlertCircle, Users, Truck, ChevronDown 
+  Sparkles, CheckCircle2, AlertCircle, Users, Truck, ChevronDown,
+  Eye, EyeOff
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
@@ -17,6 +18,7 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const initialRole = (searchParams.get('role') as UserRole) || 'driver';
   const [roleTab, setRoleTab] = useState<UserRole>(initialRole);
   const [error, setError] = useState<string | null>(null);
@@ -291,13 +293,21 @@ export const LoginPage: React.FC = () => {
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 

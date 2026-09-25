@@ -1,21 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Phone, Mail, MapPin, Award, Briefcase, IndianRupee, 
-  CheckCircle2, Plus, Trash2, Save, Sparkles, ShieldCheck 
+  CheckCircle2, Plus, Trash2, Save, Sparkles, ShieldCheck, Calendar
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, DriverCategory, DriverExperience } from '../../types';
 
 export const DriverProfilePage: React.FC = () => {
   const currentUser = DataStore.getCurrentUser();
   const [profile, setProfile] = useState<DriverProfile>(() => {
     if (currentUser) {
-      return DataStore.getDriverById(currentUser.id);
+      const p = DataStore.getDriverById(currentUser.id);
+      return {
+        ...p,
+        licenseNumber: p.licenseNumber || '',
+        licenseExpiry: p.licenseExpiry ? p.licenseExpiry.slice(0, 10) : ''
+      };
     }
-    return DataStore.getDrivers()[0];
+    const d = DataStore.getDrivers()[0] || {} as DriverProfile;
+    return {
+      ...d,
+      licenseNumber: d.licenseNumber || '',
+      licenseExpiry: d.licenseExpiry ? d.licenseExpiry.slice(0, 10) : ''
+    };
   });
   const [skillsText, setSkillsText] = useState(() => profile.skills?.join(', ') || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // New experience record modal
   const [showExpModal, setShowExpModal] = useState(false);
@@ -27,23 +39,44 @@ export const DriverProfilePage: React.FC = () => {
     description: ''
   });
 
-  useEffect(() => {
-    if (!currentUser) return;
-    const p = DataStore.getDriverById(currentUser.id);
-    if (p) {
-      setProfile(p);
-      setSkillsText(p.skills?.join(', ') || '');
-    }
-  }, [currentUser]);
+  const loadedIdRef = useRef<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    if (loadedIdRef.current !== currentUser.id) {
+      loadedIdRef.current = currentUser.id;
+      const p = DataStore.getDriverById(currentUser.id);
+      if (p) {
+        setProfile({
+          ...p,
+          licenseNumber: p.licenseNumber || '',
+          licenseExpiry: p.licenseExpiry ? p.licenseExpiry.slice(0, 10) : ''
+        });
+        setSkillsText(p.skills?.join(', ') || '');
+      }
+    }
+  }, [currentUser?.id]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaving(true);
     const skills = skillsText.split(',').map(s => s.trim()).filter(Boolean);
-    const updated = { ...profile, skills };
+    const updated: DriverProfile = { 
+      ...profile, 
+      skills,
+      licenseNumber: (profile.licenseNumber || '').trim().toUpperCase(),
+      licenseExpiry: profile.licenseExpiry ? profile.licenseExpiry.slice(0, 10) : ''
+    };
     DataStore.updateDriverProfile(updated);
     setProfile(updated);
+
+    if (currentUser) {
+      await SupabaseSync.registerUser(currentUser, updated);
+    }
+
+    setSaving(false);
     setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   const handleAddExperience = (e: React.FormEvent) => {
@@ -63,6 +96,9 @@ export const DriverProfilePage: React.FC = () => {
     const updated = { ...profile, experiences: exps };
     DataStore.updateDriverProfile(updated);
     setProfile(updated);
+    if (currentUser) {
+      void SupabaseSync.registerUser(currentUser, updated);
+    }
     setShowExpModal(false);
     setNewExp({ companyName: '', roleTitle: '', vehicleType: '', durationYears: 2, description: '' });
   };
@@ -72,6 +108,9 @@ export const DriverProfilePage: React.FC = () => {
     const updated = { ...profile, experiences: exps };
     DataStore.updateDriverProfile(updated);
     setProfile(updated);
+    if (currentUser) {
+      void SupabaseSync.registerUser(currentUser, updated);
+    }
   };
 
   return (
@@ -80,12 +119,12 @@ export const DriverProfilePage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-brand-navy font-display">Driver Profile & Credentials</h1>
-          <p className="text-xs text-slate-500 mt-1">Keep your profile updated for higher fleet shortlisting rates</p>
+          <p className="text-xs text-slate-500 mt-1">Keep your profile and driving license details updated for verified fleet shortlists</p>
         </div>
 
         {saveSuccess && (
-          <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-200 animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Changes Saved Successfully!
+          <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-200 animate-in fade-in shadow-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Changes Saved Successfully!
           </div>
         )}
       </div>
@@ -103,8 +142,8 @@ export const DriverProfilePage: React.FC = () => {
               <input
                 type="text"
                 required
-                value={profile.fullName}
-                onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
+                value={profile.fullName || ''}
+                onChange={(e) => setProfile(prev => ({ ...prev, fullName: e.target.value }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-brand-amber focus:bg-white focus:outline-none transition-all"
               />
             </div>
@@ -114,8 +153,8 @@ export const DriverProfilePage: React.FC = () => {
               <input
                 type="tel"
                 required
-                value={profile.phone}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                value={profile.phone || ''}
+                onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-brand-amber focus:bg-white focus:outline-none transition-all"
               />
             </div>
@@ -125,7 +164,7 @@ export const DriverProfilePage: React.FC = () => {
               <input
                 type="email"
                 disabled
-                value={profile.email}
+                value={profile.email || ''}
                 className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 cursor-not-allowed"
               />
             </div>
@@ -135,8 +174,8 @@ export const DriverProfilePage: React.FC = () => {
               <input
                 type="text"
                 required
-                value={profile.location}
-                onChange={(e) => setProfile({ ...profile, location: e.target.value, city: e.target.value })}
+                value={profile.location || profile.city || ''}
+                onChange={(e) => setProfile(prev => ({ ...prev, location: e.target.value, city: e.target.value }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-brand-amber focus:bg-white focus:outline-none transition-all"
               />
             </div>
@@ -153,8 +192,8 @@ export const DriverProfilePage: React.FC = () => {
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Driver Category</label>
               <select
-                value={profile.driverCategory}
-                onChange={(e) => setProfile({ ...profile, driverCategory: e.target.value as DriverCategory })}
+                value={profile.driverCategory || 'HMV'}
+                onChange={(e) => setProfile(prev => ({ ...prev, driverCategory: e.target.value as DriverCategory }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               >
                 <option value="HMV">Heavy Motor Vehicle (HMV)</option>
@@ -172,21 +211,29 @@ export const DriverProfilePage: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-700 mb-1">Driving License Number</label>
               <input
                 type="text"
-                required
-                value={profile.licenseNumber}
-                onChange={(e) => setProfile({ ...profile, licenseNumber: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none uppercase"
+                value={profile.licenseNumber || ''}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase();
+                  setProfile(prev => ({ ...prev, licenseNumber: val }));
+                }}
+                placeholder="KA-04-2021-0012345"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:bg-white focus:outline-none uppercase font-mono font-medium"
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">License Expiry Date</label>
-              <input
-                type="date"
-                value={profile.licenseExpiry}
-                onChange={(e) => setProfile({ ...profile, licenseExpiry: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={profile.licenseExpiry ? profile.licenseExpiry.slice(0, 10) : ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setProfile(prev => ({ ...prev, licenseExpiry: val }));
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:bg-white focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 
@@ -197,8 +244,8 @@ export const DriverProfilePage: React.FC = () => {
                 type="number"
                 min="0"
                 max="40"
-                value={profile.experienceYears}
-                onChange={(e) => setProfile({ ...profile, experienceYears: Number(e.target.value) })}
+                value={profile.experienceYears ?? 0}
+                onChange={(e) => setProfile(prev => ({ ...prev, experienceYears: Number(e.target.value) }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               />
             </div>
@@ -209,7 +256,7 @@ export const DriverProfilePage: React.FC = () => {
                 type="number"
                 step="1000"
                 value={profile.expectedSalary || 25000}
-                onChange={(e) => setProfile({ ...profile, expectedSalary: Number(e.target.value) })}
+                onChange={(e) => setProfile(prev => ({ ...prev, expectedSalary: Number(e.target.value) }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               />
             </div>
@@ -217,12 +264,12 @@ export const DriverProfilePage: React.FC = () => {
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Joining Availability</label>
               <select
-                value={profile.availability}
-                onChange={(e) => setProfile({ ...profile, availability: e.target.value as any })}
+                value={profile.availability || 'Immediate'}
+                onChange={(e) => setProfile(prev => ({ ...prev, availability: e.target.value as any }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               >
                 <option value="Immediate">Immediate</option>
-                <option value="15 Days">Within 15 Days</option>
+                <option value="Within 15 Days">Within 15 Days</option>
                 <option value="1 Month">1 Month</option>
                 <option value="Flexible">Flexible</option>
               </select>
@@ -235,7 +282,7 @@ export const DriverProfilePage: React.FC = () => {
             </label>
             <input
               type="text"
-              value={skillsText}
+              value={skillsText || ''}
               onChange={(e) => setSkillsText(e.target.value)}
               placeholder="e.g. Highway Navigation, Night Driving, Automatic Transmission, Fleet Maintenance"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
@@ -249,7 +296,7 @@ export const DriverProfilePage: React.FC = () => {
             <textarea
               rows={3}
               value={profile.bio || ''}
-              onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+              onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
               placeholder="Brief overview of your driving career, preferred routes, accident-free milestones..."
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
             />
@@ -265,7 +312,7 @@ export const DriverProfilePage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowExpModal(true)}
-              className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
+              className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Experience
             </button>
@@ -283,7 +330,8 @@ export const DriverProfilePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteExperience(exp.id)}
-                    className="text-slate-400 hover:text-red-600 p-1"
+                    className="text-slate-400 hover:text-red-600 p-1 cursor-pointer"
+                    title="Delete record"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -299,9 +347,10 @@ export const DriverProfilePage: React.FC = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="flex items-center gap-2 px-8 py-3.5 bg-[#0A2540] hover:bg-[#06182B] text-white font-bold rounded-2xl text-xs shadow-md transition-all hover:scale-105"
+            disabled={saving}
+            className="flex items-center gap-2 px-8 py-3.5 bg-[#0A2540] hover:bg-[#06182B] text-white font-bold rounded-2xl text-xs shadow-md transition-all hover:scale-105 cursor-pointer disabled:opacity-70"
           >
-            <Save className="w-4 h-4 text-amber-400" /> Save Profile Details
+            <Save className="w-4 h-4 text-amber-400" /> {saving ? 'Saving Details...' : 'Save Profile Details'}
           </button>
         </div>
       </form>
@@ -370,13 +419,13 @@ export const DriverProfilePage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowExpModal(false)}
-                  className="px-4 py-2 border rounded-xl text-slate-600"
+                  className="px-4 py-2 border rounded-xl text-slate-600 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#0A2540] text-white font-bold rounded-xl"
+                  className="px-5 py-2 bg-[#0A2540] text-white font-bold rounded-xl cursor-pointer"
                 >
                   Save Experience
                 </button>

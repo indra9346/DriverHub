@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
-  UserPlus, Truck, Building2, Mail, Lock, Phone, User, 
-  MapPin, Briefcase, Award, CheckCircle2, ShieldCheck, ArrowRight,
-  Eye, EyeOff
+  Truck, Building2, Eye, EyeOff
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
+import { useLanguage } from '../../services/i18n';
 import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserType } from '../../types';
 import { getLoginPathForRole, getPostLoginPath } from '../../services/authRouting';
 
 export const RegisterPage: React.FC = () => {
+  const { t, lang } = useLanguage();
   const [searchParams] = useSearchParams();
   const routeLoc = useLocation();
   const navigate = useNavigate();
@@ -51,7 +51,7 @@ export const RegisterPage: React.FC = () => {
     const cleanEmail = email.trim().toLowerCase();
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+      setError(lang === 'kn' ? 'ಪಾಸ್‌ವರ್ಡ್ ಕನಿಷ್ಠ 6 ಅಕ್ಷರಗಳನ್ನು ಹೊಂದಿರಬೇಕು.' : 'Password must be at least 6 characters long.');
       return;
     }
 
@@ -76,9 +76,9 @@ export const RegisterPage: React.FC = () => {
         } }
       });
       if (authError) throw authError;
-      if (!authResult.user) throw new Error('Registration could not be completed. Please try again.');
+      if (!authResult.user) throw new Error(lang === 'kn' ? 'ನೋಂದಣಿ ಪೂರ್ಣಗೊಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.' : 'Registration could not be completed. Please try again.');
       if (!authResult.session) {
-        setSuccessMessage('Your account was created! If email confirmation is enabled in your Supabase project, check your inbox to activate it, then click Sign In below.');
+        setSuccessMessage(lang === 'kn' ? 'ನಿಮ್ಮ ಖಾತೆ ರಚನೆಯಾಗಿದೆ! ನಿಮ್ಮ ಇಮೇಲ್ ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಸೈನ್ ಇನ್ ಮಾಡಿ.' : 'Your account was created! If email confirmation is enabled, check your inbox to activate it, then click Sign In below.');
         setLoading(false);
         return;
       }
@@ -117,7 +117,6 @@ export const RegisterPage: React.FC = () => {
         };
         DataStore.updateDriverProfile(newDriver);
 
-        // Add welcome notification for new driver
         DataStore.addNotification({
           id: 'notif-welcome-' + Date.now(),
           userId: userId,
@@ -128,7 +127,6 @@ export const RegisterPage: React.FC = () => {
           createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
           link: '/driver/profile'
         });
-        // Sync new user & driver profile to Supabase in real-time
         SupabaseSync.registerUser(newUser, newDriver);
       } else {
         const newEmployer: EmployerProfile = {
@@ -147,7 +145,6 @@ export const RegisterPage: React.FC = () => {
         };
         DataStore.updateEmployerProfile(newEmployer);
 
-        // Add welcome notification for new employer
         DataStore.addNotification({
           id: 'notif-welcome-' + Date.now(),
           userId: userId,
@@ -159,7 +156,6 @@ export const RegisterPage: React.FC = () => {
           link: '/employer/post-job'
         });
 
-        // Sync new employer profile to Supabase in real-time
         SupabaseSync.registerUser(newUser, newEmployer);
       }
 
@@ -168,14 +164,8 @@ export const RegisterPage: React.FC = () => {
 
       navigate(getPostLoginPath(role, searchParams.get('redirect')), { replace: true });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
-      if (/signups? not allowed|signup is disabled|sign up is disabled/i.test(message)) {
-        setError('New account registration is disabled in the connected Supabase project. Enable “Allow new users to sign up” and click "Save changes" in Supabase Authentication settings, then try again.');
-      } else if (/database error saving new user/i.test(message)) {
-        setError('Database trigger error saving new user. Run the provided supabase-fix.sql script in your Supabase SQL Editor to enable clean, crash-proof account provisioning.');
-      } else {
-        setError(message);
-      }
+      const message = err instanceof Error ? err.message : (lang === 'kn' ? 'ನೋಂದಣಿ ವಿಫಲವಾಗಿದೆ.' : 'Registration failed. Please try again.');
+      setError(message);
       setLoading(false);
     }
   };
@@ -184,7 +174,7 @@ export const RegisterPage: React.FC = () => {
     <div className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
         
-        {/* Left Column: 100% Full Uncropped HD Banner */}
+        {/* Left Column: Banner */}
         <div className="lg:col-span-5 xl:col-span-6 bg-[#072038] p-4 sm:p-6 flex flex-col justify-center items-center">
           <div className="w-full h-full min-h-[320px] sm:min-h-[420px] lg:min-h-[560px] flex items-center justify-center rounded-2xl overflow-hidden">
             <img 
@@ -201,10 +191,10 @@ export const RegisterPage: React.FC = () => {
           <div className="space-y-1">
             <Logo size="md" />
             <h1 className="text-2xl sm:text-3xl font-black text-[#08233F] font-display tracking-tight pt-2">
-              Create an Account
+              {t('Create an Account')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              Join Driver Hub to apply for verified driver jobs or hire commercial pilots.
+              {lang === 'kn' ? 'ಪರಿಶೀಲಿಸಿದ ಚಾಲಕ ಉದ್ಯೋಗಗಳಿಗೆ ಅರ್ಜಿ ಸಲ್ಲಿಸಲು ಅಥವಾ ಚಾಲಕರನ್ನು ನೇಮಿಸಲು DriverHub ಗೆ ಸೇರಿ.' : 'Join Driver Hub to apply for verified driver jobs or hire commercial pilots.'}
             </p>
           </div>
 
@@ -219,7 +209,7 @@ export const RegisterPage: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-950'
               }`}
             >
-              <Truck className="w-4 h-4 text-amber-500" /> Continue as Driver
+              <Truck className="w-4 h-4 text-amber-500" /> {t('Continue as Driver')}
             </button>
             <button
               type="button"
@@ -230,7 +220,7 @@ export const RegisterPage: React.FC = () => {
                   : 'text-slate-600 hover:text-slate-950'
               }`}
             >
-              <Building2 className="w-4 h-4 text-blue-600" /> Continue as Employer
+              <Building2 className="w-4 h-4 text-blue-600" /> {t('Continue as Employer')}
             </button>
           </div>
 
@@ -241,13 +231,20 @@ export const RegisterPage: React.FC = () => {
             </div>
           )}
 
-          {successMessage && <div role="status" className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200">{successMessage}<Link to={getLoginPathForRole(role, searchParams.get('redirect') || undefined)} className="ml-2 font-bold underline">Sign in</Link></div>}
+          {successMessage && (
+            <div role="status" className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200">
+              {successMessage}
+              <Link to={getLoginPathForRole(role, searchParams.get('redirect') || undefined)} className="ml-2 font-bold underline">
+                {t('Sign In')}
+              </Link>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-3.5" autoComplete="on">
             {role === 'driver' ? (
               <>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Full Name')}</label>
                   <input
                     type="text"
                     name="name"
@@ -262,27 +259,27 @@ export const RegisterPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Driver License Category</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Driver License / Vehicle Category')}</label>
                     <select
                       value={driverCategory}
                       onChange={(e) => setDriverCategory(e.target.value as DriverCategory)}
                       required
                       className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
                     >
-                      <option value="" disabled>Select your license category</option>
-                      <option value="HMV">Heavy Motor Vehicle (HMV)</option>
-                      <option value="LMV">Light Motor Vehicle (LMV)</option>
-                      <option value="Cab Driver">Cab / Taxi Driver</option>
-                      <option value="Delivery Driver">Hyperlocal Delivery Pilot</option>
-                      <option value="Bus Driver">School & Passenger Bus</option>
-                      <option value="Trailer Driver">Trailer Truck Driver</option>
-                      <option value="Tempo Driver">Tempo / Light Commercial</option>
-                      <option value="Personal Driver">Private Family Chauffeur</option>
+                      <option value="" disabled>{lang === 'kn' ? 'ನಿಮ್ಮ ಲೈಸೆನ್ಸ್ ವಿಭಾಗ ಆಯ್ಕೆಮಾಡಿ' : 'Select your license category'}</option>
+                      <option value="HMV">{t('Heavy Truck (HMV)')}</option>
+                      <option value="LMV">{t('LMV Chauffeur')}</option>
+                      <option value="Cab Driver">{t('Cab Driver')}</option>
+                      <option value="Delivery Driver">{t('Delivery Driver')}</option>
+                      <option value="Bus Driver">{t('School & Staff Bus Driver')}</option>
+                      <option value="Trailer Driver">{t('40ft Container Trailer Driver')}</option>
+                      <option value="Tempo Driver">{t('Tempo / Ace')}</option>
+                      <option value="Personal Driver">{t('Personal & Sedan Chauffeur')}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Experience (Years)</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Years')} ({t('Experience')})</label>
                     <input
                       type="number"
                       min="0"
@@ -298,7 +295,7 @@ export const RegisterPage: React.FC = () => {
             ) : (
               <>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Company / Fleet Name</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">{lang === 'kn' ? 'ಕಂಪನಿ / ಫ್ಲೀಟ್ ಹೆಸರು' : 'Company / Fleet Name'}</label>
                   <input
                     type="text"
                     name="organization"
@@ -313,7 +310,7 @@ export const RegisterPage: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Person</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">{lang === 'kn' ? 'ಸಂಪರ್ಕ ವ್ಯಕ್ತಿ' : 'Contact Person'}</label>
                     <input
                       type="text"
                       name="name"
@@ -326,7 +323,7 @@ export const RegisterPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Industry Sector</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">{lang === 'kn' ? 'ಉದ್ಯಮದ ಕ್ಷೇತ್ರ' : 'Industry Sector'}</label>
                     <input
                       type="text"
                       name="industry"
@@ -343,7 +340,7 @@ export const RegisterPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Email Address')}</label>
                 <input
                   type="email"
                   name="email"
@@ -356,7 +353,7 @@ export const RegisterPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Phone Number')}</label>
                 <input
                   type="tel"
                   name="tel"
@@ -372,7 +369,7 @@ export const RegisterPage: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Password')}</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -395,7 +392,7 @@ export const RegisterPage: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{lang === 'kn' ? 'ನಗರ' : 'City'}</label>
                 <input
                   type="text"
                   name="address-level2"
@@ -414,17 +411,17 @@ export const RegisterPage: React.FC = () => {
               disabled={loading}
               className="w-full py-3 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
             >
-              {loading ? 'Creating Profile...' : `Register as ${role === 'driver' ? 'Driver' : 'Employer'}`}
+              {loading ? (lang === 'kn' ? 'ಪ್ರೊಫೈಲ್ ರಚಿಸಲಾಗುತ್ತಿದೆ...' : 'Creating Profile...') : t('Register as {role}', { role: role === 'driver' ? t('Driver') : t('Employer') })}
             </button>
           </form>
 
           <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
-            Already have an account?{' '}
+            {t('Already have an account?')}{' '}
             <Link 
               to={getLoginPathForRole(role, searchParams.get('redirect') || undefined)}
               className="text-blue-700 font-bold hover:underline"
             >
-              Sign In
+              {t('Sign In')}
             </Link>
           </div>
         </div>

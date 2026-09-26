@@ -10,8 +10,10 @@ import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, EmployerSubscription, SavedSearch, CandidateUnlock } from '../../types';
 import { ALL_INDIAN_STATES, getCitiesForState, POPULAR_INDIAN_SKILLS } from '../../data/indiaLocations';
+import { useLanguage } from '../../services/i18n';
 
 export const EmployerCandidates: React.FC = () => {
+  const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const currentUser = DataStore.getCurrentUser();

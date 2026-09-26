@@ -8,6 +8,7 @@ import {
 import { DataStore } from '../../services/store';
 import { DriverCategory, Job } from '../../types';
 import { ALL_INDIAN_STATES, getCitiesForState, getAreasForCity, searchIndianLocations, CITY_AREAS_MAP } from '../../data/indiaLocations';
+import { useLanguage } from '../../services/i18n';
 
 interface JobTemplate {
   id: string;
@@ -194,6 +195,7 @@ const SKILLS_SUGGESTIONS = [
 ];
 
 export const EmployerPostJob: React.FC = () => {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const currentUser = DataStore.getCurrentUser();

@@ -1,8 +1,9 @@
 import React from 'react';
 import { 
-  CheckCircle2, Clock, XCircle, AlertCircle, Award, UserCheck, ShieldCheck, FileCheck, Check 
+  CheckCircle2, Clock, XCircle, AlertCircle, Award, UserCheck, ShieldCheck 
 } from 'lucide-react';
 import { ApplicationStatus, JobStatus, UserStatus, VerificationStatus } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 interface StatusBadgeProps {
   status: ApplicationStatus | JobStatus | UserStatus | VerificationStatus | string;
@@ -10,6 +11,7 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' }) => {
+  const { t } = useLanguage();
   const normalized = (status || '').toLowerCase().replace(/[\s-]/g, '_');
 
   const config: Record<string, { label: string; bg: string; text: string; border: string; icon: React.ReactNode }> = {
@@ -135,7 +137,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
   return (
     <span className={`inline-flex items-center font-medium rounded-md border ${item.bg} ${item.text} ${item.border} ${sizeClass} transition-all`}>
       {item.icon}
-      {item.label}
+      {t(item.label)}
     </span>
   );
 };

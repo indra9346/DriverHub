@@ -7,8 +7,10 @@ import {
 import { DataStore } from '../../services/store';
 import { Job, Application, EmployerProfile } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { useLanguage } from '../../services/i18n';
 
 export const EmployerDashboard: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [company, setCompany] = useState<EmployerProfile | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -48,10 +50,10 @@ export const EmployerDashboard: React.FC = () => {
       <div className="bg-brand-navy rounded-2xl p-6 sm:p-8 text-white shadow-elevated flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
         <div className="space-y-2 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-amber text-xs font-bold uppercase tracking-wider">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> {company?.verified ? 'Verified Fleet Employer' : 'Verification pending'}
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> {company?.verified ? t('Verified Fleet Employer') : t('Verification pending')}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold font-display">
-            {company?.companyName || 'Employer Desk'}
+            {company?.companyName || t('Employer Desk')}
           </h1>
           <p className="text-xs sm:text-sm text-slate-300">
             {company?.industry} • {company?.city}, {company?.state}
@@ -62,7 +64,7 @@ export const EmployerDashboard: React.FC = () => {
           to="/employer/post-job"
           className="inline-flex items-center justify-center gap-2 bg-brand-amber hover:bg-amber-400 text-slate-950 font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition-all hover:scale-105 shrink-0 cursor-pointer relative z-10"
         >
-          <PlusCircle className="w-4 h-4" /> Post New Driver Vacancy
+          <PlusCircle className="w-4 h-4" /> {t('Post New Driver Vacancy')}
         </Link>
       </div>
 
@@ -70,42 +72,42 @@ export const EmployerDashboard: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Active Live Jobs</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Active Live Jobs')}</span>
             <Briefcase className="w-4 h-4 text-emerald-500" />
           </div>
           <p className="text-2xl font-bold text-brand-navy font-display">{activeJobs}</p>
           <Link to="/employer/jobs" className="text-[11px] text-brand-blue hover:underline font-semibold">
-            Manage listings →
+            {t('Manage listings →')}
           </Link>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Total Applicants</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Total Applicants')}</span>
             <Users className="w-4 h-4 text-brand-blue" />
           </div>
           <p className="text-2xl font-bold text-brand-navy font-display">{applications.length}</p>
           <Link to="/employer/applications" className="text-[11px] text-brand-blue hover:underline font-semibold">
-            Review pipeline →
+            {t('Review pipeline →')}
           </Link>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Shortlisted Drivers</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Shortlisted Drivers')}</span>
             <Award className="w-4 h-4 text-brand-amber" />
           </div>
           <p className="text-2xl font-bold text-brand-amber font-display">{shortlistedCount}</p>
-          <span className="text-[11px] text-slate-500">Scheduled for driving trials</span>
+          <span className="text-[11px] text-slate-500">{t('Scheduled for driving trials')}</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Pending Approvals</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Pending Approvals')}</span>
             <Clock className="w-4 h-4 text-purple-500" />
           </div>
           <p className="text-2xl font-bold text-purple-700 font-display">{pendingJobs}</p>
-          <span className="text-[11px] text-slate-500">Under admin verification</span>
+          <span className="text-[11px] text-slate-500">{t('Under admin verification')}</span>
         </div>
       </div>
 
@@ -115,15 +117,15 @@ export const EmployerDashboard: React.FC = () => {
         <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-card space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-brand-navy font-display flex items-center gap-2">
-              <Users className="w-4 h-4 text-brand-blue" /> Recent Candidate Applications
+              <Users className="w-4 h-4 text-brand-blue" /> {t('Recent Candidate Applications')}
             </h3>
             <Link to="/employer/applications" className="text-xs font-bold text-brand-blue hover:underline">
-              View All ({applications.length})
+              {t('View All')} ({applications.length})
             </Link>
           </div>
 
           {applications.length === 0 ? (
-            <p className="text-xs text-slate-400 py-10 text-center">No applications received yet.</p>
+            <p className="text-xs text-slate-400 py-10 text-center">{t('No applications received yet.')}</p>
           ) : (
             <div className="space-y-3 divide-y divide-slate-100">
               {applications.slice(0, 5).map((app) => (
@@ -134,7 +136,7 @@ export const EmployerDashboard: React.FC = () => {
                       Applied for: <span className="font-semibold text-slate-700">{app.jobTitle}</span> • {app.appliedDate}
                     </p>
                     <p className="text-[11px] text-slate-500">
-                      Category: {app.driverCategory || 'HMV'} • Exp: {app.driverExperienceYears || 3} Years
+                      Category: {t(app.driverCategory || 'HMV')} • Exp: {app.driverExperienceYears || 3} Years
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
@@ -153,19 +155,19 @@ export const EmployerDashboard: React.FC = () => {
         <div className="lg:col-span-5 bg-white rounded-2xl p-6 border border-slate-200 shadow-card space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-brand-navy font-display flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-emerald-600" /> Posted Vacancies
+              <Briefcase className="w-4 h-4 text-emerald-600" /> {t('Posted Vacancies')}
             </h3>
             <Link to="/employer/jobs" className="text-xs font-bold text-brand-blue hover:underline">
-              Manage
+              {t('Manage Vacancy')}
             </Link>
           </div>
 
           {jobs.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-400 space-y-2">
               <Briefcase className="w-8 h-8 mx-auto opacity-30 text-slate-400" />
-              <p>You haven't posted any vacancies yet.</p>
+              <p>{t("You haven't posted any vacancies yet.")}</p>
               <Link to="/employer/post-job" className="inline-block mt-2 px-3 py-1.5 bg-brand-amber text-slate-950 rounded-xl font-bold text-xs">
-                Post First Job
+                {t('Post First Job')}
               </Link>
             </div>
           ) : (
@@ -177,7 +179,7 @@ export const EmployerDashboard: React.FC = () => {
                     <StatusBadge status={job.status} size="sm" />
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{job.vacancies} Vacancies</span>
+                    <span>{job.vacancies} {t('Vacancies')}</span>
                     <span className="font-semibold text-emerald-700">₹{job.salaryMin.toLocaleString('en-IN')} - ₹{job.salaryMax.toLocaleString('en-IN')}</span>
                   </div>
                 </div>

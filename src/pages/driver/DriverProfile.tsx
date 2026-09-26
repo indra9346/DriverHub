@@ -6,8 +6,10 @@ import {
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, DriverCategory, DriverExperience } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 export const DriverProfilePage: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [profile, setProfile] = useState<DriverProfile>(() => {
     if (currentUser) {
@@ -125,13 +127,13 @@ export const DriverProfilePage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy font-display">Driver Profile & Credentials</h1>
-          <p className="text-xs text-slate-500 mt-1">Keep your profile and driving license details updated for verified fleet shortlists</p>
+          <h1 className="text-2xl font-bold text-brand-navy font-display">{t('Driver Profile & Credentials')}</h1>
+          <p className="text-xs text-slate-500 mt-1">{t('Keep your profile and driving license details updated for verified fleet shortlists')}</p>
         </div>
 
         {saveSuccess && (
           <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-800 rounded-xl text-xs font-bold border border-emerald-200 animate-in fade-in shadow-xs">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> Changes Saved Successfully!
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> {t('Changes Saved Successfully!')}
           </div>
         )}
       </div>
@@ -141,12 +143,12 @@ export const DriverProfilePage: React.FC = () => {
         {/* Personal & Contact Details */}
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-card space-y-5">
           <h2 className="text-sm font-bold text-brand-navy uppercase tracking-wider flex items-center gap-2">
-            <User className="w-4 h-4 text-brand-blue" /> Personal & Contact Info
+            <User className="w-4 h-4 text-brand-blue" /> {t('Personal & Contact Info')}
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Full Legal Name</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('Full Legal Name')}</label>
               <input
                 type="text"
                 required
@@ -157,7 +159,7 @@ export const DriverProfilePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number (Verified)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('Phone Number (Verified)')}</label>
               <input
                 type="tel"
                 required
@@ -168,7 +170,7 @@ export const DriverProfilePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email Address</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('Email Address')}</label>
               <input
                 type="email"
                 disabled
@@ -178,7 +180,7 @@ export const DriverProfilePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">City / Residential Area</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('City / Residential Area')}</label>
               <input
                 type="text"
                 required
@@ -193,30 +195,30 @@ export const DriverProfilePage: React.FC = () => {
         {/* License & Vehicle Specialization */}
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-5">
           <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-            <Award className="w-4 h-4 text-amber-500" /> Driving License & Specialization
+            <Award className="w-4 h-4 text-amber-500" /> {t('Driving License & Specialization')}
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Primary Driver Category</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Primary Driver Category')}</label>
               <select
                 value={profile.driverCategory || 'HMV'}
                 onChange={(e) => setProfile(prev => ({ ...prev, driverCategory: e.target.value as DriverCategory }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               >
-                <option value="HMV">Heavy Motor Vehicle (HMV)</option>
-                <option value="LMV">Light Motor Vehicle (LMV)</option>
-                <option value="Cab Driver">Cab / Taxi Driver</option>
-                <option value="Delivery Driver">Hyperlocal Delivery Pilot</option>
-                <option value="Bus Driver">School & Passenger Bus</option>
-                <option value="Trailer Driver">40ft Trailer Truck</option>
-                <option value="Tempo Driver">Tempo / Light Commercial</option>
-                <option value="Personal Driver">Private Family Chauffeur</option>
+                <option value="HMV">{t('Heavy Motor Vehicle (HMV)')}</option>
+                <option value="LMV">{t('Light Motor Vehicle (LMV)')}</option>
+                <option value="Cab Driver">{t('Cab Driver')}</option>
+                <option value="Delivery Driver">{t('Delivery Driver')}</option>
+                <option value="Bus Driver">{t('Bus Driver')}</option>
+                <option value="Trailer Driver">{t('Trailer Driver')}</option>
+                <option value="Tempo Driver">{t('Tempo Driver')}</option>
+                <option value="Personal Driver">{t('Personal Driver')}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Driving License Number</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Driving License Number')}</label>
               <input
                 type="text"
                 value={profile.licenseNumber || ''}
@@ -230,7 +232,7 @@ export const DriverProfilePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">License Expiry Date</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('License Expiry Date')}</label>
               <div className="relative">
                 <input
                   type="date"
@@ -247,7 +249,7 @@ export const DriverProfilePage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Total Driving Experience (Years)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Total Driving Experience (Years)')}</label>
               <input
                 type="number"
                 min="0"
@@ -259,7 +261,7 @@ export const DriverProfilePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Expected Monthly Salary (₹)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Expected Monthly Salary (₹)')}</label>
               <input
                 type="number"
                 step="1000"
@@ -270,23 +272,23 @@ export const DriverProfilePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Joining Availability</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Joining Availability')}</label>
               <select
                 value={profile.availability || 'Immediate'}
                 onChange={(e) => setProfile(prev => ({ ...prev, availability: e.target.value as any }))}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
               >
-                <option value="Immediate">Immediate</option>
+                <option value="Immediate">{t('Immediate')}</option>
                 <option value="Within 15 Days">Within 15 Days</option>
                 <option value="1 Month">1 Month</option>
-                <option value="Flexible">Flexible</option>
+                <option value="Flexible">{t('Flexible')}</option>
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Skills & Capabilities (comma-separated)
+              {t('Skills & Capabilities (comma-separated)')}
             </label>
             <input
               type="text"
@@ -299,7 +301,7 @@ export const DriverProfilePage: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Driver Bio / Summary
+              {t('Driver Bio / Summary')}
             </label>
             <textarea
               rows={3}
@@ -315,14 +317,14 @@ export const DriverProfilePage: React.FC = () => {
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Briefcase className="w-4 h-4 text-emerald-600" /> Past Driving Experience Records
+              <Briefcase className="w-4 h-4 text-emerald-600" /> {t('Past Driving Experience Records')}
             </h2>
             <button
               type="button"
               onClick={() => setShowExpModal(true)}
               className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
             >
-              <Plus className="w-4 h-4" /> Add Experience
+              <Plus className="w-4 h-4" /> {t('Add Experience')}
             </button>
           </div>
 
@@ -347,7 +349,7 @@ export const DriverProfilePage: React.FC = () => {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-400 py-3 text-center">No past experience records added yet.</p>
+            <p className="text-xs text-slate-400 py-3 text-center">{t('No past experience records added yet.')}</p>
           )}
         </div>
 
@@ -358,7 +360,7 @@ export const DriverProfilePage: React.FC = () => {
             disabled={saving}
             className="flex items-center gap-2 px-8 py-3.5 bg-[#0A2540] hover:bg-[#06182B] text-white font-bold rounded-2xl text-xs shadow-md transition-all hover:scale-105 cursor-pointer disabled:opacity-70"
           >
-            <Save className="w-4 h-4 text-amber-400" /> {saving ? 'Saving Details...' : 'Save Profile Details'}
+            <Save className="w-4 h-4 text-amber-400" /> {saving ? t('Saving Details...') : t('Save Profile Details')}
           </button>
         </div>
       </form>
@@ -367,10 +369,10 @@ export const DriverProfilePage: React.FC = () => {
       {showExpModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Add Driving Experience</h3>
+            <h3 className="text-base font-bold text-slate-900">{t('Add Driving Experience')}</h3>
             <form onSubmit={handleAddExperience} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Company / Fleet Name</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('Company / Fleet Name')}</label>
                 <input
                   type="text"
                   required
@@ -381,7 +383,7 @@ export const DriverProfilePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Role Title</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('Role Title')}</label>
                 <input
                   type="text"
                   required
@@ -392,7 +394,7 @@ export const DriverProfilePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Vehicle Model / Type</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('Vehicle Model / Type')}</label>
                 <input
                   type="text"
                   required
@@ -403,7 +405,7 @@ export const DriverProfilePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Duration (Years)</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('Duration (Years)')}</label>
                 <input
                   type="number"
                   min="1"
@@ -414,7 +416,7 @@ export const DriverProfilePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Key Responsibilities</label>
+                <label className="block font-semibold text-slate-700 mb-1">{t('Key Responsibilities')}</label>
                 <textarea
                   rows={2}
                   value={newExp.description}
@@ -429,13 +431,13 @@ export const DriverProfilePage: React.FC = () => {
                   onClick={() => setShowExpModal(false)}
                   className="px-4 py-2 border rounded-xl text-slate-600 cursor-pointer"
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 bg-[#0A2540] text-white font-bold rounded-xl cursor-pointer"
                 >
-                  Save Experience
+                  {t('Save Experience')}
                 </button>
               </div>
             </form>

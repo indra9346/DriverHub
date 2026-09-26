@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Briefcase, Plus, Users, Clock, CheckCircle2, XCircle, 
-  ChevronDown, ChevronRight, Eye, MoreVertical, FileText, 
-  Sparkles, Filter, Info, Wallet
+  Briefcase, Plus, ChevronDown, ChevronRight, MoreVertical, FileText, Filter, Info, Wallet, CheckCircle2 
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { Job, JobStatus, Application, DriverProfile } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { useLanguage } from '../../services/i18n';
 
 export const EmployerManageJobs: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const employerId = currentUser?.role === 'employer' ? currentUser.id : '';
   const navigate = useNavigate();
@@ -96,28 +96,28 @@ export const EmployerManageJobs: React.FC = () => {
         </div>
       )}
 
-      {/* Top Header: All Jobs (N) + Post a new job dropdown (Matches Screenshots 4 & 5) */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-extrabold text-[#08233F] font-display">
-            All Jobs ({jobs.length})
+            {t('allJobs')} ({jobs.length})
           </h1>
           <Link
             to="/employer/billing"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
           >
             <Wallet className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Available credits: <strong className="text-emerald-700">{subscription.jobCredits} Jobs</strong></span>
+            <span>{t('availableCredits')}: <strong className="text-emerald-700">{subscription.jobCredits} {t('jobsCount')}</strong></span>
           </Link>
         </div>
 
-        {/* Post a new job button with ApnaHire Popover Dropdown (Screenshot 5) */}
+        {/* Post a new job dropdown */}
         <div className="relative" ref={postMenuRef}>
           <button
             onClick={() => setShowPostMenu(!showPostMenu)}
             className="inline-flex items-center gap-2 bg-[#19745B] hover:bg-[#135A46] text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-sm transition-all cursor-pointer"
           >
-            <span>Post a new job</span>
+            <span>{t('postNewJob')}</span>
             <ChevronDown className={`w-4 h-4 transition-transform ${showPostMenu ? 'rotate-180' : ''}`} />
           </button>
 
@@ -136,10 +136,10 @@ export const EmployerManageJobs: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900 group-hover:text-blue-700">
-                      Start with new post
+                      {t('startWithNewPost')}
                     </div>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Use our step-by-step blank form to create your driver job
+                      {t('startWithNewPostDesc')}
                     </p>
                   </div>
                 </div>
@@ -161,13 +161,13 @@ export const EmployerManageJobs: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900 group-hover:text-purple-700">
-                      Use a job template
+                      {t('useJobTemplate')}
                     </div>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Save time and hire the right drivers using ready templates
+                      {t('useJobTemplateDesc')}
                     </p>
                     <span className="inline-block mt-1.5 px-2.5 py-0.5 bg-purple-700 text-white text-[10px] font-bold rounded-full">
-                      Save 50% more time
+                      {t('saveFiftyPercentTime')}
                     </span>
                   </div>
                 </div>
@@ -178,7 +178,7 @@ export const EmployerManageJobs: React.FC = () => {
         </div>
       </div>
 
-      {/* ApnaHire Filter Pills Row (Screenshot 4) */}
+      {/* Filter Pills */}
       <div className="flex flex-wrap items-center gap-2.5">
         <button
           onClick={() => setStatusFilter('all')}
@@ -188,7 +188,7 @@ export const EmployerManageJobs: React.FC = () => {
               : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
           }`}
         >
-          <Filter className="w-3.5 h-3.5" /> All Filters ({jobs.length})
+          <Filter className="w-3.5 h-3.5" /> {t('allFilters')} ({jobs.length})
         </button>
 
         <button
@@ -199,7 +199,7 @@ export const EmployerManageJobs: React.FC = () => {
               : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
           }`}
         >
-          + Active ({activeCount})
+          + {t('active')} ({activeCount})
         </button>
 
         <button
@@ -210,7 +210,7 @@ export const EmployerManageJobs: React.FC = () => {
               : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
           }`}
         >
-          + Under Review ({pendingCount})
+          + {t('underReview')} ({pendingCount})
         </button>
 
         <button
@@ -221,7 +221,7 @@ export const EmployerManageJobs: React.FC = () => {
               : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
           }`}
         >
-          + Expired ({closedCount})
+          + {t('expired')} ({closedCount})
         </button>
 
         <button
@@ -232,21 +232,21 @@ export const EmployerManageJobs: React.FC = () => {
               : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
           }`}
         >
-          + Select Plan ({draftCount})
+          + {t('draft')} ({draftCount})
         </button>
       </div>
 
-      {/* Job Cards List (Exact 3-Column Funnel Layout from Screenshot 4) */}
+      {/* Job Cards List */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-card space-y-3">
           <Briefcase className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-[#08233F] font-display">No vacancies in this filter</h3>
-          <p className="text-xs text-slate-500">Create a new driver job post or switch filters above.</p>
+          <h3 className="text-base font-bold text-[#08233F] font-display">{t('noJobsInFilter')}</h3>
+          <p className="text-xs text-slate-500">{t('createJobOrSwitchFilter')}</p>
           <button
             onClick={() => navigate('/employer/post-job')}
             className="px-4 py-2 bg-[#19745B] text-white rounded-xl text-xs font-bold cursor-pointer"
           >
-            + Post a new job
+            + {t('postNewJob')}
           </button>
         </div>
       ) : (
@@ -280,25 +280,25 @@ export const EmployerManageJobs: React.FC = () => {
                       </Link>
                       {job.status === 'draft' ? (
                         <span className="px-2 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 rounded-md text-[11px] font-bold">
-                          Organization Draft 📝
+                          {t('draft')} 📝
                         </span>
                       ) : job.status === 'pending' ? (
                         <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded-md text-[11px] font-bold">
-                          Under Admin Review ⏳
+                          {t('underAdminReview')} ⏳
                         </span>
                       ) : (
                         <StatusBadge status={job.status} size="sm" />
                       )}
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-semibold">
-                        {job.category}
+                        {t(job.category)}
                       </span>
                     </div>
 
                     <p className="text-xs text-slate-500">
-                      {job.location} &nbsp;|&nbsp; Posted on : {job.postedDate} &nbsp;|&nbsp; {job.postedBy || 'Hiring Lead'}
+                      {job.location} &nbsp;|&nbsp; {t('postedOn')} : {job.postedDate} &nbsp;|&nbsp; {job.postedBy || t('hiringLead')}
                     </p>
                     <p className="text-xs text-slate-500">
-                      For : <span className="font-semibold text-slate-700">{job.companyName}</span> • Salary: ₹{job.salaryMin.toLocaleString('en-IN')} – ₹{job.salaryMax.toLocaleString('en-IN')}/mo
+                      {t('forEmployer')} : <span className="font-semibold text-slate-700">{job.companyName}</span> • {t('salary')}: ₹{job.salaryMin.toLocaleString('en-IN')} – ₹{job.salaryMax.toLocaleString('en-IN')}/{t('monthShort')}
                     </p>
                   </div>
 
@@ -311,21 +311,21 @@ export const EmployerManageJobs: React.FC = () => {
                         title="Approve draft and publish live to all drivers immediately"
                       >
                         <Wallet className="w-3 h-3" />
-                        <span>Approve & Make Live</span>
+                        <span>{t('approveAndMakeLive')}</span>
                       </button>
                     ) : job.status === 'pending' ? (
                       <button
                         onClick={() => handleActivateWithCredit(job)}
                         className="px-3.5 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-slate-800 shadow-2xs cursor-pointer"
                       >
-                        Instant Approve Live
+                        {t('instantApproveLive')}
                       </button>
                     ) : (
                       <Link
                         to={`/employer/applications?jobId=${job.id}`}
                         className="px-3.5 py-1.5 bg-[#08233F] hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-2xs"
                       >
-                        View Applicants ({appliedCount})
+                        {t('viewApplicants')} ({appliedCount})
                       </Link>
                     )}
 
@@ -345,21 +345,21 @@ export const EmployerManageJobs: React.FC = () => {
                             onClick={() => setOpenActionMenuId(null)}
                             className="block px-3.5 py-2 text-slate-700 hover:bg-slate-50 transition-colors"
                           >
-                            👁️ View Public Job Page
+                            👁️ {t('viewPublicJobPage')}
                           </Link>
                           <Link
                             to={`/employer/candidates?category=${encodeURIComponent(job.category)}&city=${encodeURIComponent(job.city || '')}`}
                             onClick={() => setOpenActionMenuId(null)}
                             className="block px-3.5 py-2 text-emerald-700 hover:bg-emerald-50 transition-colors font-bold"
                           >
-                            👥 View Database Matches ({dbMatchesCount})
+                            👥 {t('viewDatabaseMatches')} ({dbMatchesCount})
                           </Link>
                           <Link
                             to={`/employer/applications?jobId=${job.id}`}
                             onClick={() => setOpenActionMenuId(null)}
                             className="block px-3.5 py-2 text-blue-700 hover:bg-blue-50 transition-colors"
                           >
-                            📋 View Applications ({appliedCount})
+                            📋 {t('viewApplications')} ({appliedCount})
                           </Link>
                           <div className="border-t border-slate-100 my-1" />
                           {job.status === 'active' ? (
@@ -367,14 +367,14 @@ export const EmployerManageJobs: React.FC = () => {
                               onClick={() => handleStatusChange(job.id, 'closed')}
                               className="w-full text-left px-3.5 py-2 text-red-600 hover:bg-red-50 cursor-pointer font-bold transition-colors"
                             >
-                              ⏸️ Close / Pause Job
+                              ⏸️ {t('closePauseJob')}
                             </button>
                           ) : (
                             <button
                               onClick={() => handleActivateWithCredit(job)}
                               className="w-full text-left px-3.5 py-2 text-emerald-700 hover:bg-emerald-50 cursor-pointer font-bold transition-colors"
                             >
-                              🚀 Publish / Reopen Job (1 Credit)
+                              🚀 {t('publishReopenJob')}
                             </button>
                           )}
                         </div>
@@ -383,7 +383,7 @@ export const EmployerManageJobs: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 3-Column Funnel Metrics Box (Exact Match to Screenshot 4: Applied to job | Active leads | Database matches) */}
+                {/* 3-Column Funnel Metrics Box */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 border border-slate-200 rounded-xl divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-white">
                   <Link
                     to={`/employer/applications?jobId=${job.id}`}
@@ -391,7 +391,7 @@ export const EmployerManageJobs: React.FC = () => {
                   >
                     <span className="text-base font-extrabold text-slate-900">{appliedCount}</span>
                     <span className="text-xs text-slate-500 group-hover:text-slate-900 inline-flex items-center gap-1 mt-0.5">
-                      Applied to job <ChevronRight className="w-3.5 h-3.5" />
+                      {t('appliedToJob')} <ChevronRight className="w-3.5 h-3.5" />
                     </span>
                   </Link>
 
@@ -401,7 +401,7 @@ export const EmployerManageJobs: React.FC = () => {
                   >
                     <span className="text-base font-extrabold text-slate-900">{activeLeadsCount}</span>
                     <span className="text-xs text-slate-500 group-hover:text-slate-900 inline-flex items-center gap-1 mt-0.5">
-                      Active leads <ChevronRight className="w-3.5 h-3.5" />
+                      {t('activeLeads')} <ChevronRight className="w-3.5 h-3.5" />
                     </span>
                   </Link>
 
@@ -411,26 +411,26 @@ export const EmployerManageJobs: React.FC = () => {
                   >
                     <span className="text-base font-extrabold text-emerald-700">{dbMatchesCount}</span>
                     <span className="text-xs text-slate-500 group-hover:text-emerald-700 inline-flex items-center gap-1 mt-0.5">
-                      Database matches <ChevronRight className="w-3.5 h-3.5" />
+                      {t('databaseMatches')} <ChevronRight className="w-3.5 h-3.5" />
                     </span>
                   </Link>
                 </div>
 
-                {/* Bottom Status Info Strip (Screenshot 4) */}
+                {/* Bottom Status Info Strip */}
                 <div className="px-3.5 py-2 bg-slate-50 rounded-lg flex items-center justify-between text-xs text-slate-600">
                   <div className="flex items-center gap-2">
                     <Info className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     <span>
                       {job.status === 'active'
-                        ? `Job is active and receiving verified ${job.category} driver applications.`
-                        : 'Finish job posting or approve with 1 Job Credit to start receiving candidates immediately.'}
+                        ? t('jobActiveReceivingApps', { category: t(job.category) })
+                        : t('finishJobPostingDesc')}
                     </span>
                   </div>
                   <Link
                     to={`/employer/candidates?category=${encodeURIComponent(job.category)}`}
                     className="text-[11px] font-bold text-emerald-700 hover:underline shrink-0 ml-2"
                   >
-                    Unlock matching drivers →
+                    {t('unlockMatchingDrivers')} →
                   </Link>
                 </div>
               </div>

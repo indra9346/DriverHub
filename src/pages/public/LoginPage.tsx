@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
-  LogIn, User, Building2, Shield, Lock, Mail, ArrowRight, 
-  Sparkles, CheckCircle2, AlertCircle, Users, Truck, ChevronDown,
-  Eye, EyeOff
+  Building2, Shield, Lock, Mail, ArrowRight, 
+  AlertCircle, Truck, Eye, EyeOff
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
 import { DataStore } from '../../services/store';
 import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { SupabaseSync } from '../../services/supabaseSync';
+import { useLanguage } from '../../services/i18n';
 import { UserRole, User as UserType } from '../../types';
 import { getPostLoginPath, inferRoleFromPath, isUserRole } from '../../services/authRouting';
 
 export const LoginPage: React.FC = () => {
+  const { t, lang } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const redirect = searchParams.get('redirect') || '';
@@ -29,13 +30,11 @@ export const LoginPage: React.FC = () => {
   const [suggestedRole, setSuggestedRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Only restore this device's previously used email. Profiles are loaded after authentication.
   useEffect(() => {
     const saved = DataStore.getLastUserByRole(roleTab);
     if (saved?.email && !email) setEmail(saved.email);
   }, []);
 
-  // Update email field when switching role tabs
   const handleRoleChange = (newRole: UserRole) => {
     setRoleTab(newRole);
     setError(null);
@@ -54,7 +53,6 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setSuggestedRole(null);
     setLoading(true);
-    // Remove any stale local identity before authenticating this attempt.
     DataStore.setCurrentUser(null);
 
     try {
@@ -63,11 +61,11 @@ export const LoginPage: React.FC = () => {
       const demoAuth = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
       if (demoAuth) {
         matched = DataStore.getUsers().find(u => u.email.trim().toLowerCase() === cleanEmail);
-        if (!matched || password !== '123456') throw new Error('Demo sign-in requires a seeded account and the local demo password.');
+        if (!matched || password !== '123456') throw new Error(lang === 'kn' ? 'ಡೆಮೊ ಲಾಗಿನ್‌ಗೆ ಸ್ಥಳೀಯ ಪಾಸ್‌ವರ್ಡ್ ಅಗತ್ಯವಿದೆ.' : 'Demo sign-in requires a seeded account and the local demo password.');
       } else {
         if (!isSupabaseConfigured) throw new Error('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-        if (authError || !authData.user) throw new Error(authError?.message || 'Sign-in failed. Check your email and password.');
+        if (authError || !authData.user) throw new Error(authError?.message || (lang === 'kn' ? 'ಲಾಗಿನ್ ವಿಫಲವಾಗಿದೆ. ಇಮೇಲ್ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್ ಪರಿಶೀಲಿಸಿ.' : 'Sign-in failed. Check your email and password.'));
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -113,11 +111,11 @@ export const LoginPage: React.FC = () => {
         }
       }
 
-      if (!matched) throw new Error('No account found. Please sign up first.');
+      if (!matched) throw new Error(lang === 'kn' ? 'ಖಾತೆ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನೋಂದಾಯಿಸಿ.' : 'No account found. Please sign up first.');
       if (matched.status === 'blocked') {
         DataStore.setCurrentUser(null);
         if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut({ scope: 'local' });
-        throw new Error('This account is suspended. Contact DriverHub support.');
+        throw new Error(lang === 'kn' ? 'ಈ ಖಾತೆಯನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ. ಬೆಂಬಲ ವಿಭಾಗವನ್ನು ಸಂಪರ್ಕಿಸಿ.' : 'This account is suspended. Contact DriverHub support.');
       }
       if (matched.role !== roleTab) {
         setSuggestedRole(matched.role);
@@ -126,7 +124,6 @@ export const LoginPage: React.FC = () => {
         throw new Error(`This account is registered as ${matched.role}. Switch to that sign-in role.`);
       }
 
-      // Login Successful: Sets session and stores last-active user for this role on this device
       DataStore.setCurrentUser(matched);
       if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
         await SupabaseSync.fetchAndMergeRemoteData(DataStore);
@@ -135,18 +132,16 @@ export const LoginPage: React.FC = () => {
 
       navigate(getPostLoginPath(matched.role, redirect), { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+      setError(err instanceof Error ? err.message : (lang === 'kn' ? 'ಲಾಗಿನ್ ವಿಫಲವಾಗಿದೆ. ದಯವಿಟ್ಟು ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.' : 'Sign-in failed. Please try again.'));
       setLoading(false);
     }
   };
-
-  const savedUserForRole = DataStore.getLastUserByRole(roleTab);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
         
-        {/* Left Column: 100% Full Uncropped HD Banner */}
+        {/* Left Column: Banner */}
         <div className="lg:col-span-6 bg-[#072038] p-4 sm:p-6 flex flex-col justify-center items-center">
           <div className="w-full h-full min-h-[320px] sm:min-h-[420px] lg:min-h-[520px] flex items-center justify-center rounded-2xl overflow-hidden">
             <img 
@@ -157,18 +152,18 @@ export const LoginPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Clean Production Auth Form */}
+        {/* Right Column: Clean Auth Form */}
         <div className="lg:col-span-6 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6">
           {/* Header */}
           <div className="space-y-2">
             <Logo size="md" />
             <h1 className="text-2xl sm:text-3xl font-black text-[#08233F] font-display tracking-tight pt-2">
-              {roleTab === 'admin' ? 'Admin Portal Sign In' : 'Sign In to Driver Hub'}
+              {roleTab === 'admin' ? t('Admin Portal Sign In') : t('Sign In to Driver Hub')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
               {roleTab === 'admin' 
-                ? 'Authorized platform administration, job moderation & verification.'
-                : 'Access your driver account, employer dashboard, or fleet tools.'
+                ? (lang === 'kn' ? 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಆಡಳಿತ, ಉದ್ಯೋಗ ಪರಿಶೀಲನೆ & ಅನುಮೋದನೆ.' : 'Authorized platform administration, job moderation & verification.')
+                : (lang === 'kn' ? 'ನಿಮ್ಮ ಚಾಲಕ ಖಾತೆ, ಉದ್ಯೋಗದಾತ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಅಥವಾ ಫ್ಲೀಟ್ ಪರಿಕರಗಳನ್ನು ಪ್ರವೇಶಿಸಿ.' : 'Access your driver account, employer dashboard, or fleet tools.')
               }
             </p>
           </div>
@@ -186,7 +181,7 @@ export const LoginPage: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-950'
                 }`}
               >
-                <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" /> Driver
+                <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {t('Driver')}
               </button>
 
               <button
@@ -198,7 +193,7 @@ export const LoginPage: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-950'
                 }`}
               >
-                <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" /> Employer
+                <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" /> {t('Employer')}
               </button>
 
               <button
@@ -210,7 +205,7 @@ export const LoginPage: React.FC = () => {
                     : 'text-slate-600 hover:text-[#08233F]'
                 }`}
               >
-                <Shield className="w-3.5 h-3.5 text-amber-400 shrink-0" /> Admin
+                <Shield className="w-3.5 h-3.5 text-amber-400 shrink-0" /> {t('Admin')}
               </button>
             </div>
 
@@ -233,7 +228,7 @@ export const LoginPage: React.FC = () => {
                       }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#08233F] hover:bg-[#051626] text-amber-300 font-bold rounded-lg text-xs transition-all shadow-sm cursor-pointer hover:scale-[1.02]"
                     >
-                      <span>Switch to {suggestedRole === 'driver' ? 'Driver' : suggestedRole === 'employer' ? 'Employer' : 'Admin'} Sign In</span>
+                      <span>{t('Switch to {role} Sign In', { role: suggestedRole === 'driver' ? t('Driver') : suggestedRole === 'employer' ? t('Employer') : t('Admin') })}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -243,7 +238,7 @@ export const LoginPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Email Address')}</label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
@@ -259,9 +254,9 @@ export const LoginPage: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-slate-700">Password</label>
+                  <label className="block text-xs font-semibold text-slate-700">{t('Password')}</label>
                   <Link to={`/forgot-password?role=${encodeURIComponent(roleTab)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[11px] text-blue-700 font-bold hover:underline">
-                    Forgot?
+                    {t('Forgot?')}
                   </Link>
                 </div>
                 <div className="relative">
@@ -290,14 +285,14 @@ export const LoginPage: React.FC = () => {
                 disabled={loading}
                 className="w-full py-2.5 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
               >
-                {loading ? 'Authenticating...' : `Sign In as ${roleTab === 'admin' ? 'Superadmin' : roleTab === 'driver' ? 'Driver' : 'Employer'}`}
+                {loading ? t('Authenticating...') : t('Sign In as {role}', { role: roleTab === 'admin' ? t('Superadmin') : roleTab === 'driver' ? t('Driver') : t('Employer') })}
               </button>
             </form>
 
             <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
-              Don't have an account?{' '}
+              {t("Don't have an account?")}{' '}
               <Link to={`/register?role=${roleTab === 'admin' ? 'driver' : roleTab}`} className="text-blue-700 font-bold hover:underline">
-                Create an Account
+                {t('Create an Account')}
               </Link>
             </div>
           </div>

@@ -7,6 +7,7 @@ import {
 import { Logo } from '../../components/common/Logo';
 import { supabase } from '../../services/supabaseClient';
 import { UserRole } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 type RecoveryStep = 'email' | 'verify' | 'reset' | 'success';
 
@@ -29,6 +30,7 @@ const getAuthErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 export const ForgotPasswordPage: React.FC = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -46,7 +48,7 @@ export const ForgotPasswordPage: React.FC = () => {
     if (redirect) params.set('redirect', redirect);
     return `/login?${params.toString()}`;
   }, [role, redirect]);
-  const roleLabel = role === 'admin' ? 'Admin' : role === 'employer' ? 'Employer' : 'Driver';
+  const roleLabel = role === 'admin' ? t('Admin') : role === 'employer' ? t('Employer') : t('Driver');
 
   const [step, setStep] = useState<RecoveryStep>('email');
   const [email, setEmail] = useState('');
@@ -262,16 +264,16 @@ export const ForgotPasswordPage: React.FC = () => {
           <div className="space-y-1">
             <Logo size="md" />
             <h1 className="text-2xl sm:text-3xl font-black text-[#08233F] font-display tracking-tight pt-2">
-              {step === 'email' && 'Reset Your Password'}
-              {step === 'verify' && 'Verify Your Email'}
-              {step === 'reset' && 'Choose a New Password'}
-              {step === 'success' && 'Password Updated'}
+              {step === 'email' && t('Reset Your Password')}
+              {step === 'verify' && t('Verify Your Email')}
+              {step === 'reset' && t('Choose a New Password')}
+              {step === 'success' && t('Password Updated')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              {step === 'email' && `Enter the email for your ${roleLabel.toLowerCase()} account. We’ll send a secure recovery code.`}
-              {step === 'verify' && `Enter the 6-digit code sent to ${email}.`}
-              {step === 'reset' && `The code is verified. Choose a new password for your ${roleLabel.toLowerCase()} account.`}
-              {step === 'success' && `Your password has been reset. Sign in again as ${roleLabel}.`}
+              {step === 'email' && t(`Enter the email for your account. We’ll send a secure recovery code.`)}
+              {step === 'verify' && `${t('Enter the 6-digit code sent to')} ${email}.`}
+              {step === 'reset' && t(`The code is verified. Choose a new password for your account.`)}
+              {step === 'success' && `${t('Your password has been reset. Sign in again as')} ${roleLabel}.`}
             </p>
           </div>
 
@@ -304,7 +306,7 @@ export const ForgotPasswordPage: React.FC = () => {
             {step === 'email' && (
               <form onSubmit={handleRequestReset} className="space-y-4">
                 <div>
-                  <label htmlFor="recovery-email" className="block text-xs font-semibold text-slate-700 mb-1">Registered Email Address</label>
+                  <label htmlFor="recovery-email" className="block text-xs font-semibold text-slate-700 mb-1">{t('Email Address')}</label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <input
@@ -320,7 +322,7 @@ export const ForgotPasswordPage: React.FC = () => {
                   </div>
                 </div>
                 <button type="submit" disabled={loading} className="w-full py-3 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70">
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin text-amber-400" /> : <><Send className="w-4 h-4 text-amber-400" /> Send Recovery Code</>}
+                  {loading ? <RefreshCw className="w-4 h-4 animate-spin text-amber-400" /> : <><Send className="w-4 h-4 text-amber-400" /> {t('Send Recovery Code')}</>}
                 </button>
               </form>
             )}
@@ -328,7 +330,7 @@ export const ForgotPasswordPage: React.FC = () => {
             {step === 'verify' && (
               <form onSubmit={handleVerifyCode} className="space-y-4">
                 <div>
-                  <label htmlFor="recovery-code" className="block text-xs font-semibold text-slate-700 mb-1">6-Digit Verification Code</label>
+                  <label htmlFor="recovery-code" className="block text-xs font-semibold text-slate-700 mb-1">{t('Verify Code')}</label>
                   <div className="relative">
                     <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     <input
@@ -350,7 +352,7 @@ export const ForgotPasswordPage: React.FC = () => {
                   <p id="recovery-code-help" className="mt-1.5 text-[11px] leading-relaxed text-slate-500">Use the newest email. Codes expire and can only be used once.</p>
                 </div>
                 <button type="submit" disabled={loading || verificationCode.length !== 6} className="w-full py-3 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60">
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin text-amber-400" /> : <><ShieldCheck className="w-4 h-4 text-amber-400" /> Verify Code</>}
+                  {loading ? <RefreshCw className="w-4 h-4 animate-spin text-amber-400" /> : <><ShieldCheck className="w-4 h-4 text-amber-400" /> {t('Verify Code')}</>}
                 </button>
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
                   <button type="button" onClick={handleResendCode} disabled={loading} className="inline-flex items-center gap-1.5 text-blue-700 font-semibold hover:underline disabled:opacity-50">
@@ -365,7 +367,7 @@ export const ForgotPasswordPage: React.FC = () => {
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="new-password" className="block text-xs font-semibold text-slate-700 mb-1">New Password</label>
+                    <label htmlFor="new-password" className="block text-xs font-semibold text-slate-700 mb-1">{t('New Password')}</label>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                       <input id="new-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" required minLength={8} value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="At least 8 characters" className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white font-medium" />
@@ -375,7 +377,7 @@ export const ForgotPasswordPage: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label htmlFor="confirm-password" className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password</label>
+                    <label htmlFor="confirm-password" className="block text-xs font-semibold text-slate-700 mb-1">{t('Confirm New Password')}</label>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                       <input id="confirm-password" type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" required minLength={8} value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Re-enter new password" className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white font-medium" />
@@ -386,7 +388,7 @@ export const ForgotPasswordPage: React.FC = () => {
                   </div>
                 </div>
                 <button type="submit" disabled={loading} className="w-full py-3 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70">
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin text-amber-400" /> : <><ShieldCheck className="w-4 h-4 text-amber-400" /> Update Password</>}
+                  {loading ? <RefreshCw className="w-4 h-4 animate-spin text-amber-400" /> : <><ShieldCheck className="w-4 h-4 text-amber-400" /> {t('Update Password')}</>}
                 </button>
               </form>
             )}
@@ -395,17 +397,17 @@ export const ForgotPasswordPage: React.FC = () => {
               <div className="text-center py-4 space-y-4">
                 <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 className="w-8 h-8" /></div>
                 <div>
-                  <h3 className="text-base font-bold text-[#08233F]">Password Reset Complete</h3>
+                  <h3 className="text-base font-bold text-[#08233F]">{t('Password Updated')}</h3>
                   <p className="text-xs text-slate-600 mt-1">The password for <strong className="text-slate-900">{email}</strong> has been updated.</p>
                 </div>
                 <button type="button" onClick={() => void handleGoToLogin()} disabled={loading} className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-70">
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <>Sign In as {roleLabel} <ArrowRight className="w-4 h-4" /></>}
+                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <>{t('Sign In as')} {roleLabel} <ArrowRight className="w-4 h-4" /></>}
                 </button>
               </div>
             )}
 
             <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
-              <Link to={loginPath} className="text-slate-600 font-semibold hover:underline inline-flex items-center gap-1"><ArrowLeft className="w-3.5 h-3.5" /> Back to {roleLabel} Sign In</Link>
+              <Link to={loginPath} className="text-slate-600 font-semibold hover:underline inline-flex items-center gap-1"><ArrowLeft className="w-3.5 h-3.5" /> {t('Back to Sign In')}</Link>
             </div>
           </div>
         </div>

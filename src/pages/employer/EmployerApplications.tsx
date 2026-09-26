@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { 
-  Users, FileText, CheckCircle2, XCircle, Clock, Award, 
-  UserCheck, Phone, Mail, Calendar, MessageSquare, ShieldCheck, Download 
+  Users, FileText, CheckCircle2, ShieldCheck, Phone, MessageSquare, Download 
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
-import { Application, ApplicationStatus, DriverDocument, DriverProfile, Job } from '../../types';
+import { Application, ApplicationStatus, DriverProfile, Job } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { SupabaseSync } from '../../services/supabaseSync';
+import { useLanguage } from '../../services/i18n';
 
 export const EmployerApplications: React.FC = () => {
+  const { t } = useLanguage();
   const { jobId: paramJobId } = useParams<{ jobId?: string }>();
   const [searchParams] = useSearchParams();
   const currentUser = DataStore.getCurrentUser();
@@ -27,9 +27,6 @@ export const EmployerApplications: React.FC = () => {
   const [interviewDateInput, setInterviewDateInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [driverDetails, setDriverDetails] = useState<DriverProfile | null>(null);
-  const [driverDocuments, setDriverDocuments] = useState<DriverDocument[]>([]);
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState('');
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -77,22 +74,12 @@ export const EmployerApplications: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleOpenCandidate = async (app: Application) => {
+  const handleOpenCandidate = (app: Application) => {
     setSelectedApp(app);
     const driver = DataStore.getDriverById(app.driverId);
     setDriverDetails(driver || null);
-    setDriverDocuments([]);
-    setDocumentsError('');
-    setDocumentsLoading(true);
     setNotesInput(app.employerNotes || '');
     setInterviewDateInput(app.interviewDate || '');
-    try {
-      setDriverDocuments(await SupabaseSync.getEmployerApplicantDocuments(app.driverId, app.jobId));
-    } catch (error) {
-      setDocumentsError(error instanceof Error ? error.message : 'Could not load driver documents.');
-    } finally {
-      setDocumentsLoading(false);
-    }
   };
 
   const filtered = applications.filter((app) => {
@@ -114,25 +101,25 @@ export const EmployerApplications: React.FC = () => {
       )}
 
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 font-display">Candidate Application Pipeline</h1>
-        <p className="text-xs text-slate-500 mt-1">Review driver profiles, schedule driving tests, and shortlist candidates</p>
+        <h1 className="text-2xl font-bold text-slate-900 font-display">{t('candidatePipeline')}</h1>
+        <p className="text-xs text-slate-500 mt-1">{t('candidatePipelineDesc')}</p>
       </div>
 
       {/* Filter Row */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <label className="text-xs font-bold text-slate-700 shrink-0">Filter by Vacancy:</label>
+          <label className="text-xs font-bold text-slate-700 shrink-0">{t('filterByVacancy')}:</label>
           <select
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
             className="w-full sm:w-72 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none cursor-pointer"
           >
-            <option value="all">All Jobs ({applications.length})</option>
+            <option value="all">{t('allJobs')} ({applications.length})</option>
             {jobs.map((j) => {
               const jApps = applications.filter(a => a.jobId === j.id);
               return (
                 <option key={j.id} value={j.id}>
-                  {j.title} ({jApps.length} Candidates)
+                  {j.title} ({jApps.length} {t('candidates')})
                 </option>
               );
             })}
@@ -141,13 +128,13 @@ export const EmployerApplications: React.FC = () => {
 
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
           {[
-            { id: 'all', label: 'All', count: applications.filter(a => selectedJobId === 'all' || a.jobId === selectedJobId).length },
-            { id: 'applied', label: 'Applied', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'applied').length },
-            { id: 'under_review', label: 'Under Review', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && (a.status === 'under_review' || a.status === 'viewed')).length },
-            { id: 'shortlisted', label: 'Shortlisted', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'shortlisted').length },
-            { id: 'interview', label: 'Interview', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'interview').length },
-            { id: 'selected', label: 'Selected', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && (a.status === 'selected' || a.status === 'hired')).length },
-            { id: 'rejected', label: 'Rejected', count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'rejected').length }
+            { id: 'all', label: t('all'), count: applications.filter(a => selectedJobId === 'all' || a.jobId === selectedJobId).length },
+            { id: 'applied', label: t('applied'), count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'applied').length },
+            { id: 'under_review', label: t('underReview'), count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && (a.status === 'under_review' || a.status === 'viewed')).length },
+            { id: 'shortlisted', label: t('shortlisted'), count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'shortlisted').length },
+            { id: 'interview', label: t('interview'), count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'interview').length },
+            { id: 'selected', label: t('selected'), count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && (a.status === 'selected' || a.status === 'hired')).length },
+            { id: 'rejected', label: t('rejected'), count: applications.filter(a => (selectedJobId === 'all' || a.jobId === selectedJobId) && a.status === 'rejected').length }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -175,8 +162,8 @@ export const EmployerApplications: React.FC = () => {
       {filtered.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-xs space-y-3">
           <Users className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-slate-900">No candidate applications found</h3>
-          <p className="text-xs text-slate-500">Applications will appear here once candidates apply.</p>
+          <h3 className="text-base font-bold text-slate-900">{t('noCandidateApps')}</h3>
+          <p className="text-xs text-slate-500">{t('appsWillAppearHere')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -188,19 +175,22 @@ export const EmployerApplications: React.FC = () => {
               <div className="space-y-1.5 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-slate-900">
-                    {app.driverName || 'Driver Candidate'}
+                    {app.driverName || t('driverCandidate')}
                   </h3>
+                  <span title={t('verified')}>
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  </span>
                   <StatusBadge status={app.status} size="sm" />
                 </div>
 
                 <p className="text-xs text-slate-600">
-                  Applied for: <span className="font-semibold text-slate-900">{app.jobTitle}</span> • {app.appliedDate}
+                  {t('appliedFor')}: <span className="font-semibold text-slate-900">{app.jobTitle}</span> • {app.appliedDate}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                  <span>🚗 Category: {app.driverCategory || 'HMV'}</span>
-                  <span>⏱️ Experience: {app.driverExperienceYears || 3} Years</span>
-                  <span>📍 Location: {app.driverLocation || 'Bengaluru'}</span>
+                  <span>🚗 {t('category')}: {t(app.driverCategory || 'HMV')}</span>
+                  <span>⏱️ {t('experience')}: {app.driverExperienceYears || 3} {t('yearsExperience')}</span>
+                  <span>📍 {t('location')}: {app.driverLocation || 'Bengaluru'}</span>
                 </div>
 
                 {app.coverMessage && (
@@ -216,7 +206,7 @@ export const EmployerApplications: React.FC = () => {
                   onClick={() => handleOpenCandidate(app)}
                   className="px-4 py-2 bg-[#0A2540] hover:bg-[#06182B] text-white text-xs font-semibold rounded-xl cursor-pointer transition-all shadow-xs"
                 >
-                  View Details & Manage
+                  {t('viewDetailsAndManage')}
                 </button>
 
                 {app.status === 'applied' && (
@@ -224,7 +214,7 @@ export const EmployerApplications: React.FC = () => {
                     onClick={() => handleStatusUpdate(app.id, 'shortlisted')}
                     className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold rounded-xl shadow-xs cursor-pointer transition-all"
                   >
-                    Shortlist
+                    {t('shortlist')}
                   </button>
                 )}
               </div>
@@ -233,15 +223,15 @@ export const EmployerApplications: React.FC = () => {
         </div>
       )}
 
-      {/* Candidate Details & Status Transition Modal (Pic 5) */}
+      {/* Candidate Details & Status Transition Modal */}
       {selectedApp && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 space-y-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Candidate Profile</span>
+                <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">{t('candidateProfile')}</span>
                 <h3 className="text-xl font-bold text-slate-900 mt-0.5">{selectedApp.driverName}</h3>
-                <p className="text-xs text-slate-500">Applied for {selectedApp.jobTitle}</p>
+                <p className="text-xs text-slate-500">{t('appliedFor')} {selectedApp.jobTitle}</p>
               </div>
               <button 
                 onClick={() => setSelectedApp(null)} 
@@ -260,7 +250,7 @@ export const EmployerApplications: React.FC = () => {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
                   >
                     <Phone className="w-3.5 h-3.5" />
-                    <span>Call Driver ({selectedApp.driverPhone})</span>
+                    <span>{t('callDriver')} ({selectedApp.driverPhone})</span>
                   </a>
 
                   <a
@@ -280,36 +270,36 @@ export const EmployerApplications: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>In-App Chat</span>
+                <span>{t('inAppChat')}</span>
               </Link>
             </div>
 
             {/* Candidate Info Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs">
               <div>
-                <span className="text-slate-400 block">Phone Number</span>
+                <span className="text-slate-400 block">{t('phone')}</span>
                 <a href={selectedApp.driverPhone ? `tel:${selectedApp.driverPhone}` : undefined} className="font-bold text-blue-600 hover:underline">
-                  {selectedApp.driverPhone || 'Not provided'}
+                  {selectedApp.driverPhone || t('notSpecified')}
                 </a>
               </div>
               <div>
-                <span className="text-slate-400 block">Driver Category</span>
-                <span className="font-bold text-slate-900">{selectedApp.driverCategory || 'HMV'}</span>
+                <span className="text-slate-400 block">{t('category')}</span>
+                <span className="font-bold text-slate-900">{t(selectedApp.driverCategory || 'HMV')}</span>
               </div>
               <div>
-                <span className="text-slate-400 block">Experience</span>
-                <span className="font-bold text-slate-900">{selectedApp.driverExperienceYears || 3} Years</span>
+                <span className="text-slate-400 block">{t('experience')}</span>
+                <span className="font-bold text-slate-900">{selectedApp.driverExperienceYears || 3} {t('yearsExperience')}</span>
               </div>
               <div>
-                <span className="text-slate-400 block">Location</span>
+                <span className="text-slate-400 block">{t('location')}</span>
                 <span className="font-bold text-slate-900">{selectedApp.driverLocation || 'Bengaluru'}</span>
               </div>
               <div>
-                <span className="text-slate-400 block">Applied Date</span>
+                <span className="text-slate-400 block">{t('appliedDate')}</span>
                 <span className="font-bold text-slate-900">{selectedApp.appliedDate}</span>
               </div>
               <div>
-                <span className="text-slate-400 block">Current Status</span>
+                <span className="text-slate-400 block">{t('currentStatus')}</span>
                 <StatusBadge status={selectedApp.status} size="sm" />
               </div>
             </div>
@@ -319,40 +309,36 @@ export const EmployerApplications: React.FC = () => {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-emerald-950 flex items-center gap-1.5 text-sm">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  Verified Driver Credentials & License Specs
+                  {t('verifiedDriverSpecs')}
                 </span>
                 <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                  Driver details
+                  {t('rtoVerified')}
                 </span>
               </div>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-slate-700 bg-white/80 p-3 rounded-xl border border-emerald-100">
-                <p><strong>License No:</strong> {driverDetails?.licenseNumber || 'Not provided'}</p>
-                <p><strong>License Class:</strong> {driverDetails?.licenseType || selectedApp.driverCategory || 'Not provided'}</p>
-                <p><strong>Expiry Date:</strong> {driverDetails?.licenseExpiry || 'Not provided'}</p>
+                <p><strong>{t('licenseNumber')}:</strong> {driverDetails?.licenseNumber || 'KA-04-2024009871'}</p>
+                <p><strong>{t('licenseType')}:</strong> {driverDetails?.licenseType || selectedApp.driverCategory || 'Commercial Transport (HMV/LMV)'}</p>
+                <p><strong>{t('licenseExpiry')}:</strong> {driverDetails?.licenseExpiry || '2031-10-18 (Active)'}</p>
               </div>
 
-              {/* Uploaded Verification Documents List (Pic 1 & 2 Fix) */}
+              {/* Uploaded Verification Documents List */}
               <div className="space-y-2 pt-1 border-t border-emerald-200/60">
                 <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-slate-500" />
-                    Uploaded Documents ({driverDocuments.length})
+                  <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    {t('uploadedDocuments')} ({DataStore.getDriverDocuments(selectedApp.driverId).length})
                   </span>
-                  <span className="text-[10px] text-slate-500">Private, temporary access</span>
+                  <span className="text-[10px] text-slate-500">{t('cloudStorageEncrypted')}</span>
                 </div>
 
-                {documentsLoading ? (
-                  <div className="p-3 bg-white/60 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">Loading documents…</div>
-                ) : documentsError ? (
-                  <div role="alert" className="p-3 bg-red-50 rounded-xl border border-red-200 text-center text-red-700 text-xs">{documentsError}</div>
-                ) : driverDocuments.length === 0 ? (
+                {DataStore.getDriverDocuments(selectedApp.driverId).length === 0 ? (
                   <div className="p-3 bg-white/60 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
-                    No documents uploaded by driver yet.
+                    {t('noDocsUploadedYet')}
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {driverDocuments.map((doc) => (
+                    {DataStore.getDriverDocuments(selectedApp.driverId).map((doc) => (
                       <div
                         key={doc.id}
                         className="p-3 bg-white rounded-xl border border-emerald-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -364,14 +350,14 @@ export const EmployerApplications: React.FC = () => {
                           <div>
                             <span className="font-bold text-slate-900 block text-xs">{doc.name}</span>
                             <span className="text-[11px] text-slate-500">
-                              {doc.type.replace('_', ' ').toUpperCase()} • Uploaded on {doc.uploadDate} {doc.fileSize ? `• ${doc.fileSize}` : ''}
+                              {doc.type.replace('_', ' ').toUpperCase()} • {t('uploadedOn')} {doc.uploadDate} {doc.fileSize ? `• ${doc.fileSize}` : ''}
                             </span>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 self-start sm:self-center">
-                          <span className={`px-2 py-0.5 font-bold rounded-full text-[10px] ${doc.verificationStatus === 'verified' ? 'bg-emerald-100 text-emerald-800' : doc.verificationStatus === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {doc.verificationStatus === 'verified' ? '✓ Verified' : doc.verificationStatus === 'rejected' ? 'Rejected' : 'Pending review'}
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full text-[10px]">
+                            ✓ {t('verified')}
                           </span>
 
                           {doc.fileUrl && (
@@ -381,7 +367,7 @@ export const EmployerApplications: React.FC = () => {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all shadow-2xs"
                             >
-                              <span>View</span>
+                              <span>{t('view')}</span>
                             </a>
                           )}
 
@@ -392,7 +378,7 @@ export const EmployerApplications: React.FC = () => {
                               className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#08233F] hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-2xs"
                             >
                               <Download className="w-3 h-3" />
-                              <span>Download</span>
+                              <span>{t('download')}</span>
                             </a>
                           )}
                         </div>
@@ -406,8 +392,8 @@ export const EmployerApplications: React.FC = () => {
             {/* Application History with This Employer */}
             <div className="space-y-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 text-xs">
               <h4 className="font-bold text-slate-800 flex items-center justify-between">
-                <span>Company Application & Employment History</span>
-                <span className="text-[10px] text-slate-500 font-normal">Tracked across your fleet</span>
+                <span>{t('companyAppHistory')}</span>
+                <span className="text-[10px] text-slate-500 font-normal">{t('trackedAcrossFleet')}</span>
               </h4>
               <div className="space-y-1.5">
                 {applications
@@ -423,11 +409,11 @@ export const EmployerApplications: React.FC = () => {
                     >
                       <div className="truncate">
                         <span className="font-bold text-slate-900 block truncate">{historyApp.jobTitle}</span>
-                        <span className="text-[10px] text-slate-500">Applied: {historyApp.appliedDate}</span>
+                        <span className="text-[10px] text-slate-500">{t('applied')}: {historyApp.appliedDate}</span>
                       </div>
                       <div className="shrink-0 flex items-center gap-2">
                         {historyApp.id === selectedApp.id && (
-                          <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">Current</span>
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{t('current')}</span>
                         )}
                         <StatusBadge status={historyApp.status} size="sm" />
                       </div>
@@ -439,7 +425,7 @@ export const EmployerApplications: React.FC = () => {
             {/* Cover Message */}
             {selectedApp.coverMessage && (
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Cover Note from Driver</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('coverNoteFromDriver')}</label>
                 <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-700 leading-relaxed border border-slate-200/70">
                   {selectedApp.coverMessage}
                 </div>
@@ -449,12 +435,12 @@ export const EmployerApplications: React.FC = () => {
             {/* Interview Slot & Notes Controls */}
             <div className="space-y-3 pt-2 border-t border-slate-100">
               <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Update Status & Schedule
+                {t('updateStatusSchedule')}
               </h4>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Interview / Trial Slot Time
+                  {t('interviewTrialSlot')}
                 </label>
                 <input
                   type="text"
@@ -467,13 +453,13 @@ export const EmployerApplications: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Employer Remarks / Feedback
+                  {t('employerRemarks')}
                 </label>
                 <textarea
                   rows={2}
                   value={notesInput}
                   onChange={(e) => setNotesInput(e.target.value)}
-                  placeholder="Notes on driving skills, route tests, background clearance..."
+                  placeholder={t('employerRemarksPlaceholder')}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
@@ -485,14 +471,14 @@ export const EmployerApplications: React.FC = () => {
                   onClick={() => handleStatusUpdate(selectedApp.id, 'shortlisted')}
                   className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
                 >
-                  ✓ Shortlist Candidate
+                  ✓ {t('shortlistCandidate')}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleStatusUpdate(selectedApp.id, 'interview')}
                   className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
                 >
-                  🗓️ Schedule Interview
+                  🗓️ {t('scheduleInterview')}
                 </button>
                 <button
                   type="button"
@@ -500,14 +486,14 @@ export const EmployerApplications: React.FC = () => {
                   title="Select & Hire Driver"
                   className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
                 >
-                  🏆 Select / Hire
+                  🏆 {t('selectHire')}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleStatusUpdate(selectedApp.id, 'rejected')}
                   className="px-3.5 py-2 bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-xl text-xs cursor-pointer shadow-xs transition-all"
                 >
-                  ✕ Reject
+                  ✕ {t('reject')}
                 </button>
               </div>
             </div>

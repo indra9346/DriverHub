@@ -4,8 +4,10 @@ import {
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { DirectMessage } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 export const MessagesPage: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const userId = currentUser?.id || 'usr-employer-1';
   const userRole = currentUser?.role || 'employer';
@@ -86,10 +88,10 @@ export const MessagesPage: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-[#08233F] font-display">
-          Direct Hiring Messages
+          {t('Direct Hiring Messages')}
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Instant communication between verified fleet employers and commercial drivers
+          {t('Instant communication between verified fleet employers and commercial drivers')}
         </p>
       </div>
 
@@ -98,35 +100,35 @@ export const MessagesPage: React.FC = () => {
         <div className="md:col-span-4 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col">
           <div className="p-4 border-b border-slate-100 bg-slate-50/70">
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Active Conversations ({threads.length})
+              {t('Active Conversations')} ({threads.length})
             </span>
           </div>
 
           <div className="divide-y divide-slate-100 overflow-y-auto flex-1">
-            {threads.map(t => {
-              const isSelected = activePartner?.id === t.id;
+            {threads.map(tItem => {
+              const isSelected = activePartner?.id === tItem.id;
               return (
                 <button
-                  key={t.id}
-                  onClick={() => setSelectedPartnerId(t.id)}
+                  key={tItem.id}
+                  onClick={() => setSelectedPartnerId(tItem.id)}
                   className={`w-full p-4 text-left transition-colors flex items-start gap-3 cursor-pointer ${
                     isSelected ? 'bg-blue-50/70' : 'hover:bg-slate-50'
                   }`}
                 >
                   <div className="w-10 h-10 rounded-full bg-[#08233F] text-amber-400 font-bold text-xs flex items-center justify-center shrink-0">
-                    {t.name.slice(0, 2).toUpperCase()}
+                    {tItem.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-bold text-slate-900 truncate">{t.name}</span>
-                      <span className="text-[10px] text-slate-400 shrink-0">{t.lastMessage.timestamp}</span>
+                      <span className="text-xs font-bold text-slate-900 truncate">{tItem.name}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0">{tItem.lastMessage.timestamp}</span>
                     </div>
-                    {t.lastMessage.jobTitle && (
+                    {tItem.lastMessage.jobTitle && (
                       <p className="text-[10px] font-semibold text-emerald-700 truncate mt-0.5">
-                        {t.lastMessage.jobTitle}
+                        {tItem.lastMessage.jobTitle}
                       </p>
                     )}
-                    <p className="text-xs text-slate-500 truncate mt-0.5">{t.lastMessage.text}</p>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{tItem.lastMessage.text}</p>
                   </div>
                 </button>
               );
@@ -191,7 +193,7 @@ export const MessagesPage: React.FC = () => {
                   type="text"
                   value={replyText}
                   onChange={e => setReplyText(e.target.value)}
-                  placeholder="Type a message regarding interview slot, documents, or vehicle trial..."
+                  placeholder={t('Type a message regarding interview slot, documents, or vehicle trial...')}
                   className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:bg-white"
                 />
                 <button
@@ -199,7 +201,7 @@ export const MessagesPage: React.FC = () => {
                   disabled={sending || !replyText.trim()}
                   className="px-5 py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-3.5 h-3.5" /> {sending ? 'Sending…' : 'Send'}
+                  <Send className="w-3.5 h-3.5" /> {sending ? t('Sending…') : t('Send')}
                 </button>
               </form>
               {sendError && <p role="alert" className="px-4 pb-3 text-xs text-red-700">{sendError}</p>}
@@ -207,7 +209,7 @@ export const MessagesPage: React.FC = () => {
           ) : (
             <div className="p-12 text-center my-auto space-y-2">
               <MessageSquare className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="text-xs text-slate-500">Select a conversation to begin messaging.</p>
+              <p className="text-xs text-slate-500">{t('Select a conversation to begin messaging.')}</p>
             </div>
           )}
         </div>

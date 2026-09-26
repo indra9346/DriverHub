@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Building2, MapPin, ShieldCheck, Briefcase, ExternalLink, 
-  Search, Users, CheckCircle2 
+  Building2, MapPin, ShieldCheck, Search 
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { EmployerProfile, Job } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 export const CompaniesPage: React.FC = () => {
+  const { t, lang } = useLanguage();
   const [employers, setEmployers] = useState<EmployerProfile[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [search, setSearch] = useState('');
@@ -32,10 +33,14 @@ export const CompaniesPage: React.FC = () => {
       {/* Header */}
       <div className="bg-gradient-to-r from-[#08233F] to-[#173E68] rounded-2xl p-8 text-white shadow-card flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Verified Employer Directory</span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold font-display mt-1 text-white">Top Logistics & Fleet Partners</h1>
+          <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
+            {t('Verified Employer Directory')}
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-display mt-1 text-white">
+            {t('Top Logistics & Fleet Partners')}
+          </h1>
           <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-xl">
-            Explore verified transport companies, corporate fleets, and schools hiring drivers directly.
+            {t('Explore verified transport companies, corporate fleets, and schools hiring drivers directly.')}
           </p>
         </div>
 
@@ -47,7 +52,7 @@ export const CompaniesPage: React.FC = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search company, industry..."
+              placeholder={lang === 'kn' ? 'ಕಂಪನಿ, ಉದ್ಯಮದ ಹೆಸರು ಹುಡುಕಿ...' : 'Search company, industry...'}
               className="w-full pl-10 pr-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
           </div>
@@ -85,7 +90,7 @@ export const CompaniesPage: React.FC = () => {
                         {company.companyName}
                       </Link>
                       {company.verified && (
-                        <span title="Verified Employer">
+                        <span title={t('Verified Employer')}>
                           <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
                         </span>
                       )}
@@ -101,7 +106,6 @@ export const CompaniesPage: React.FC = () => {
                   </div>
                   {company.website && (
                     <div className="flex items-center gap-2">
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <a href={company.website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">
                         {company.website.replace('https://', '')}
                       </a>
@@ -116,14 +120,14 @@ export const CompaniesPage: React.FC = () => {
 
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  {openJobs} Open {openJobs === 1 ? 'Job' : 'Jobs'}
+                  {t('{count} Open Jobs', { count: openJobs })}
                 </span>
 
                 <Link
                   to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#08233F] hover:text-amber-600"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#08233F] hover:text-amber-600 cursor-pointer"
                 >
-                  View Vacancies →
+                  {lang === 'kn' ? 'ಖಾಲಿ ಹುದ್ದೆಗಳನ್ನು ನೋಡಿ →' : 'View Vacancies →'}
                 </Link>
               </div>
             </div>

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Check, Eye, FileText, LoaderCircle, RotateCw, X } from 'lucide-react';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverDocument, VerificationStatus } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 type ReviewDocument = DriverDocument & {
   driverName: string;
@@ -14,6 +15,7 @@ type ReviewDocument = DriverDocument & {
 type StatusFilter = 'all' | VerificationStatus;
 
 export const AdminDocuments: React.FC = () => {
+  const { t } = useLanguage();
   const [documents, setDocuments] = useState<ReviewDocument[]>([]);
   const [filter, setFilter] = useState<StatusFilter>('pending');
   const [loading, setLoading] = useState(true);
@@ -77,12 +79,12 @@ export const AdminDocuments: React.FC = () => {
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#08233F]">Driver document reviews</h1>
-          <p className="mt-1 text-sm text-slate-500">Review uploaded licenses, identity documents, and certificates.</p>
+          <h1 className="text-2xl font-extrabold text-[#08233F]">{t('driverDocReviews')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('driverDocReviewsSubtitle')}</p>
         </div>
         <button onClick={() => { void loadDocuments(); }} disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-          <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 cursor-pointer">
+          <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {t('refresh')}
         </button>
       </header>
 
@@ -92,20 +94,20 @@ export const AdminDocuments: React.FC = () => {
       <div className="flex flex-wrap gap-2" aria-label="Filter documents by review status">
         {(['pending', 'verified', 'rejected', 'all'] as StatusFilter[]).map(status => (
           <button key={status} onClick={() => setFilter(status)}
-            className={`rounded-full border px-4 py-2 text-xs font-semibold capitalize ${filter === status ? 'border-[#0A2540] bg-[#0A2540] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'}`}>
-            {status} <span className="ml-1 opacity-75">{statusCounts[status]}</span>
+            className={`rounded-full border px-4 py-2 text-xs font-semibold capitalize cursor-pointer ${filter === status ? 'border-[#0A2540] bg-[#0A2540] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400'}`}>
+            {status === 'pending' ? t('pending') : status === 'verified' ? t('verified') : status === 'rejected' ? t('rejected') : t('all')} <span className="ml-1 opacity-75">{statusCounts[status]}</span>
           </button>
         ))}
       </div>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
-          <div className="flex items-center justify-center gap-2 p-12 text-sm text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin" /> Loading documents…</div>
+          <div className="flex items-center justify-center gap-2 p-12 text-sm text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin" /> {t('loading')}</div>
         ) : visibleDocuments.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="mx-auto h-10 w-10 text-slate-300" />
-            <p className="mt-3 text-sm font-semibold text-slate-700">No {filter === 'all' ? '' : `${filter} `}documents</p>
-            <p className="mt-1 text-xs text-slate-500">New driver uploads will appear here for review.</p>
+            <p className="mt-3 text-sm font-semibold text-slate-700">{t('noDocumentsFound')}</p>
+            <p className="mt-1 text-xs text-slate-500">{t('newDriverUploadsAppearHere')}</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -115,26 +117,26 @@ export const AdminDocuments: React.FC = () => {
                   <span className="mt-0.5 rounded-xl bg-blue-50 p-2.5 text-blue-700"><FileText className="h-5 w-5" /></span>
                   <div className="min-w-0">
                     <h2 className="truncate text-sm font-bold text-slate-900">{document.name}</h2>
-                    <p className="mt-0.5 text-xs capitalize text-slate-500">{document.type.split('_').join(' ')} · uploaded {document.uploadDate || 'date unavailable'} {document.fileSize ? `· ${document.fileSize}` : ''}</p>
+                    <p className="mt-0.5 text-xs capitalize text-slate-500">{document.type.split('_').join(' ')} · {t('uploaded')} {document.uploadDate || t('dateUnavailable')} {document.fileSize ? `· ${document.fileSize}` : ''}</p>
                     <p className="mt-2 text-sm font-semibold text-[#08233F]">{document.driverName}</p>
                     <p className="break-all text-xs text-slate-500">{[document.driverCity, document.driverState].filter(Boolean).join(', ')}{document.driverPhone ? ` · ${document.driverPhone}` : ''}{document.driverEmail ? ` · ${document.driverEmail}` : ''}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className={`mr-1 rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${document.verificationStatus === 'verified' ? 'bg-emerald-50 text-emerald-700' : document.verificationStatus === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
-                    {document.verificationStatus}
+                    {document.verificationStatus === 'verified' ? t('verified') : document.verificationStatus === 'rejected' ? t('rejected') : t('pending')}
                   </span>
-                  <button onClick={() => { void openDocument(document); }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                    <Eye className="h-3.5 w-3.5" /> View
+                  <button onClick={() => { void openDocument(document); }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+                    <Eye className="h-3.5 w-3.5" /> {t('view')}
                   </button>
                   {document.verificationStatus !== 'verified' && (
-                    <button onClick={() => { void review(document, 'verified'); }} disabled={Boolean(workingId)} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50">
-                      {workingId === document.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Verify
+                    <button onClick={() => { void review(document, 'verified'); }} disabled={Boolean(workingId)} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50 cursor-pointer">
+                      {workingId === document.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} {t('verify')}
                     </button>
                   )}
                   {document.verificationStatus !== 'rejected' && (
-                    <button onClick={() => { void review(document, 'rejected'); }} disabled={Boolean(workingId)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50">
-                      <X className="h-3.5 w-3.5" /> Reject
+                    <button onClick={() => { void review(document, 'rejected'); }} disabled={Boolean(workingId)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50 cursor-pointer">
+                      <X className="h-3.5 w-3.5" /> {t('reject')}
                     </button>
                   )}
                 </div>

@@ -8,8 +8,10 @@ import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, DriverDocument } from '../../types';
 import { FileUploader } from '../../components/common/FileUploader';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { useLanguage } from '../../services/i18n';
 
 export const DriverDocuments: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [profile, setProfile] = useState<DriverProfile>(() => {
     if (currentUser) {
@@ -58,9 +60,9 @@ export const DriverDocuments: React.FC = () => {
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-brand-navy font-display">Documents & License Verification</h1>
+        <h1 className="text-2xl font-bold text-brand-navy font-display">{t('Documents & License Verification')}</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Upload clear scanned copies or photos of your driving license, ID, and certificates. Verified documents increase employer contact rates by 300%.
+          {t('Upload clear scanned copies or photos of your driving license, ID, and certificates. Verified documents increase employer contact rates by 300%.')}
         </p>
       </div>
 
@@ -76,15 +78,15 @@ export const DriverDocuments: React.FC = () => {
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-card space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-brand-navy uppercase tracking-wider flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Uploaded Documents ({profile.documents?.length || 0})
+            <ShieldCheck className="w-4 h-4 text-emerald-600" /> {t('Uploaded Documents')} ({profile.documents?.length || 0})
           </h2>
-          <span className="text-[11px] text-slate-400 font-medium">Encrypted Cloud Storage</span>
+          <span className="text-[11px] text-slate-400 font-medium">{t('Encrypted Cloud Storage')}</span>
         </div>
 
         {!profile.documents || profile.documents.length === 0 ? (
           <div className="py-10 text-center text-xs text-slate-400 space-y-2">
             <UploadCloud className="w-10 h-10 mx-auto opacity-40 text-slate-400" />
-            <p>No documents uploaded yet. Upload your driving license above.</p>
+            <p>{t('No documents uploaded yet. Upload your driving license above.')}</p>
           </div>
         ) : (
           <div className="space-y-3 divide-y divide-slate-100">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { UploadCloud, FileText, X, AlertCircle, Loader2 } from 'lucide-react';
 import { DocumentType, DriverDocument } from '../../types';
 import { SupabaseSync } from '../../services/supabaseSync';
+import { useLanguage } from '../../services/i18n';
 
 interface FileUploaderProps {
   driverId: string;
@@ -13,6 +14,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadComplete, allowedTypes }) => {
+  const { t } = useLanguage();
   const [docType, setDocType] = useState<DocumentType>('driving_license');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -66,25 +68,25 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
   };
 
   const documentTypes: { value: DocumentType; label: string }[] = [
-    { value: 'driving_license', label: 'Commercial Driving License (Front/Back)' },
-    { value: 'resume', label: 'Driver Resume / CV' },
-    { value: 'aadhar', label: 'Aadhaar Card / Government ID' },
-    { value: 'pan', label: 'PAN Card' },
-    { value: 'experience_cert', label: 'Previous Employer Experience Certificate' },
-    { value: 'police_verification', label: 'Police Clearance Record' },
-    { value: 'other', label: 'Medical Fitness / Other Badge' }
+    { value: 'driving_license', label: t('Commercial Driving License (Front/Back)') },
+    { value: 'resume', label: t('Driver Resume / CV') },
+    { value: 'aadhar', label: t('Aadhaar Card / Government ID') },
+    { value: 'pan', label: t('PAN Card') },
+    { value: 'experience_cert', label: t('Previous Employer Experience Certificate') },
+    { value: 'police_verification', label: t('Police Clearance Record') },
+    { value: 'other', label: t('Medical Fitness / Other Badge') }
   ];
 
   return (
     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-bold text-slate-900">Upload New Document</h4>
+        <h4 className="text-sm font-bold text-slate-900">{t('Upload New Document')}</h4>
         <span className="text-[11px] text-slate-500">PDF, JPG, PNG up to 5 MB</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Document Category</label>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Document Category')}</label>
           <select
             value={docType}
             onChange={e => setDocType(e.target.value as DocumentType)}
@@ -97,7 +99,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Select File</label>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Select File')}</label>
           <input
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
@@ -135,9 +137,9 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
         disabled={!file || uploading}
         className="w-full flex items-center justify-center gap-2 bg-[#0A2540] hover:bg-[#06182B] disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all"
       >
-        {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading securely…</> : <><UploadCloud className="w-4 h-4 text-amber-400" /> Upload Document</>}
+        {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> {t('Uploading securely…')}</> : <><UploadCloud className="w-4 h-4 text-amber-400" /> {t('Upload Document')}</>}
       </button>
-      <p className="text-[11px] text-slate-500">New documents stay pending until DriverHub reviews them.</p>
+      <p className="text-[11px] text-slate-500">{t('New documents stay pending until DriverHub reviews them.')}</p>
     </div>
   );
 };

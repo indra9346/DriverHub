@@ -16,7 +16,7 @@ export const Navbar: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserType | null>(DataStore.getCurrentUser());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const { lang, setLang, toggleLang } = useLanguage();
+  const { lang, setLang, toggleLang, t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -75,7 +75,7 @@ export const Navbar: React.FC = () => {
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
-                Home
+                {t('Home')}
               </Link>
               <Link
                 to="/jobs"
@@ -85,7 +85,7 @@ export const Navbar: React.FC = () => {
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
-                Find Jobs
+                {t('Find Jobs')}
               </Link>
               <Link
                 to="/companies"
@@ -95,7 +95,7 @@ export const Navbar: React.FC = () => {
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
-                Top Employers
+                {t('Top Employers')}
               </Link>
               <Link
                 to="/about"
@@ -105,7 +105,7 @@ export const Navbar: React.FC = () => {
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
-                About
+                {t('About')}
               </Link>
               <Link
                 to="/contact"
@@ -115,7 +115,7 @@ export const Navbar: React.FC = () => {
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
-                Contact
+                {t('Contact')}
               </Link>
             </nav>
           </div>
@@ -124,17 +124,14 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center gap-3">
             {/* Attractive Kannada <-- 0 --> English Language Toggle Switch */}
             <div
-              data-no-translate="true"
-              translate="no"
               onClick={toggleLang}
               role="switch"
               aria-checked={lang === 'kn'}
               title="Switch Language: ಕನ್ನಡ ↔ English"
-              className="notranslate group flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/70 border border-slate-300/90 rounded-full p-1 cursor-pointer select-none shadow-inner transition-all duration-200"
+              className="group flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/70 border border-slate-300/90 rounded-full p-1 cursor-pointer select-none shadow-inner transition-all duration-200"
             >
               <button
                 type="button"
-                data-no-translate="true"
                 onClick={(e) => {
                   e.stopPropagation();
                   setLang('kn');
@@ -150,7 +147,6 @@ export const Navbar: React.FC = () => {
 
               {/* Center Toggle Track (<-- 0 -->) */}
               <div
-                data-no-translate="true"
                 className="w-8 h-4 rounded-full bg-[#08233F] p-0.5 flex items-center relative shadow-inner"
               >
                 <span
@@ -162,7 +158,6 @@ export const Navbar: React.FC = () => {
 
               <button
                 type="button"
-                data-no-translate="true"
                 onClick={(e) => {
                   e.stopPropagation();
                   setLang('en');
@@ -179,14 +174,14 @@ export const Navbar: React.FC = () => {
 
             {currentUser ? (
               <div className="flex items-center gap-3">
-                {/* Employer Available Credits Pill & Post Job shortcut (Matches Screenshot 7) */}
+                {/* Employer Available Credits Pill & Post Job shortcut */}
                 {currentUser.role === 'employer' && (
                   <>
                     <Link
                       to="/employer/billing"
                       className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-2xs transition-colors"
                     >
-                      <span className="text-slate-700">💳 Available credits</span>
+                      <span className="text-slate-700">{t('💳 Available credits')}</span>
                       <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-extrabold">
                         {DataStore.getSubscription(currentUser.id).dbUnlockCredits}
                       </span>
@@ -196,7 +191,7 @@ export const Navbar: React.FC = () => {
                       to="/employer/post-job"
                       className="flex items-center gap-1.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold px-3.5 py-1.5 rounded-xl text-xs shadow-xs transition-all duration-150"
                     >
-                      <PlusCircle className="w-3.5 h-3.5" /> Post a new job
+                      <PlusCircle className="w-3.5 h-3.5" /> {t('Post a new job')}
                     </Link>
                   </>
                 )}
@@ -204,7 +199,7 @@ export const Navbar: React.FC = () => {
                 {/* Notifications */}
                 <NotificationBell userId={currentUser.id} />
 
-                {/* User Dropdown (Matches Screenshot 7: Avatar Circle + Name + Phone + View profile + Company profile + Sign out) */}
+                {/* User Dropdown */}
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -253,7 +248,7 @@ export const Navbar: React.FC = () => {
                         onClick={() => setIsUserMenuOpen(false)}
                         className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                       >
-                        <LayoutDashboard className="w-4 h-4 text-slate-500" /> Dashboard
+                        <LayoutDashboard className="w-4 h-4 text-slate-500" /> {t('Dashboard')}
                       </Link>
 
                       {currentUser.role === 'driver' && (
@@ -263,21 +258,21 @@ export const Navbar: React.FC = () => {
                             onClick={() => setIsUserMenuOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <User className="w-4 h-4 text-slate-500" /> View profile
+                            <User className="w-4 h-4 text-slate-500" /> {t('View profile')}
                           </Link>
                           <Link
                             to="/driver/applications"
                             onClick={() => setIsUserMenuOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <FileText className="w-4 h-4 text-slate-500" /> My Applications
+                            <FileText className="w-4 h-4 text-slate-500" /> {t('My Applications')}
                           </Link>
                           <Link
                             to="/driver/saved"
                             onClick={() => setIsUserMenuOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <Heart className="w-4 h-4 text-slate-500" /> Saved Jobs
+                            <Heart className="w-4 h-4 text-slate-500" /> {t('Saved Jobs')}
                           </Link>
                         </>
                       )}
@@ -289,28 +284,28 @@ export const Navbar: React.FC = () => {
                             onClick={() => setIsUserMenuOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <User className="w-4 h-4 text-slate-500" /> View profile
+                            <User className="w-4 h-4 text-slate-500" /> {t('View profile')}
                           </Link>
                           <Link
                             to="/employer/company"
                             onClick={() => setIsUserMenuOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <Building2 className="w-4 h-4 text-slate-500" /> Company profile
+                            <Building2 className="w-4 h-4 text-slate-500" /> {t('Company Profile')}
                           </Link>
                           <Link
                             to="/employer/candidates"
                             onClick={() => setIsUserMenuOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <Briefcase className="w-4 h-4 text-slate-500" /> Driver Database
+                            <Briefcase className="w-4 h-4 text-slate-500" /> {t('Driver Database')}
                           </Link>
                           <Link
                             to="/employer/billing"
                             onClick={() => setIsUserMenuOpen(false)}
                             className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                           >
-                            <Settings className="w-4 h-4 text-slate-500" /> Billing & Credits
+                            <Settings className="w-4 h-4 text-slate-500" /> {t('Billing & Credits')}
                           </Link>
                         </>
                       )}
@@ -321,7 +316,7 @@ export const Navbar: React.FC = () => {
                           onClick={() => setIsUserMenuOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-semibold"
                         >
-                          <Shield className="w-4 h-4 text-slate-500" /> Moderation Queue
+                          <Shield className="w-4 h-4 text-slate-500" /> {t('Job Moderation Queue')}
                         </Link>
                       )}
 
@@ -330,7 +325,7 @@ export const Navbar: React.FC = () => {
                         onClick={handleLogout}
                         className="w-full text-left flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-600 hover:bg-red-50 font-bold cursor-pointer"
                       >
-                        <LogOut className="w-4 h-4" /> Sign out
+                        <LogOut className="w-4 h-4" /> {t('Sign Out')}
                       </button>
                     </div>
                   )}
@@ -342,13 +337,13 @@ export const Navbar: React.FC = () => {
                   to="/login"
                   className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-700 hover:text-[#08233F] transition-colors"
                 >
-                  Sign In
+                  {t('Sign In')}
                 </Link>
                 <Link
                   to="/register"
                   className="px-4 py-2 bg-[#08233F] hover:bg-[#051626] text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-xs transition-all duration-150 hover:scale-[1.02]"
                 >
-                  Register
+                  {t('Register')}
                 </Link>
               </div>
             )}
@@ -358,7 +353,6 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2 md:hidden">
             <button
               type="button"
-              data-no-translate="true"
               onClick={toggleLang}
               className="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-full px-2.5 py-1 text-[11px] font-extrabold text-slate-800 shadow-xs"
             >
@@ -396,7 +390,7 @@ export const Navbar: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-slate-900 truncate">{currentUser.email}</p>
                     <span className="inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60 mt-0.5">
-                      {currentUser.role} Portal
+                      {currentUser.role} {t('Dashboard')}
                     </span>
                   </div>
                 </div>
@@ -408,8 +402,8 @@ export const Navbar: React.FC = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                   >
-                    <LayoutDashboard className="w-3.5 h-3.5 text-brand-navy shrink-0" />
-                    <span className="truncate">Dashboard</span>
+                    <LayoutDashboard className="w-3.5 h-3.5 text-[#08233F] shrink-0" />
+                    <span className="truncate">{t('Dashboard')}</span>
                   </Link>
 
                   {currentUser.role === 'driver' && (
@@ -419,8 +413,8 @@ export const Navbar: React.FC = () => {
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
-                        <FileText className="w-3.5 h-3.5 text-brand-blue shrink-0" />
-                        <span className="truncate">Applications</span>
+                        <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">{t('My Applications')}</span>
                       </Link>
                       <Link
                         to="/driver/profile"
@@ -428,7 +422,7 @@ export const Navbar: React.FC = () => {
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span className="truncate">My Profile</span>
+                        <span className="truncate">{t('My Profile')}</span>
                       </Link>
                       <Link
                         to="/driver/saved"
@@ -436,7 +430,7 @@ export const Navbar: React.FC = () => {
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                        <span className="truncate">Saved Jobs</span>
+                        <span className="truncate">{t('Saved Jobs')}</span>
                       </Link>
                     </>
                   )}
@@ -449,7 +443,7 @@ export const Navbar: React.FC = () => {
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-amber-950 bg-amber-100/80 border border-amber-300 hover:bg-amber-200 transition-colors"
                       >
                         <PlusCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                        <span className="truncate">Post Vacancy</span>
+                        <span className="truncate">{t('Post Vacancy')}</span>
                       </Link>
                       <Link
                         to="/employer/jobs"
@@ -457,15 +451,15 @@ export const Navbar: React.FC = () => {
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <Briefcase className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span className="truncate">Manage Jobs</span>
+                        <span className="truncate">{t('Manage Jobs')}</span>
                       </Link>
                       <Link
                         to="/employer/applications"
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
-                        <FileText className="w-3.5 h-3.5 text-brand-blue shrink-0" />
-                        <span className="truncate">Candidates</span>
+                        <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">{t('Applications Pipeline')}</span>
                       </Link>
                     </>
                   )}
@@ -478,15 +472,15 @@ export const Navbar: React.FC = () => {
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span className="truncate">Moderation</span>
+                        <span className="truncate">{t('Job Moderation Queue')}</span>
                       </Link>
                       <Link
                         to="/admin/employers"
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
-                        <Building2 className="w-3.5 h-3.5 text-brand-blue shrink-0" />
-                        <span className="truncate">Fleets</span>
+                        <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">{t('Employer Verification')}</span>
                       </Link>
                     </>
                   )}
@@ -499,23 +493,20 @@ export const Navbar: React.FC = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="text-center px-4 py-2.5 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors"
                 >
-                  Sign In
+                  {t('Sign In')}
                 </Link>
                 <Link
                   to="/register"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="text-center px-4 py-2.5 bg-[#08233F] text-white font-bold rounded-xl text-xs shadow-xs hover:bg-[#051626] transition-colors"
                 >
-                  Register
+                  {t('Register')}
                 </Link>
               </div>
             )}
 
             {/* Public Navigation Links */}
             <div className="pt-2 border-t border-slate-100">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3.5 block mb-1">
-                Navigation
-              </span>
               <nav className="space-y-1">
                 <Link
                   to="/"
@@ -524,7 +515,7 @@ export const Navbar: React.FC = () => {
                     isActive('/') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  Home
+                  {t('Home')}
                 </Link>
                 <Link
                   to="/jobs"
@@ -533,7 +524,7 @@ export const Navbar: React.FC = () => {
                     isActive('/jobs') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  Find Jobs
+                  {t('Find Jobs')}
                 </Link>
                 <Link
                   to="/companies"
@@ -542,7 +533,7 @@ export const Navbar: React.FC = () => {
                     isActive('/companies') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  Top Employers
+                  {t('Top Employers')}
                 </Link>
                 <Link
                   to="/about"
@@ -551,7 +542,7 @@ export const Navbar: React.FC = () => {
                     isActive('/about') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  About
+                  {t('About')}
                 </Link>
                 <Link
                   to="/contact"
@@ -560,7 +551,7 @@ export const Navbar: React.FC = () => {
                     isActive('/contact') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  Contact
+                  {t('Contact')}
                 </Link>
               </nav>
             </div>
@@ -575,7 +566,7 @@ export const Navbar: React.FC = () => {
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 font-bold rounded-xl text-xs border border-red-200 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
+                  <span>{t('Sign Out')}</span>
                 </button>
               </div>
             )}

@@ -120,7 +120,15 @@ export const DataStore = {
     }
   },
 
-  updateUserStatus(userId: string, status: User['status']): void {
+  async updateUserStatus(userId: string, status: User['status']): Promise<boolean> {
+    const actor = this.getCurrentUser();
+    if (!actor || actor.role !== 'admin') return false;
+
+    if (!DEMO_DATA_ENABLED) {
+      const saved = await SupabaseSync.syncUserStatus(userId, status);
+      if (!saved) return false;
+    }
+
     const users = this.getUsers().map(u => u.id === userId ? { ...u, status } : u);
     setStorage(STORAGE_KEYS.USERS, users);
     
@@ -137,8 +145,7 @@ export const DataStore = {
     const employers = this.getEmployers().map(e => e.id === userId ? { ...e, status } : e);
     setStorage(STORAGE_KEYS.EMPLOYERS, employers);
 
-    // Sync to Supabase in real-time
-    SupabaseSync.syncUserStatus(userId, status);
+    return true;
   },
 
   // Drivers
@@ -273,12 +280,14 @@ export const DataStore = {
     setStorage(STORAGE_KEYS.EMPLOYERS, [...remoteEmployers, ...existing.filter(employer => !remoteIds.has(employer.id))]);
   },
 
-  verifyEmployer(id: string, verified: boolean): void {
-    const employers = this.getEmployers().map(e => 
-      e.id === id ? { ...e, verified, status: verified ? 'active' as const : e.status } : e
-    );
+  async verifyEmployer(id: string, verified: boolean): Promise<boolean> {
+    const actor = this.getCurrentUser();
+    if (!actor || actor.role !== 'admin') return false;
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.syncEmployerVerification(id, verified))) return false;
+
+    const employers = this.getEmployers().map(e => e.id === id ? { ...e, verified } : e);
     setStorage(STORAGE_KEYS.EMPLOYERS, employers);
-    void SupabaseSync.syncEmployerVerification(id, verified);
+    return employers.some(employer => employer.id === id);
   },
 
   // Jobs
@@ -363,7 +372,7 @@ export const DataStore = {
       creditConsumed = entitlement.creditUsed === true;
       slotConsumed = entitlement.slotUsed === true;
     }
-    if (status === 'rejected' && original.creditConsumed && actor.role === 'admin') {
+    if (DEMO_DATA_ENABLED && status === 'rejected' && original.creditConsumed && actor.role === 'admin') {
       const sub = this.getSubscription(original.employerId);
       this.updateSubscription(original.employerId, { jobCredits: sub.jobCredits + 1 });
       creditConsumed = false;
@@ -373,6 +382,7 @@ export const DataStore = {
     if (!DEMO_DATA_ENABLED) {
       const synced = await SupabaseSync.syncJob(updated);
       if (!synced) return false;
+      setStorage(STORAGE_KEYS.JOBS, this.getJobs().map(job => job.id === jobId ? updated : job));
       await SupabaseSync.fetchAndMergeRemoteData(this);
       return true;
     }

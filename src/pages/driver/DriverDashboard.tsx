@@ -8,8 +8,10 @@ import { DataStore } from '../../services/store';
 import { DriverProfile, Job, Application, Notification } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { JobCard } from '../../components/common/JobCard';
+import { useLanguage } from '../../services/i18n';
 
 export const DriverDashboard: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [profile, setProfile] = useState<DriverProfile | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -52,20 +54,20 @@ export const DriverDashboard: React.FC = () => {
       <div className="bg-brand-navy rounded-2xl p-6 sm:p-8 text-white shadow-elevated flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
         <div className="space-y-2 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-amber text-xs font-bold uppercase tracking-wider">
-            <ShieldCheck className="w-3.5 h-3.5" /> {profile?.status === 'active' ? 'Driver account active' : 'Complete your driver profile'}
+            <ShieldCheck className="w-3.5 h-3.5" /> {profile?.status === 'active' ? t('Driver account active') : t('Complete your driver profile')}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold font-display">
-            Welcome back, {profile?.fullName || 'Driver'}!
+            {t('Welcome back')}, {profile?.fullName || t('Driver')}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-300">
-            {profile?.driverCategory || 'Driver'}{profile?.experienceYears ? ` Specialist • ${profile.experienceYears} Years Experience` : ''}{profile?.location ? ` • ${profile.location}` : ''}
+            {t(profile?.driverCategory || 'Driver')}{profile?.experienceYears ? ` Specialist • ${profile.experienceYears} Years Experience` : ''}{profile?.location ? ` • ${profile.location}` : ''}
           </p>
         </div>
 
         {/* Profile Progress Card */}
         <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/15 min-w-[240px] space-y-2.5 relative z-10">
           <div className="flex items-center justify-between text-xs font-bold">
-            <span>Profile Completion</span>
+            <span>{t('Profile Completion')}</span>
             <span className="text-brand-amber">{completionRate}%</span>
           </div>
           <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
@@ -79,7 +81,7 @@ export const DriverDashboard: React.FC = () => {
               to="/driver/documents"
               className="text-[11px] text-amber-300 font-semibold hover:underline flex items-center gap-1"
             >
-              Upload license documents to reach 100% →
+              {t('Upload license documents to reach 100% →')}
             </Link>
           )}
         </div>
@@ -89,41 +91,41 @@ export const DriverDashboard: React.FC = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Total Applications</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Total Applications')}</span>
             <FileText className="w-4 h-4 text-brand-blue" />
           </div>
           <p className="text-2xl font-bold text-brand-navy font-display">{applications.length}</p>
-          <span className="text-[11px] text-slate-500">Across verified fleets</span>
+          <span className="text-[11px] text-slate-500">{t('Across verified fleets')}</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Shortlisted / Interviews</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Shortlisted / Interviews')}</span>
             <Award className="w-4 h-4 text-brand-amber" />
           </div>
           <p className="text-2xl font-bold text-brand-amber font-display">{shortlistedCount}</p>
-          <span className="text-[11px] text-amber-700 font-medium">Ready for driving trials</span>
+          <span className="text-[11px] text-amber-700 font-medium">{t('Ready for driving trials')}</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Saved Vacancies</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Saved Vacancies')}</span>
             <Heart className="w-4 h-4 text-red-500" />
           </div>
           <p className="text-2xl font-bold text-brand-navy font-display">{DataStore.getFavorites(currentUser?.id || '').length}</p>
           <Link to="/driver/saved" className="text-[11px] text-brand-blue hover:underline font-semibold">
-            View bookmarks →
+            {t('View bookmarks →')}
           </Link>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-card space-y-1">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold text-slate-600">Uploaded Documents</span>
+            <span className="text-xs font-semibold text-slate-600">{t('Uploaded Documents')}</span>
             <UploadCloud className="w-4 h-4 text-emerald-500" />
           </div>
           <p className="text-2xl font-bold text-brand-navy font-display">{profile?.documents?.length || 0}</p>
           <Link to="/driver/documents" className="text-[11px] text-emerald-700 hover:underline font-semibold">
-            Manage files →
+            {t('Manage files →')}
           </Link>
         </div>
       </div>
@@ -135,19 +137,19 @@ export const DriverDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-brand-blue" />
-              <h3 className="text-base font-bold text-brand-navy font-display">Recent Applications</h3>
+              <h3 className="text-base font-bold text-brand-navy font-display">{t('Recent Applications')}</h3>
             </div>
             <Link to="/driver/applications" className="text-xs font-bold text-brand-blue hover:underline">
-              View All ({applications.length})
+              {t('View All')} ({applications.length})
             </Link>
           </div>
 
           {applications.length === 0 ? (
             <div className="text-center py-10 text-slate-400 text-xs space-y-2">
               <Briefcase className="w-8 h-8 mx-auto opacity-40 text-slate-400" />
-              <p>You haven't applied to any driver vacancies yet.</p>
+              <p>{t("You haven't applied to any driver vacancies yet.")}</p>
               <Link to="/jobs" className="inline-block mt-2 px-4 py-2 bg-brand-navy hover:bg-brand-navy-light text-white rounded-xl font-bold text-xs">
-                Explore Open Jobs
+                {t('Explore Open Jobs')}
               </Link>
             </div>
           ) : (
@@ -180,15 +182,15 @@ export const DriverDashboard: React.FC = () => {
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-card space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-brand-navy font-display flex items-center gap-2">
-                <Bell className="w-4 h-4 text-brand-amber" /> Recent Updates
+                <Bell className="w-4 h-4 text-brand-amber" /> {t('Recent Updates')}
               </h3>
               <Link to="/driver/notifications" className="text-xs text-brand-blue font-semibold hover:underline">
-                View Inbox
+                {t('View Inbox')}
               </Link>
             </div>
 
             {notifications.length === 0 ? (
-              <p className="text-xs text-slate-400 py-4 text-center">No unread notifications</p>
+              <p className="text-xs text-slate-400 py-4 text-center">{t('No unread notifications')}</p>
             ) : (
               <div className="space-y-2.5">
                 {notifications.map((n) => (
@@ -208,11 +210,11 @@ export const DriverDashboard: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-brand-navy font-display">Recommended for Your License & Location</h3>
-            <p className="text-xs text-slate-500">Based on your {profile?.driverCategory} category profile in {profile?.city}</p>
+            <h3 className="text-lg font-bold text-brand-navy font-display">{t('Recommended for Your License & Location')}</h3>
+            <p className="text-xs text-slate-500">Based on your {t(profile?.driverCategory || 'Driver')} category profile in {profile?.city}</p>
           </div>
           <Link to="/jobs" className="text-xs font-bold text-brand-blue hover:underline">
-            View All Vacancies →
+            {t('View All Vacancies →')}
           </Link>
         </div>
 

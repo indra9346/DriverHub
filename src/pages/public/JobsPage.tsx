@@ -6,82 +6,33 @@ import {
   Building2, Compass, CheckCircle2, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
-import { useLanguage } from '../../services/i18n';
 import { Job, DriverCategory } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
+import { useLanguage, formatMinSalaryThreshold } from '../../services/i18n';
 import { 
   ALL_INDIAN_STATES, 
   CITY_AREAS_MAP, 
-  getAllIndianCities,
   getCitiesForState, 
   POPULAR_INDIAN_SKILLS 
 } from '../../data/indiaLocations';
 
-const normalizeSearchText = (value: string) => value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ');
-const categoryFamilies: Record<string, string[]> = {
-  hmv: ['hmv', 'hmv transport', 'heavy truck', 'truck driver', 'trailer driver'],
-  'heavy truck': ['hmv', 'hmv transport', 'heavy truck', 'truck driver', 'trailer driver'],
-  truck: ['hmv', 'hmv transport', 'heavy truck', 'truck driver', 'trailer driver'],
-  lmv: ['lmv', 'lmv transport', 'personal driver'],
-  chauffeur: ['lmv', 'lmv transport', 'personal driver'],
-  cab: ['cab driver'],
-  'cab driver': ['cab driver'],
-  delivery: ['delivery driver'],
-  'delivery pilot': ['delivery driver'],
-  'delivery driver': ['delivery driver'],
-  bus: ['bus driver'],
-  'bus driver': ['bus driver'],
-  trailer: ['trailer driver'],
-  'trailer driver': ['trailer driver'],
-  'tempo driver': ['tempo driver'],
-  'commercial driver': ['commercial driver'],
-  'personal driver': ['personal driver'],
-};
-
-const categoryMatches = (jobCategory: string, selectedCategory: string) => {
-  const job = normalizeSearchText(jobCategory);
-  const selected = normalizeSearchText(selectedCategory);
-  const family = categoryFamilies[selected] || [selected];
-  return family.some(category => job === category || job.includes(category));
-};
-
-const cityAliases = (value: string) => {
-  const city = normalizeSearchText(value);
-  if (city === 'bengaluru' || city === 'bangalore') return ['bengaluru', 'bangalore'];
-  if (city === 'mysuru' || city === 'mysore') return ['mysuru', 'mysore'];
-  if (city === 'delhi ncr' || city === 'delhi') return ['delhi ncr', 'delhi', 'new delhi', 'gurugram', 'gurgaon', 'noida', 'ghaziabad', 'faridabad'];
-  return city ? [city] : [];
-};
-
-const jobMatchesLocation = (job: Job, location: string) => {
-  const aliases = cityAliases(location);
-  const fields = [job.city, job.location, job.state].map(value => normalizeSearchText(value || ''));
-  return aliases.some(alias => fields.some(field => field.includes(alias)));
-};
-
-const jobMatchesState = (job: Job, state: string) => {
-  const normalizedState = normalizeSearchText(state);
-  if (normalizedState === 'delhi ncr') return jobMatchesLocation(job, state);
-  return [job.state, job.location].some(value => normalizeSearchText(value || '').includes(normalizedState));
-};
-
 export const JobsPage: React.FC = () => {
+  const { t, lang } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { lang, t } = useLanguage();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [currentUser, setCurrentUser] = useState(DataStore.getCurrentUser());
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
 
   // Pan-India Filter States
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [selectedState, setSelectedState] = useState(searchParams.get('state') || '');
-  const [selectedCity, setSelectedCity] = useState(searchParams.get('city') || searchParams.get('location') || '');
-  const [selectedArea, setSelectedArea] = useState(searchParams.get('area') || '');
-  const [selectedType, setSelectedType] = useState(searchParams.get('type') || '');
-  const [minSalary, setMinSalary] = useState<number>(Number(searchParams.get('minSalary')) || 0);
-  const [selectedSkill, setSelectedSkill] = useState(searchParams.get('skill') || '');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
+  const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || '');
+  const [selectedState, setSelectedState] = useState(() => searchParams.get('state') || '');
+  const [selectedCity, setSelectedCity] = useState(() => searchParams.get('city') || searchParams.get('location') || '');
+  const [selectedArea, setSelectedArea] = useState(() => searchParams.get('area') || '');
+  const [selectedType, setSelectedType] = useState(() => searchParams.get('type') || '');
+  const [minSalary, setMinSalary] = useState<number>(() => Number(searchParams.get('minSalary')) || 0);
+  const [selectedSkill, setSelectedSkill] = useState(() => searchParams.get('skill') || '');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Pagination
@@ -91,12 +42,7 @@ export const JobsPage: React.FC = () => {
   const loadData = () => {
     const user = DataStore.getCurrentUser();
     setCurrentUser(user);
-    const now = Date.now();
-    const allJobs = DataStore.getJobs().filter(j =>
-      j.status === 'active' &&
-      (!j.expiresAt || new Date(j.expiresAt).getTime() > now) &&
-      (!j.applicationDeadline || new Date(j.applicationDeadline).getTime() > now)
-    );
+    const allJobs = DataStore.getJobs().filter(j => j.status === 'active');
     setJobs(allJobs);
 
     if (user && user.role === 'driver') {
@@ -115,29 +61,74 @@ export const JobsPage: React.FC = () => {
     return () => window.removeEventListener('driverhub_storage_updated', loadData);
   }, []);
 
-  // Sync state to URL params
+  // Sync from URL search params on navigation (back/forward)
   useEffect(() => {
+    const q = searchParams.get('q') || '';
+    const cat = searchParams.get('category') || '';
+    const st = searchParams.get('state') || '';
+    const ct = searchParams.get('city') || searchParams.get('location') || '';
+    const ar = searchParams.get('area') || '';
+    const ty = searchParams.get('type') || '';
+    const sal = Number(searchParams.get('minSalary')) || 0;
+    const sk = searchParams.get('skill') || '';
+
+    setSearchQuery(q);
+    setSelectedCategory(cat);
+    setSelectedState(st);
+    setSelectedCity(ct);
+    setSelectedArea(ar);
+    setSelectedType(ty);
+    setMinSalary(sal);
+    setSelectedSkill(sk);
+  }, [searchParams]);
+
+  // Sync state changes back to URL params
+  const updateUrlParams = (updates: {
+    q?: string;
+    category?: string;
+    state?: string;
+    city?: string;
+    area?: string;
+    type?: string;
+    minSalary?: number;
+    skill?: string;
+  }) => {
+    const nextQ = updates.q !== undefined ? updates.q : searchQuery;
+    const nextCat = updates.category !== undefined ? updates.category : selectedCategory;
+    const nextSt = updates.state !== undefined ? updates.state : selectedState;
+    const nextCt = updates.city !== undefined ? updates.city : selectedCity;
+    const nextAr = updates.area !== undefined ? updates.area : selectedArea;
+    const nextTy = updates.type !== undefined ? updates.type : selectedType;
+    const nextSal = updates.minSalary !== undefined ? updates.minSalary : minSalary;
+    const nextSk = updates.skill !== undefined ? updates.skill : selectedSkill;
+
     const params = new URLSearchParams();
-    if (searchQuery) params.set('q', searchQuery);
-    if (selectedCategory) params.set('category', selectedCategory);
-    if (selectedState) params.set('state', selectedState);
-    if (selectedCity) params.set('city', selectedCity);
-    if (selectedArea) params.set('area', selectedArea);
-    if (selectedType) params.set('type', selectedType);
-    if (minSalary > 0) params.set('minSalary', minSalary.toString());
-    if (selectedSkill) params.set('skill', selectedSkill);
+    if (nextQ) params.set('q', nextQ);
+    if (nextCat) params.set('category', nextCat);
+    if (nextSt) params.set('state', nextSt);
+    if (nextCt) params.set('city', nextCt);
+    if (nextAr) params.set('area', nextAr);
+    if (nextTy) params.set('type', nextTy);
+    if (nextSal > 0) params.set('minSalary', nextSal.toString());
+    if (nextSk) params.set('skill', nextSk);
+
     setSearchParams(params, { replace: true });
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedState, selectedCity, selectedArea, selectedType, minSalary, selectedSkill]);
+  };
+
+  const handleSalaryChange = (newSalary: number) => {
+    setMinSalary(newSalary);
+    updateUrlParams({ minSalary: newSalary });
+  };
 
   const handleToggleSave = async (jobId: string) => {
     if (!currentUser) {
-      alert('Please log in as a driver to save jobs.');
+      alert(t('Please log in as a driver to save jobs.'));
       return;
     }
     const saved = await DataStore.toggleFavorite(currentUser.id, jobId);
     if (saved === savedJobIds.includes(jobId)) {
-      alert('Could not update saved jobs. Check your connection and try again.');
+      alert(t('Could not update saved jobs. Check your connection and try again.'));
       return;
     }
     setSavedJobIds(DataStore.getFavorites(currentUser.id));
@@ -153,15 +144,15 @@ export const JobsPage: React.FC = () => {
     setMinSalary(0);
     setSelectedSkill('');
     setSearchParams({}, { replace: true });
+    setCurrentPage(1);
   };
 
   // Quick State/City Available Options
   const availableCities = useMemo(() => {
-    const source = selectedState
-      ? getCitiesForState(selectedState)
-      : getAllIndianCities().map(({ city }) => city);
-    const collator = new Intl.Collator('en-IN', { sensitivity: 'base' });
-    return [...new Set(source)].sort(collator.compare);
+    if (!selectedState) {
+      return ['Bengaluru', 'Mumbai', 'Delhi NCR', 'Chennai', 'Hyderabad', 'Pune', 'Ahmedabad', 'Kolkata', 'Jaipur', 'Lucknow', 'Kochi', 'Mysuru', 'Hubballi-Dharwad', 'Chandigarh', 'Indore', 'Surat'];
+    }
+    return getCitiesForState(selectedState);
   }, [selectedState]);
 
   const availableAreas = useMemo(() => {
@@ -188,26 +179,37 @@ export const JobsPage: React.FC = () => {
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
       // 1. Keyword search (title, company, description, location, state, city)
-      const queryTokens = normalizeSearchText(searchQuery).split(/\s+/).filter(Boolean);
-      const searchableText = normalizeSearchText([
-        job.title, job.companyName, job.description, job.category, job.city, job.state, job.location,
-        ...(job.requiredSkills || [])
-      ].filter(Boolean).join(' '));
-      const isDelhiNcrPhrase = normalizeSearchText(searchQuery).includes('delhi ncr') &&
-        cityAliases('Delhi NCR').some(alias => searchableText.includes(alias));
-      const matchesQuery = !queryTokens.length || isDelhiNcrPhrase || queryTokens.every(token =>
-        searchableText.includes(token) || categoryMatches(job.category, token) ||
-        cityAliases(token).some(alias => searchableText.includes(alias))
-      );
+      const matchesQuery = 
+        !searchQuery ||
+        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.state.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.requiredSkills?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
 
       // 2. Category match
-      const matchesCategory = !selectedCategory || categoryMatches(job.category, selectedCategory);
+      const matchesCategory = 
+        !selectedCategory ||
+        job.category.toLowerCase() === selectedCategory.toLowerCase() ||
+        job.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        selectedCategory.toLowerCase().includes(job.category.toLowerCase()) ||
+        (selectedCategory === 'HMV' && ['HMV', 'HMV-Transport', 'Trailer Driver', 'Heavy Truck'].some(c => job.category.includes(c))) ||
+        (selectedCategory === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].some(c => job.category.includes(c)));
 
       // 3. State match
-      const matchesState = !selectedState || jobMatchesState(job, selectedState);
+      const matchesState = 
+        !selectedState ||
+        job.state.toLowerCase() === selectedState.toLowerCase() ||
+        job.location.toLowerCase().includes(selectedState.toLowerCase());
 
       // 4. City match
-      const matchesCity = !selectedCity || jobMatchesLocation(job, selectedCity);
+      const matchesCity = 
+        !selectedCity ||
+        job.city.toLowerCase() === selectedCity.toLowerCase() ||
+        job.location.toLowerCase().includes(selectedCity.toLowerCase());
 
       // 5. Area / Corridor match
       const matchesArea = 
@@ -218,7 +220,7 @@ export const JobsPage: React.FC = () => {
       // 6. Employment type match
       const matchesType = !selectedType || job.employmentType === selectedType;
 
-      // 7. Salary match
+      // 7. Salary match (Exact minimum guaranteed threshold)
       const matchesSalary = minSalary === 0 || job.salaryMax >= minSalary;
 
       // 8. Skill match
@@ -232,7 +234,7 @@ export const JobsPage: React.FC = () => {
   }, [jobs, searchQuery, selectedCategory, selectedState, selectedCity, selectedArea, selectedType, minSalary, selectedSkill]);
 
   // Paginated jobs
-  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / itemsPerPage));
   const displayedJobs = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredJobs.slice(start, start + itemsPerPage);
@@ -253,7 +255,7 @@ export const JobsPage: React.FC = () => {
   ];
 
   const popularHubCities = [
-    { label: 'All India', city: '', state: '' },
+    { label: t('All India'), city: '', state: '' },
     { label: 'Bengaluru', city: 'Bengaluru', state: 'Karnataka' },
     { label: 'Mumbai', city: 'Mumbai', state: 'Maharashtra' },
     { label: 'Delhi NCR', city: 'Delhi NCR', state: 'Delhi NCR' },
@@ -276,13 +278,17 @@ export const JobsPage: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/60 border border-amber-400/30 text-amber-400 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" /> Pan-India Verified Driver Recruitment
+              <Sparkles className="w-3.5 h-3.5" /> {t('Pan-India Verified Driver Recruitment')}
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-display text-white">
-              Browse Driving Vacancies Across All Indian States
+              {t('Browse Driving Vacancies Across All Indian States')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-200 max-w-2xl leading-relaxed">
-              Showing <span className="font-bold text-amber-400">{filteredJobs.length}</span> active vacancies from verified logistics fleets, corporate employers, and transport operators across India.
+              {lang === 'kn' ? (
+                <>ಭಾರತದಾದ್ಯಂತ ಪರಿಶೀಲಿಸಿದ ಲಾಜಿಸ್ಟಿಕ್ಸ್ ಫ್ಲೀಟ್‌ಗಳು ಮತ್ತು ಉದ್ಯೋಗದಾತರಿಂದ <span className="font-bold text-amber-400">{filteredJobs.length}</span> ಸಕ್ರಿಯ ಹುದ್ದೆಗಳು ಲಭ್ಯವಿವೆ.</>
+              ) : (
+                <>Showing <span className="font-bold text-amber-400">{filteredJobs.length}</span> active vacancies from verified logistics fleets, corporate employers, and transport operators across India.</>
+              )}
             </p>
           </div>
 
@@ -291,14 +297,14 @@ export const JobsPage: React.FC = () => {
             onClick={() => setIsMobileFilterOpen(true)}
             className="lg:hidden flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-3 rounded-xl text-xs shadow-lg transition-all cursor-pointer"
           >
-            <SlidersHorizontal className="w-4 h-4" /> Filters ({[selectedCategory, selectedState, selectedCity, selectedArea, selectedType, selectedSkill].filter(Boolean).length})
+            <SlidersHorizontal className="w-4 h-4" /> {t('Filters ({count})', { count: [selectedCategory, selectedState, selectedCity, selectedArea, selectedType, minSalary > 0, selectedSkill].filter(Boolean).length })}
           </button>
         </div>
 
         {/* Quick Location Pills Bar */}
         <div className="mt-6 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
           <span className="text-slate-300 font-bold shrink-0 flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-amber-400" /> Major Hubs:
+            <MapPin className="w-3.5 h-3.5 text-amber-400" /> {lang === 'kn' ? 'ಪ್ರಮುಖ ಕೇಂದ್ರಗಳು:' : 'Major Hubs:'}
           </span>
           {popularHubCities.map(hub => {
             const isSelected = selectedCity === hub.city && (!hub.state || selectedState === hub.state);
@@ -310,6 +316,7 @@ export const JobsPage: React.FC = () => {
                   setSelectedCity(hub.city);
                   setSelectedState(hub.state);
                   setSelectedArea('');
+                  updateUrlParams({ city: hub.city, state: hub.state, area: '' });
                 }}
                 className={`shrink-0 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer text-[11px] ${
                   isSelected
@@ -331,28 +338,31 @@ export const JobsPage: React.FC = () => {
         <aside className="hidden lg:block bg-white p-5 rounded-2xl border border-slate-200/90 shadow-subtle space-y-5 sticky top-24">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <h3 className="text-xs font-bold text-[#08233F] uppercase tracking-wider flex items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-amber-500" /> Pan-India Job Filters
+              <Filter className="w-3.5 h-3.5 text-amber-500" /> {t('Pan-India Job Filters')}
             </h3>
             {(selectedCategory || selectedState || selectedCity || selectedArea || selectedType || minSalary > 0 || selectedSkill || searchQuery) && (
               <button
                 onClick={handleResetFilters}
                 className="text-[11px] text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 hover:underline cursor-pointer"
               >
-                <RotateCcw className="w-3 h-3" /> Reset
+                <RotateCcw className="w-3 h-3" /> {t('Reset')}
               </button>
             )}
           </div>
 
           {/* 1. Search Keyword */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Search Keywords / Roles</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Search Keywords / Roles')}</label>
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Job title, transport fleet, skill..."
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  updateUrlParams({ q: e.target.value });
+                }}
+                placeholder={lang === 'kn' ? "ಹುದ್ದೆಯ ಹೆಸರು, ಫ್ಲೀಟ್, ಕೌಶಲ್ಯ..." : "Job title, transport fleet, skill..."}
                 className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
               />
             </div>
@@ -361,13 +371,18 @@ export const JobsPage: React.FC = () => {
           {/* 2. State Filter (All 36 Indian States & UTs) */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700">Indian State / Union Territory</label>
+              <label className="block text-xs font-semibold text-slate-700">{t('Indian State / Union Territory')}</label>
               {selectedState && (
                 <button
-                  onClick={() => { setSelectedState(''); setSelectedCity(''); setSelectedArea(''); }}
-                  className="text-[10px] text-blue-700 hover:underline font-bold"
+                  onClick={() => {
+                    setSelectedState('');
+                    setSelectedCity('');
+                    setSelectedArea('');
+                    updateUrlParams({ state: '', city: '', area: '' });
+                  }}
+                  className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
                 >
-                  All States
+                  {t('All States')}
                 </button>
               )}
             </div>
@@ -377,10 +392,11 @@ export const JobsPage: React.FC = () => {
                 setSelectedState(e.target.value);
                 setSelectedCity('');
                 setSelectedArea('');
+                updateUrlParams({ state: e.target.value, city: '', area: '' });
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer font-medium"
             >
-              <option value="">All Indian States & UTs ({jobs.length} Jobs)</option>
+              <option value="">{t('All Indian States & UTs ({count} Jobs)', { count: jobs.length })}</option>
               {ALL_INDIAN_STATES.map((st) => (
                 <option key={st.state} value={st.state}>
                   {st.state} ({st.region}) {stateCounts[st.state] ? `• ${stateCounts[st.state]} active` : ''}
@@ -393,47 +409,52 @@ export const JobsPage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-slate-700">
-                City / Operating District {selectedState ? `in ${selectedState}` : ''}
+                {t('City / Operating District')} {selectedState ? `(${selectedState})` : ''}
               </label>
               {selectedCity && (
                 <button
-                  onClick={() => { setSelectedCity(''); setSelectedArea(''); }}
-                  className="text-[10px] text-blue-700 hover:underline font-bold"
+                  onClick={() => {
+                    setSelectedCity('');
+                    setSelectedArea('');
+                    updateUrlParams({ city: '', area: '' });
+                  }}
+                  className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
                 >
-                  All Cities
+                  {t('All Cities')}
                 </button>
               )}
             </div>
-            <input
-              type="search"
+            <select
               value={selectedCity}
-              onChange={(e) => { setSelectedCity(e.target.value); setSelectedArea(''); }}
-              list="driverhub-city-options-desktop"
-              placeholder={selectedState ? `Type or select a city in ${selectedState}` : 'Type or select any Indian city'}
-              autoComplete="off"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              aria-label="Search city or operating district"
-            />
-            <datalist id="driverhub-city-options-desktop">
+              onChange={(e) => {
+                setSelectedCity(e.target.value);
+                setSelectedArea('');
+                updateUrlParams({ city: e.target.value, area: '' });
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
+            >
+              <option value="">{selectedState ? `-- ${t('City / Operating District')} in ${selectedState} --` : t('All Major Indian Cities')}</option>
               {availableCities.map((city) => (
                 <option key={city} value={city}>{city}</option>
               ))}
-            </datalist>
-            <p className="mt-1 text-[10px] text-slate-500">{availableCities.length} cities in the current location directory. Type to search; results show active vacancies only.</p>
+            </select>
           </div>
 
           {/* 4. Industrial Corridor / Micro-Area Filter (If City Selected) */}
           {selectedCity && availableAreas.length > 0 && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Logistics Corridor / Area ({selectedCity})
+                {t('Logistics Corridor / Area')} ({selectedCity})
               </label>
               <select
                 value={selectedArea}
-                onChange={(e) => setSelectedArea(e.target.value)}
+                onChange={(e) => {
+                  setSelectedArea(e.target.value);
+                  updateUrlParams({ area: e.target.value });
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
               >
-                <option value="">All Areas & Corridors in {selectedCity}</option>
+                <option value="">{lang === 'kn' ? `${selectedCity} ನ ಎಲ್ಲಾ ಪ್ರದೇಶಗಳು` : `All Areas & Corridors in ${selectedCity}`}</option>
                 {availableAreas.map((area) => (
                   <option key={area} value={area}>{area}</option>
                 ))}
@@ -443,15 +464,18 @@ export const JobsPage: React.FC = () => {
 
           {/* 5. Driver License / Category */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Driver License / Vehicle Category</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Driver License / Vehicle Category')}</label>
             <select
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                updateUrlParams({ category: e.target.value });
+              }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
             >
-              <option value="">All Vehicle Categories</option>
+              <option value="">{t('All Vehicle Categories')}</option>
               {categoriesList.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>{t(cat)}</option>
               ))}
             </select>
           </div>
@@ -459,22 +483,28 @@ export const JobsPage: React.FC = () => {
           {/* 6. Skills & Fleet Specialization */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700">Must-Have Skill</label>
+              <label className="block text-xs font-semibold text-slate-700">{t('Must-Have Skill')}</label>
               {selectedSkill && (
                 <button
-                  onClick={() => setSelectedSkill('')}
-                  className="text-[10px] text-blue-700 hover:underline font-bold"
+                  onClick={() => {
+                    setSelectedSkill('');
+                    updateUrlParams({ skill: '' });
+                  }}
+                  className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
                 >
-                  Clear
+                  {t('Clear')}
                 </button>
               )}
             </div>
             <select
               value={selectedSkill}
-              onChange={(e) => setSelectedSkill(e.target.value)}
+              onChange={(e) => {
+                setSelectedSkill(e.target.value);
+                updateUrlParams({ skill: e.target.value });
+              }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
             >
-              <option value="">Any Driver Skill</option>
+              <option value="">{t('Any Driver Skill')}</option>
               {POPULAR_INDIAN_SKILLS.map((sk) => (
                 <option key={sk} value={sk}>{sk}</option>
               ))}
@@ -483,25 +513,28 @@ export const JobsPage: React.FC = () => {
 
           {/* 7. Employment Type */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Shift / Employment Type</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Shift / Employment Type')}</label>
             <select
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
+              onChange={(e) => {
+                setSelectedType(e.target.value);
+                updateUrlParams({ type: e.target.value });
+              }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
             >
-              <option value="">Any Type</option>
-              <option value="Full-time">Full-time Regular</option>
-              <option value="Part-time">Part-time / Split Shift</option>
-              <option value="Contract">Contract / Trip-based Freight</option>
+              <option value="">{t('Any Type')}</option>
+              <option value="Full-time">{t('Full-time Regular')}</option>
+              <option value="Part-time">{t('Part-time / Split Shift')}</option>
+              <option value="Contract">{t('Contract / Trip-based Freight')}</option>
             </select>
           </div>
 
-          {/* 8. Salary Min Slider */}
+          {/* 8. Salary Min Slider (Single Threshold, Real-Time Synchronized, Touch Safe) */}
           <div>
             <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
               <span>{t('Minimum Guaranteed Salary')}</span>
-              <span className="text-emerald-700 font-bold">
-                {minSalary > 0 ? `₹${minSalary.toLocaleString('en-IN')}+${lang === 'kn' ? ' / ತಿಂಗಳು' : '/mo'}` : t('Any')}
+              <span className="text-emerald-700 font-bold" aria-live="polite">
+                {formatMinSalaryThreshold(minSalary, lang)}
               </span>
             </div>
             <input
@@ -510,9 +543,14 @@ export const JobsPage: React.FC = () => {
               max="40000"
               step="2000"
               value={minSalary}
-              onChange={(e) => setMinSalary(Number(e.target.value))}
-              aria-label="Minimum guaranteed monthly salary"
-              className="w-full accent-amber-500 cursor-pointer touch-pan-y select-none"
+              aria-label={t('Minimum Guaranteed Salary')}
+              aria-valuemin={0}
+              aria-valuemax={40000}
+              aria-valuenow={minSalary}
+              aria-valuetext={formatMinSalaryThreshold(minSalary, lang)}
+              onChange={(e) => handleSalaryChange(Number(e.target.value))}
+              style={{ touchAction: 'none' }}
+              className="w-full accent-amber-500 cursor-pointer touch-none"
             />
           </div>
         </aside>
@@ -522,61 +560,63 @@ export const JobsPage: React.FC = () => {
           {/* Active Filter Chips */}
           {(selectedCategory || selectedState || selectedCity || selectedArea || selectedType || minSalary > 0 || selectedSkill || searchQuery) && (
             <div className="flex flex-wrap items-center gap-2 bg-slate-100/90 p-3 rounded-2xl border border-slate-200/90">
-              <span className="text-xs font-bold text-slate-700">Active Filters ({filteredJobs.length} Results):</span>
+              <span className="text-xs font-bold text-slate-700">
+                {t('Active Filters ({count} Results):', { count: filteredJobs.length })}
+              </span>
               
               {selectedCategory && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
-                  🚛 {selectedCategory}
-                  <button onClick={() => setSelectedCategory('')} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  🚛 {t(selectedCategory)}
+                  <button onClick={() => { setSelectedCategory(''); updateUrlParams({ category: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
               {selectedState && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
                   🏛️ {selectedState}
-                  <button onClick={() => setSelectedState('')} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  <button onClick={() => { setSelectedState(''); updateUrlParams({ state: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
               {selectedCity && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
                   📍 {selectedCity}
-                  <button onClick={() => setSelectedCity('')} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  <button onClick={() => { setSelectedCity(''); updateUrlParams({ city: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
               {selectedArea && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
                   🏢 {selectedArea}
-                  <button onClick={() => setSelectedArea('')} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  <button onClick={() => { setSelectedArea(''); updateUrlParams({ area: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
               {selectedSkill && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
                   ⭐ {selectedSkill}
-                  <button onClick={() => setSelectedSkill('')} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  <button onClick={() => { setSelectedSkill(''); updateUrlParams({ skill: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
               {selectedType && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
-                  {selectedType}
-                  <button onClick={() => setSelectedType('')} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  {t(selectedType)}
+                  <button onClick={() => { setSelectedType(''); updateUrlParams({ type: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
               {minSalary > 0 && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
-                  ₹{minSalary.toLocaleString('en-IN')}+/mo
-                  <button onClick={() => setMinSalary(0)} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  {formatMinSalaryThreshold(minSalary, lang)}
+                  <button onClick={() => handleSalaryChange(0)} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
                   "{searchQuery}"
-                  <button onClick={() => setSearchQuery('')} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  <button onClick={() => { setSearchQuery(''); updateUrlParams({ q: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
@@ -584,7 +624,7 @@ export const JobsPage: React.FC = () => {
                 onClick={handleResetFilters}
                 className="text-xs text-blue-700 hover:text-blue-900 font-bold ml-auto hover:underline cursor-pointer"
               >
-                Clear All
+                {t('Clear All')}
               </button>
             </div>
           )}
@@ -594,16 +634,16 @@ export const JobsPage: React.FC = () => {
             <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/90 space-y-4 shadow-subtle">
               <Truck className="w-14 h-14 text-slate-300 mx-auto animate-bounce" />
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-[#08233F]">No driving vacancies matching your search</h3>
+                <h3 className="text-lg font-bold text-[#08233F]">{t('No driving vacancies matching your search')}</h3>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Try clearing your state/city filter or search across all Indian states to see nationwide logistics openings.
+                  {t('Try clearing your state/city filter or search across all Indian states to see nationwide logistics openings.')}
                 </p>
               </div>
               <button
                 onClick={handleResetFilters}
                 className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition-all shadow cursor-pointer"
               >
-                View All Pan-India Vacancies
+                {t('View All Pan-India Vacancies')}
               </button>
             </div>
           ) : (
@@ -624,8 +664,7 @@ export const JobsPage: React.FC = () => {
           {totalPages > 1 && (
             <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200/90 shadow-subtle">
               <span className="text-xs text-slate-600 font-medium">
-                Page <span className="font-bold text-slate-900">{currentPage}</span> of{' '}
-                <span className="font-bold text-slate-900">{totalPages}</span> ({filteredJobs.length} Vacancies)
+                {t('Page {curr} of {total} ({count} Vacancies)', { curr: currentPage, total: totalPages, count: filteredJobs.length })}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -633,14 +672,14 @@ export const JobsPage: React.FC = () => {
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer flex items-center gap-1"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                  <ChevronLeft className="w-3.5 h-3.5" /> {t('Previous')}
                 </button>
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer flex items-center gap-1"
                 >
-                  Next <ChevronRight className="w-3.5 h-3.5" />
+                  {t('Next')} <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -655,7 +694,7 @@ export const JobsPage: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-[#08233F] flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-amber-500" /> Pan-India Job Filters
+                  <Filter className="w-4 h-4 text-amber-500" /> {t('Pan-India Job Filters')}
                 </h3>
                 <button
                   onClick={() => setIsMobileFilterOpen(false)}
@@ -667,13 +706,17 @@ export const JobsPage: React.FC = () => {
 
               {/* State */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">State / UT</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Indian State / Union Territory')}</label>
                 <select
                   value={selectedState}
-                  onChange={(e) => { setSelectedState(e.target.value); setSelectedCity(''); }}
+                  onChange={(e) => {
+                    setSelectedState(e.target.value);
+                    setSelectedCity('');
+                    updateUrlParams({ state: e.target.value, city: '', area: '' });
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
                 >
-                  <option value="">All Indian States & UTs</option>
+                  <option value="">{t('All Indian States & UTs')}</option>
                   {ALL_INDIAN_STATES.map((st) => (
                     <option key={st.state} value={st.state}>{st.state}</option>
                   ))}
@@ -682,35 +725,36 @@ export const JobsPage: React.FC = () => {
 
               {/* City */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
-                <input
-                  type="search"
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('City / Operating District')}</label>
+                <select
                   value={selectedCity}
-                  onChange={(e) => { setSelectedCity(e.target.value); setSelectedArea(''); }}
-                  list="driverhub-city-options-mobile"
-                  placeholder={selectedState ? `Type or select a city in ${selectedState}` : 'Type or select any Indian city'}
-                  autoComplete="off"
+                  onChange={(e) => {
+                    setSelectedCity(e.target.value);
+                    updateUrlParams({ city: e.target.value });
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
-                  aria-label="Search city"
-                />
-                <datalist id="driverhub-city-options-mobile">
+                >
+                  <option value="">{t('All Cities')}</option>
                   {availableCities.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               {/* Category */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Driver Category</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Driver License / Vehicle Category')}</label>
                 <select
                   value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    updateUrlParams({ category: e.target.value });
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
                 >
-                  <option value="">All Categories</option>
+                  <option value="">{t('All Vehicle Categories')}</option>
                   {categoriesList.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat} value={cat}>{t(cat)}</option>
                   ))}
                 </select>
               </div>
@@ -718,9 +762,9 @@ export const JobsPage: React.FC = () => {
               {/* Min Salary */}
               <div>
                 <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                  <span>{t('Min Salary')}</span>
+                  <span>{t('Minimum Guaranteed Salary')}</span>
                   <span className="text-emerald-700 font-bold">
-                    {minSalary > 0 ? `₹${minSalary.toLocaleString('en-IN')}+${lang === 'kn' ? ' / ತಿಂಗಳು' : ''}` : t('Any')}
+                    {formatMinSalaryThreshold(minSalary, lang)}
                   </span>
                 </div>
                 <input
@@ -729,9 +773,9 @@ export const JobsPage: React.FC = () => {
                   max="40000"
                   step="2000"
                   value={minSalary}
-                  onChange={(e) => setMinSalary(Number(e.target.value))}
-                  aria-label="Minimum guaranteed monthly salary"
-                  className="w-full accent-amber-500 touch-pan-y select-none"
+                  onChange={(e) => handleSalaryChange(Number(e.target.value))}
+                  style={{ touchAction: 'none' }}
+                  className="w-full accent-amber-500 touch-none"
                 />
               </div>
             </div>
@@ -739,15 +783,15 @@ export const JobsPage: React.FC = () => {
             <div className="pt-4 border-t border-slate-100 flex gap-2">
               <button
                 onClick={handleResetFilters}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold"
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
               >
-                Reset
+                {t('Reset')}
               </button>
               <button
                 onClick={() => setIsMobileFilterOpen(false)}
-                className="flex-1 py-2.5 bg-[#08233F] hover:bg-slate-800 text-white rounded-xl text-xs font-bold"
+                className="flex-1 py-2.5 bg-[#08233F] hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
               >
-                Apply Filters
+                {t('Apply Filters')}
               </button>
             </div>
           </div>

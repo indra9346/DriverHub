@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   MapPin, IndianRupee, Clock, Briefcase, Building2, ShieldCheck, 
-  FileText, CheckCircle2, ArrowLeft, ArrowRight, Heart, Share2, Users, AlertCircle, 
-  Send, Sparkles, Phone, Mail 
+  FileText, CheckCircle2, ArrowLeft, ArrowRight, Heart, Users,
+  Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { DataStore } from '../../services/store';
 import { Job, Application, DriverProfile } from '../../types';
-import { JobCard } from '../../components/common/JobCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { useLanguage, formatSalaryDisplay } from '../../services/i18n';
 
 export const JobDetailPage: React.FC = () => {
+  const { t, lang } = useLanguage();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [job, setJob] = useState<Job | null>(null);
@@ -34,7 +35,6 @@ export const JobDetailPage: React.FC = () => {
     if (found) {
       setJob(found);
 
-      // Check if driver has applied
       if (currentUser && currentUser.role === 'driver') {
         const apps = DataStore.getApplications();
         const existing = apps.some(a => a.jobId === id && a.driverId === currentUser.id && a.status !== 'withdrawn');
@@ -47,7 +47,6 @@ export const JobDetailPage: React.FC = () => {
         setDriverProfile(profile || null);
       }
 
-      // Similar jobs
       const all = DataStore.getJobs().filter(j => j.id !== id && j.status === 'active' && (j.category === found.category || j.city === found.city));
       setSimilarJobs(all.slice(0, 3));
     }
@@ -62,10 +61,10 @@ export const JobDetailPage: React.FC = () => {
   if (!job) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-4">
-        <h2 className="text-xl font-bold text-slate-800">Job vacancy not found</h2>
-        <p className="text-xs text-slate-500">This job may have been closed or removed by the employer.</p>
+        <h2 className="text-xl font-bold text-slate-800">{t('Job vacancy not found')}</h2>
+        <p className="text-xs text-slate-500">{t('This job may have been closed or removed by the employer.')}</p>
         <Link to="/jobs" className="inline-flex items-center gap-2 px-4 py-2 bg-[#0A2540] text-white text-xs font-semibold rounded-xl">
-          <ArrowLeft className="w-4 h-4" /> Back to Job Search
+          <ArrowLeft className="w-4 h-4" /> {t('Back to Job Search')}
         </Link>
       </div>
     );
@@ -73,12 +72,12 @@ export const JobDetailPage: React.FC = () => {
 
   const handleToggleSave = async () => {
     if (!currentUser || currentUser.role !== 'driver') {
-      alert('Please log in as a candidate to save jobs.');
+      alert(t('Please log in as a driver to save jobs.'));
       return;
     }
     const saved = await DataStore.toggleFavorite(currentUser.id, job.id);
     if (saved === isSaved) {
-      window.alert('Could not update saved jobs. Check your connection and try again.');
+      window.alert(t('Could not update saved jobs. Check your connection and try again.'));
       return;
     }
     setIsSaved(saved);
@@ -91,39 +90,39 @@ export const JobDetailPage: React.FC = () => {
       return;
     }
     if (job.status !== 'active' || (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < Date.now())) {
-      setApplyError('This driver job is no longer accepting applications.');
+      setApplyError(lang === 'kn' ? 'ಈ ಉದ್ಯೋಗಕ್ಕೆ ಅರ್ಜಿ ಸ್ವೀಕರಿಸಲಾಗುತ್ತಿಲ್ಲ.' : 'This driver job is no longer accepting applications.');
       return;
     }
     if (hasApplied) {
-      setApplyError('You have already applied for this job.');
+      setApplyError(lang === 'kn' ? 'ನೀವು ಈಗಾಗಲೇ ಈ ಕೆಲಸಕ್ಕೆ ಅರ್ಜಿ ಸಲ್ಲಿಸಿದ್ದೀರಿ.' : 'You have already applied for this job.');
       return;
     }
 
     setSubmitting(true);
 
     const newApp: Application = {
-        id: crypto.randomUUID(),
-        jobId: job.id,
-        jobTitle: job.title,
-        companyName: job.companyName,
-        driverId: currentUser.id,
-        driverName: driverProfile?.fullName || 'Driver Candidate',
-        driverPhone: driverProfile?.phone || currentUser.phone || '',
-        driverEmail: currentUser.email,
-        driverCategory: driverProfile?.driverCategory || job.category,
-        driverExperienceYears: driverProfile?.experienceYears || 2,
-        driverLocation: driverProfile?.location || 'Bengaluru',
-        resumeUrl: driverProfile?.resumeUrl,
-        coverMessage: coverMessage.trim(),
-        status: 'applied',
-        appliedDate: new Date().toISOString().slice(0, 10),
-        updatedDate: new Date().toISOString().slice(0, 10),
+      id: crypto.randomUUID(),
+      jobId: job.id,
+      jobTitle: job.title,
+      companyName: job.companyName,
+      driverId: currentUser.id,
+      driverName: driverProfile?.fullName || 'Driver Candidate',
+      driverPhone: driverProfile?.phone || currentUser.phone || '',
+      driverEmail: currentUser.email,
+      driverCategory: driverProfile?.driverCategory || job.category,
+      driverExperienceYears: driverProfile?.experienceYears || 2,
+      driverLocation: driverProfile?.location || 'Bengaluru',
+      resumeUrl: driverProfile?.resumeUrl,
+      coverMessage: coverMessage.trim(),
+      status: 'applied',
+      appliedDate: new Date().toISOString().slice(0, 10),
+      updatedDate: new Date().toISOString().slice(0, 10),
     };
 
     const created = await DataStore.addApplication(newApp);
     setSubmitting(false);
     if (!created) {
-      setApplyError('We could not submit this application. The job may have closed, you may already have applied, or the service is temporarily unavailable.');
+      setApplyError(lang === 'kn' ? 'ಅರ್ಜಿ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.' : 'We could not submit this application. The job may have closed, you may already have applied, or the service is temporarily unavailable.');
       return;
     }
     setHasApplied(true);
@@ -137,9 +136,9 @@ export const JobDetailPage: React.FC = () => {
       {/* Back button */}
       <Link
         to="/jobs"
-        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#08233F] transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-[#08233F] transition-colors cursor-pointer"
       >
-        <ArrowLeft className="w-4 h-4" /> Back to Search Results
+        <ArrowLeft className="w-4 h-4" /> {t('Back to Search Results')}
       </Link>
 
       {/* Main Job Hero Header */}
@@ -160,10 +159,10 @@ export const JobDetailPage: React.FC = () => {
                   to={`/jobs?category=${encodeURIComponent(job.category)}`}
                   className="badge-category text-xs bg-blue-50 text-blue-800 font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
                 >
-                  {job.category}
+                  {t(job.category)}
                 </Link>
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                  {job.employmentType}
+                  {t(job.employmentType)}
                 </span>
                 <StatusBadge status={job.status} size="sm" />
               </div>
@@ -177,7 +176,7 @@ export const JobDetailPage: React.FC = () => {
                 className="text-sm font-semibold text-slate-600 hover:text-blue-700 flex items-center gap-1.5 transition-colors"
               >
                 {job.companyName}
-                <span title="Verified Fleet Operator">
+                <span title={t('Verified Employer')}>
                   <ShieldCheck className="w-4 h-4 text-blue-600" />
                 </span>
               </Link>
@@ -194,7 +193,7 @@ export const JobDetailPage: React.FC = () => {
                     ? 'bg-amber-50 border-amber-300 text-amber-600'
                     : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-700'
                 }`}
-                title="Save Job"
+                title={isSaved ? t('Saved Jobs') : t('Save')}
               >
                 <Heart className={`w-5 h-5 ${isSaved ? 'fill-amber-500' : ''}`} />
               </button>
@@ -207,19 +206,19 @@ export const JobDetailPage: React.FC = () => {
                     to="/employer/jobs"
                     className="px-5 py-3 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs sm:text-sm shadow-subtle transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Briefcase className="w-4 h-4 text-amber-400" /> Manage Vacancy
+                    <Briefcase className="w-4 h-4 text-amber-400" /> {t('Manage Vacancy')}
                   </Link>
                   <Link
                     to="/employer/applications"
-                    className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs sm:text-sm transition-all"
+                    className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs sm:text-sm transition-all cursor-pointer"
                   >
-                    View Pipeline
+                    {t('View Pipeline')}
                   </Link>
                 </div>
               ) : (
                 <div className="px-4 py-2.5 bg-slate-100 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-slate-500" />
-                  <span>Employer Account (Candidates Only)</span>
+                  <span>{lang === 'kn' ? 'ಉದ್ಯೋಗದಾತರ ಖಾತೆ (ಅಭ್ಯರ್ಥಿಗಳಿಗೆ ಮಾತ್ರ)' : 'Employer Account (Candidates Only)'}</span>
                 </div>
               )
             ) : currentUser?.role === 'admin' ? (
@@ -227,19 +226,19 @@ export const JobDetailPage: React.FC = () => {
                 to="/admin/jobs"
                 className="px-5 py-3 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs sm:text-sm shadow-subtle transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <ShieldCheck className="w-4 h-4 text-amber-400" /> Review in Admin Queue
+                <ShieldCheck className="w-4 h-4 text-amber-400" /> {t('Job Moderation Queue')}
               </Link>
             ) : hasApplied ? (
               <div className="flex items-center gap-2 px-5 py-3 bg-emerald-50 text-emerald-900 font-bold rounded-xl border border-emerald-200 text-xs sm:text-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Application Submitted</span>
+                <span>{t('Application Submitted')}</span>
               </div>
             ) : !currentUser ? (
               <button
                 onClick={() => navigate(`/login?role=driver&redirect=${encodeURIComponent(`/jobs/${job.id}`)}`)}
                 className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-subtle transition-all hover:scale-[1.02] cursor-pointer flex items-center gap-1.5"
               >
-                <span>Login to Apply</span>
+                <span>{t('Sign In')}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
@@ -247,7 +246,7 @@ export const JobDetailPage: React.FC = () => {
                 onClick={() => setIsApplyModalOpen(true)}
                 className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs sm:text-sm shadow-subtle transition-all hover:scale-[1.02] cursor-pointer"
               >
-                Apply Now for this Vacancy
+                {t('Apply Now')}
               </button>
             )}
           </div>
@@ -256,15 +255,15 @@ export const JobDetailPage: React.FC = () => {
         {/* Highlight Metadata Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-100 text-xs">
           <div className="space-y-0.5">
-            <span className="text-slate-400 font-semibold block">Monthly Compensation</span>
+            <span className="text-slate-400 font-semibold block">{lang === 'kn' ? 'ಮಾಸಿಕ ವೇತನ' : 'Monthly Compensation'}</span>
             <span className="text-sm font-bold text-[#08233F] flex items-center gap-1">
               <IndianRupee className="w-4 h-4 text-emerald-600" />
-              ₹{job.salaryMin.toLocaleString('en-IN')} - ₹{job.salaryMax.toLocaleString('en-IN')}
+              {formatSalaryDisplay(job.salaryMin, job.salaryMax, lang)}
             </span>
           </div>
 
           <div className="space-y-0.5">
-            <span className="text-slate-400 font-semibold block">Job Location</span>
+            <span className="text-slate-400 font-semibold block">{lang === 'kn' ? 'ಕೆಲಸದ ಸ್ಥಳ' : 'Job Location'}</span>
             <span className="text-sm font-bold text-[#08233F] flex items-center gap-1 truncate">
               <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
               {job.location}
@@ -272,7 +271,7 @@ export const JobDetailPage: React.FC = () => {
           </div>
 
           <div className="space-y-0.5">
-            <span className="text-slate-400 font-semibold block">Experience Required</span>
+            <span className="text-slate-400 font-semibold block">{lang === 'kn' ? 'ಅಗತ್ಯವಿರುವ ಅನುಭವ' : 'Experience Required'}</span>
             <span className="text-sm font-bold text-[#08233F] flex items-center gap-1">
               <Briefcase className="w-4 h-4 text-slate-400" />
               {job.experienceRequired}
@@ -280,7 +279,7 @@ export const JobDetailPage: React.FC = () => {
           </div>
 
           <div className="space-y-0.5">
-            <span className="text-slate-400 font-semibold block">Working Shifts</span>
+            <span className="text-slate-400 font-semibold block">{lang === 'kn' ? 'ಕೆಲಸದ ಪಾಳಿ' : 'Working Shifts'}</span>
             <span className="text-sm font-bold text-[#08233F] flex items-center gap-1 truncate">
               <Clock className="w-4 h-4 text-slate-400 shrink-0" />
               {job.workingHours}
@@ -293,19 +292,10 @@ export const JobDetailPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left 2 Cols: Job Details */}
         <div className="lg:col-span-2 space-y-6">
-          {job.status === 'pending' && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 text-xs text-amber-900">
-              <Clock className="w-5 h-5 text-amber-600 shrink-0" />
-              <div>
-                <span className="font-bold">Pending Admin Approval:</span> This vacancy was submitted by {job.companyName} and is undergoing administrative safety review before public distribution.
-              </div>
-            </div>
-          )}
-
           {/* Detailed Description */}
           <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-subtle space-y-4">
             <h2 className="text-lg font-bold text-[#08233F] font-display">
-              Job Description & Duties
+              {lang === 'kn' ? 'ಉದ್ಯೋಗದ ವಿವರಣೆ ಮತ್ತು ಜವಾಬ್ದಾರಿಗಳು' : 'Job Description & Duties'}
             </h2>
             <div className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line space-y-2">
               {job.description}
@@ -316,7 +306,7 @@ export const JobDetailPage: React.FC = () => {
           {job.requiredSkills && job.requiredSkills.length > 0 && (
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-subtle space-y-4">
               <h2 className="text-lg font-bold text-[#08233F] font-display">
-                Required Skills & Qualifications
+                {lang === 'kn' ? 'ಅಗತ್ಯ ಕೌಶಲ್ಯಗಳು ಮತ್ತು ಅರ್ಹತೆಗಳು' : 'Required Skills & Qualifications'}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {job.requiredSkills.map((skill, index) => (
@@ -333,10 +323,10 @@ export const JobDetailPage: React.FC = () => {
           {job.requiredDocs && job.requiredDocs.length > 0 && (
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-subtle space-y-4">
               <h2 className="text-lg font-bold text-[#08233F] font-display">
-                Mandatory Verification Documents
+                {lang === 'kn' ? 'ಕಡ್ಡಾಯ ಪರಿಶೀಲನಾ ದಾಖಲೆಗಳು' : 'Mandatory Verification Documents'}
               </h2>
               <p className="text-xs text-slate-500">
-                Candidates must carry original copies during the final interview / driving test:
+                {lang === 'kn' ? 'ಅಭ್ಯರ್ಥಿಗಳು ಸಂದರ್ಶನ / ಟ್ರಯಲ್ ಸಮಯದಲ್ಲಿ ಮೂಲ ಪ್ರತಿಗಳನ್ನು ಹೊಂದಿರಬೇಕು:' : 'Candidates must carry original copies during the final interview / driving test:'}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {job.requiredDocs.map((doc, index) => (
@@ -355,7 +345,7 @@ export const JobDetailPage: React.FC = () => {
           {/* Company Snapshot */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-subtle space-y-4">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              About the Employer
+              {lang === 'kn' ? 'ಉದ್ಯೋಗದಾತರ ವಿವರ' : 'About the Employer'}
             </h3>
             <Link
               to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
@@ -377,11 +367,11 @@ export const JobDetailPage: React.FC = () => {
             <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
               <div className="flex items-center gap-2 font-medium">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Verified Employer on Driver Hub</span>
+                <span>{t('Verified Employer')}</span>
               </div>
               <div className="flex items-center gap-2 font-medium">
                 <Users className="w-4 h-4 text-blue-600" />
-                <span>Actively Hiring {job.vacancies} Positions</span>
+                <span>{t('{count} Vacancies', { count: job.vacancies })}</span>
               </div>
             </div>
           </div>
@@ -389,27 +379,29 @@ export const JobDetailPage: React.FC = () => {
           {/* Safety & Welfare Notice */}
           <div className="bg-blue-50/70 rounded-2xl p-6 border border-blue-200/80 space-y-3 shadow-subtle">
             <div className="flex items-center gap-2 text-xs font-bold text-blue-950">
-              <Sparkles className="w-4 h-4 text-amber-500" /> Driver Safety & Welfare Standard
+              <Sparkles className="w-4 h-4 text-amber-500" /> {lang === 'kn' ? 'ಚಾಲಕರ ಸುರಕ್ಷತೆ & ಕಲ್ಯಾಣ ಮಾನದಂಡ' : 'Driver Safety & Welfare Standard'}
             </div>
             <p className="text-xs text-blue-900/80 leading-relaxed">
-              Driver Hub strictly audits employers to guarantee timely monthly salary deposits, vehicle roadworthiness, and accident insurance coverage.
+              {lang === 'kn'
+                ? 'ಸಮಯಕ್ಕೆ ಸರಿಯಾಗಿ ಮಾಸಿಕ ವೇತನ ಜಮೆ ಮತ್ತು ಅಪಘಾತ ವಿಮೆ ರಕ್ಷಣೆಯನ್ನು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಲು DriverHub ಉದ್ಯೋಗದಾತರನ್ನು ಆಡಿಟ್ ಮಾಡುತ್ತದೆ.'
+                : 'Driver Hub strictly audits employers to guarantee timely monthly salary deposits, vehicle roadworthiness, and accident insurance coverage.'}
             </p>
           </div>
 
           {/* Similar Jobs */}
           {similarJobs.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-bold text-[#08233F]">Similar Driver Openings</h3>
+              <h3 className="text-sm font-bold text-[#08233F]">{lang === 'kn' ? 'ಇದೇ ರೀತಿಯ ಉದ್ಯೋಗಾವಕಾಶಗಳು' : 'Similar Driver Openings'}</h3>
               <div className="space-y-3">
                 {similarJobs.map((simJob) => (
                   <Link
                     key={simJob.id}
                     to={`/jobs/${simJob.id}`}
-                    className="block p-4 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:border-amber-400 hover:shadow-card transition-all space-y-1.5"
+                    className="block p-4 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:border-amber-400 hover:shadow-card transition-all space-y-1.5 cursor-pointer"
                   >
                     <h4 className="text-xs font-bold text-[#08233F] line-clamp-1">{simJob.title}</h4>
                     <p className="text-[11px] text-slate-500">{simJob.companyName} • {simJob.city}</p>
-                    <p className="text-xs font-bold text-emerald-700">₹{simJob.salaryMin.toLocaleString('en-IN')} - ₹{simJob.salaryMax.toLocaleString('en-IN')}</p>
+                    <p className="text-xs font-bold text-emerald-700">{formatSalaryDisplay(simJob.salaryMin, simJob.salaryMax, lang)}</p>
                   </Link>
                 ))}
               </div>
@@ -426,7 +418,7 @@ export const JobDetailPage: React.FC = () => {
               <>
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Candidate Application</span>
+                    <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">{lang === 'kn' ? 'ಉದ್ಯೋಗ ಅರ್ಜಿ' : 'Candidate Application'}</span>
                     <h3 className="text-lg font-bold text-[#08233F] mt-0.5">{job.title}</h3>
                     <p className="text-xs text-slate-500">{job.companyName}</p>
                   </div>
@@ -437,32 +429,38 @@ export const JobDetailPage: React.FC = () => {
 
                 {!currentUser || currentUser.role !== 'driver' ? (
                   <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-3">
-                    <p className="font-semibold">You must be logged in as a candidate to apply.</p>
+                    <p className="font-semibold">{t('Please log in as a driver to save jobs.')}</p>
                     <Link
                       to={`/login?redirect=/jobs/${job.id}`}
                       className="inline-block px-4 py-2 bg-[#08233F] text-white rounded-xl font-bold cursor-pointer"
                     >
-                      Login / Sign Up as Driver
+                      {t('Sign In')}
                     </Link>
                   </div>
                 ) : (
                   <form onSubmit={handleApplySubmit} className="space-y-4">
                     {applyError && <p role="alert" className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">{applyError}</p>}
                     <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/90 text-xs space-y-1">
-                      <p className="font-bold text-[#08233F]">Applying as: {driverProfile?.fullName || currentUser.email}</p>
-                      <p className="text-slate-600">License: {driverProfile?.licenseType || 'Verified License'}</p>
-                      <p className="text-slate-600">Experience: {driverProfile?.experienceYears || 2} Years</p>
+                      <p className="font-bold text-[#08233F]">
+                        {lang === 'kn' ? 'ಅರ್ಜಿದಾರ:' : 'Applying as:'} {driverProfile?.fullName || currentUser.email}
+                      </p>
+                      <p className="text-slate-600">
+                        {lang === 'kn' ? 'ಲೈಸೆನ್ಸ್:' : 'License:'} {driverProfile?.licenseType || t('100% License Verified')}
+                      </p>
+                      <p className="text-slate-600">
+                        {lang === 'kn' ? 'ಅನುಭವ:' : 'Experience:'} {t('{count} Years Exp', { count: driverProfile?.experienceYears || 2 })}
+                      </p>
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Optional Message to Employer (Cover Note)
+                        {lang === 'kn' ? 'ಉದ್ಯೋಗದಾತರಿಗೆ ಸಂದೇಶ (ಐಚ್ಛಿಕ ಕವರ್ ನೋಟ್)' : 'Optional Message to Employer (Cover Note)'}
                       </label>
                       <textarea
                         rows={3}
                         value={coverMessage}
                         onChange={(e) => setCoverMessage(e.target.value)}
-                        placeholder="Mention specific vehicle models you have driven, highway route familiarity, or availability..."
+                        placeholder={lang === 'kn' ? 'ನೀವು ಚಾಲನೆ ಮಾಡಿದ ನಿರ್ದಿಷ್ಟ ವಾಹನ ಮಾದರಿಗಳು, ಹೆದ್ದಾರಿ ಮಾರ್ಗಗಳ ಪರಿಚಯ...' : 'Mention specific vehicle models you have driven, highway route familiarity, or availability...'}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none focus:bg-white"
                       />
                     </div>
@@ -473,14 +471,14 @@ export const JobDetailPage: React.FC = () => {
                         onClick={() => setIsApplyModalOpen(false)}
                         className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
                       >
-                        Cancel
+                        {lang === 'kn' ? 'ರದ್ದುಮಾಡಿ' : 'Cancel'}
                       </button>
                       <button
                         type="submit"
                         disabled={submitting}
                         className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs shadow-subtle flex items-center gap-2 cursor-pointer"
                       >
-                        {submitting ? 'Submitting Application...' : 'Confirm & Apply'}
+                        {submitting ? (lang === 'kn' ? 'ಅರ್ಜಿ ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ...' : 'Submitting Application...') : (lang === 'kn' ? 'ಖಚಿತಪಡಿಸಿ ಮತ್ತು ಅರ್ಜಿ ಸಲ್ಲಿಸಿ' : 'Confirm & Apply')}
                       </button>
                     </div>
                   </form>
@@ -491,9 +489,11 @@ export const JobDetailPage: React.FC = () => {
                 <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-2xl">
                   🎉
                 </div>
-                <h3 className="text-xl font-bold text-[#08233F]">Application Submitted!</h3>
+                <h3 className="text-xl font-bold text-[#08233F]">{t('Application Submitted')}</h3>
                 <p className="text-xs text-slate-600 max-w-sm mx-auto">
-                  {job.companyName} has received your profile. You can track your status in your Applications dashboard.
+                  {lang === 'kn'
+                    ? `${job.companyName} ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಸ್ವೀಕರಿಸಿದೆ. ನಿಮ್ಮ ಅರ್ಜಿಗಳ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ನಲ್ಲಿ ನೀವು ಸ್ಥಿತಿಯನ್ನು ಪರಿಶೀಲಿಸಬಹುದು.`
+                    : `${job.companyName} has received your profile. You can track your status in your Applications dashboard.`}
                 </p>
                 <div className="flex items-center justify-center gap-3 pt-2">
                   <Link
@@ -501,13 +501,13 @@ export const JobDetailPage: React.FC = () => {
                     onClick={() => setIsApplyModalOpen(false)}
                     className="px-5 py-2.5 bg-[#08233F] text-white font-bold rounded-xl text-xs shadow-subtle"
                   >
-                    View My Applications
+                    {t('My Applications')}
                   </Link>
                   <button
                     onClick={() => setIsApplyModalOpen(false)}
                     className="px-5 py-2.5 border border-slate-200 text-slate-700 font-semibold rounded-xl text-xs cursor-pointer"
                   >
-                    Close
+                    {lang === 'kn' ? 'ಮುಚ್ಚಿ' : 'Close'}
                   </button>
                 </div>
               </div>

@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, ExternalLink, Trash2 } from 'lucide-react';
+import { Bell, Check, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DataStore } from '../../services/store';
 import { Notification } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 interface NotificationBellProps {
   userId: string;
 }
 
 export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,8 +52,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Notifications"
-        className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400"
+        aria-label={t('Notifications')}
+        className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -65,20 +67,20 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
         <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-slate-800 text-sm">Notifications</h3>
+              <h3 className="font-semibold text-slate-800 text-sm">{t('Notifications')}</h3>
               {unreadCount > 0 && (
                 <span className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium">
-                  {unreadCount} new
+                  {t('{count} new', { count: unreadCount })}
                 </span>
               )}
             </div>
             {unreadCount > 0 && (
               <button
                 onClick={() => { void handleMarkAllRead(); }}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1"
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
-                Mark all read
+                {t('Mark all read')}
               </button>
             )}
           </div>
@@ -87,7 +89,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
             {notifications.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-sm">
                 <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                No notifications right now
+                {t('No notifications right now')}
               </div>
             ) : (
               notifications.map((notif) => (
@@ -124,8 +126,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
                   {!notif.read && (
                     <button
                       onClick={(e) => { void handleMarkAsRead(notif.id, e); }}
-                      title="Mark as read"
-                      className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-slate-100 shrink-0"
+                      title={t('Mark as read')}
+                      className="text-slate-400 hover:text-emerald-600 p-1 rounded hover:bg-slate-100 shrink-0 cursor-pointer"
                     >
                       <Check className="w-3.5 h-3.5" />
                     </button>

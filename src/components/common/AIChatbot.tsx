@@ -1,31 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Bot, User, Sparkles, PhoneCall, RefreshCw, ChevronDown, Minimize2 } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, User, Sparkles, PhoneCall, RefreshCw } from 'lucide-react';
 import { AIMessage } from '../../types';
-import { getAIResponse, getInitialBotWelcome } from '../../services/aiSupport';
+import { getBotWelcome, getSupportResponse } from '../../services/aiSupport';
 import { useLanguage } from '../../services/i18n';
 import { Link } from 'react-router-dom';
 
 export const AIChatbot: React.FC = () => {
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<AIMessage[]>([getInitialBotWelcome(lang)]);
+  const [messages, setMessages] = useState<AIMessage[]>(() => [getBotWelcome(lang)]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const responseTimerRef = useRef<number | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
 
+  // When language changes: cancel any pending response and reset messages to current language
   useEffect(() => {
-    // Start a clean localized conversation when the site language changes.
-    setMessages([getInitialBotWelcome(lang)]);
-    setInput('');
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
     setIsTyping(false);
-    if (responseTimerRef.current !== null) window.clearTimeout(responseTimerRef.current);
+    setMessages([getBotWelcome(lang)]);
   }, [lang]);
-
-  useEffect(() => () => {
-    if (responseTimerRef.current !== null) window.clearTimeout(responseTimerRef.current);
-  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,19 +44,23 @@ export const AIChatbot: React.FC = () => {
       id: 'user-' + Date.now(),
       sender: 'user',
       text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString(lang === 'kn' ? 'kn-IN' : 'en-IN', { hour: '2-digit', minute: '2-digit' }),
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI thinking and real-time response
-    responseTimerRef.current = window.setTimeout(() => {
-      const reply = getAIResponse(text, lang);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = window.setTimeout(() => {
+      const reply = getSupportResponse(text, lang);
       setMessages(prev => [...prev, reply]);
       setIsTyping(false);
-    }, 600);
+      typingTimeoutRef.current = null;
+    }, 450);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -68,17 +70,21 @@ export const AIChatbot: React.FC = () => {
   };
 
   const handleResetChat = () => {
-    if (responseTimerRef.current !== null) window.clearTimeout(responseTimerRef.current);
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
     setIsTyping(false);
-    setMessages([getInitialBotWelcome(lang)]);
+    setMessages([getBotWelcome(lang)]);
   };
 
   return (
-    <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50" data-no-translate="true">
+    <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50">
       {/* Floating Trigger Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
+          aria-label={t('Support Assistant')}
           className="group relative flex items-center gap-2.5 bg-[#08233F] hover:bg-[#051626] text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-elevated border border-slate-700/60 transition-all duration-200 hover:scale-[1.03] cursor-pointer"
         >
           <div className="relative">
@@ -89,9 +95,9 @@ export const AIChatbot: React.FC = () => {
           </div>
           <div className="text-left hidden sm:block">
             <p className="text-xs font-bold leading-tight flex items-center gap-1">
-              {lang === 'kn' ? 'ಡ್ರೈವರ್ ಹಬ್ ಸಹಾಯ' : 'DriverHub Help'} <Sparkles className="w-3 h-3 text-amber-400" />
+              {t('Support Assistant')} <Sparkles className="w-3 h-3 text-amber-400" />
             </p>
-            <p className="text-[10px] text-slate-300">{lang === 'kn' ? 'ಚಾಲಕ ಮತ್ತು ಉದ್ಯೋಗ ಸಹಾಯ' : 'Driver and job guidance'}</p>
+            <p className="text-[10px] text-slate-300">{t('Instant Driver & Job Help')}</p>
           </div>
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse hidden sm:inline-block ml-1" />
         </button>
@@ -109,28 +115,26 @@ export const AIChatbot: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-xs font-bold flex items-center gap-1.5">
-                  {lang === 'kn' ? 'ಡ್ರೈವರ್ ಹಬ್ ಸಹಾಯ ಸಹಾಯಕ' : 'DriverHub Help Assistant'}
-                  <span className="bg-amber-400/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-bold tracking-wider">
-                    {lang === 'kn' ? 'ಸಹಾಯ' : 'HELP'}
+                  {t('DriverHub Assistant')}
+                  <span className="bg-amber-400/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                    {t('Online')}
                   </span>
                 </h3>
-                <p className="text-[10px] text-slate-300">{lang === 'kn' ? 'ಉದ್ಯೋಗ ಮತ್ತು ಪರವಾನಗಿ ಮಾಹಿತಿ' : 'Jobs and license information'}</p>
+                <p className="text-[10px] text-slate-300">{t('Recruitment & License Specialist')}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-1">
               <button
                 onClick={handleResetChat}
-                title={lang === 'kn' ? 'ಚಾಟ್ ಮರುಪ್ರಾರಂಭಿಸಿ' : 'Restart chat'}
-                aria-label={lang === 'kn' ? 'ಚಾಟ್ ಮರುಪ್ರಾರಂಭಿಸಿ' : 'Restart chat'}
+                title={t('Reset Chat')}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                title={lang === 'kn' ? 'ಮುಚ್ಚಿ' : 'Close'}
-                aria-label={lang === 'kn' ? 'ಮುಚ್ಚಿ' : 'Close'}
+                title={t('Close')}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -172,7 +176,7 @@ export const AIChatbot: React.FC = () => {
 
                   {msg.options && msg.options.length > 0 && (
                     <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1.5">
-                      <p className="text-[10px] font-semibold text-slate-400 tracking-wider">{lang === 'kn' ? 'ತ್ವರಿತ ಸಲಹೆಗಳು:' : 'Quick suggestions:'}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{t('Quick suggestions')}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {msg.options.map((opt, i) => (
                           <button
@@ -203,7 +207,7 @@ export const AIChatbot: React.FC = () => {
             {isTyping && (
               <div className="flex items-center gap-2 text-slate-500 text-xs pl-2">
                 <div className="w-5 h-5 rounded-full bg-[#08233F] text-amber-400 flex items-center justify-center text-xs">
-                  <Bot className="w-3 h-3" />
+                  <Bot className="w-3.5 h-3.5" />
                 </div>
                 <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-xs">
                   <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce" />
@@ -218,8 +222,8 @@ export const AIChatbot: React.FC = () => {
 
           {/* Quick FAQ footer strip */}
           <div className="px-3 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
-              <span className="flex items-center gap-1 font-medium">
-              <PhoneCall className="w-3 h-3 text-amber-600" /> {lang === 'kn' ? 'ಮಾನವ ಸಹಾಯ ಬೇಕೇ?' : 'Need help from our team?'}
+            <span className="flex items-center gap-1 font-medium">
+              <PhoneCall className="w-3 h-3 text-amber-600" /> {t('Need live support?')}
             </span>
             <Link
               to="/contact"
@@ -237,14 +241,13 @@ export const AIChatbot: React.FC = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={lang === 'kn' ? 'ಉದ್ಯೋಗ, ಪರವಾನಗಿ ಅಥವಾ ಅರ್ಜಿಯ ಬಗ್ಗೆ ಕೇಳಿ…' : 'Ask about jobs, licenses, or applications…'}
-              aria-label={lang === 'kn' ? 'ಸಹಾಯಕ್ಕಾಗಿ ನಿಮ್ಮ ಪ್ರಶ್ನೆ' : 'Your question for support'}
+              placeholder={t('Ask about driver jobs, licenses, salary...')}
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
             />
             <button
               onClick={() => handleSend()}
               disabled={!input.trim()}
-              aria-label={lang === 'kn' ? 'ಸಂದೇಶ ಕಳುಹಿಸಿ' : 'Send message'}
+              aria-label={t('Send')}
               className="bg-[#08233F] hover:bg-[#051626] disabled:opacity-40 text-amber-400 p-2.5 rounded-xl transition-colors shadow-xs shrink-0 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />

@@ -37,6 +37,7 @@ const AdminCandidates = React.lazy(() => import('./pages/admin/AdminCandidates')
 const AdminEmployers = React.lazy(() => import('./pages/admin/AdminEmployers').then(module => ({ default: module.AdminEmployers })));
 const AdminApplications = React.lazy(() => import('./pages/admin/AdminApplications').then(module => ({ default: module.AdminApplications })));
 const AdminDocuments = React.lazy(() => import('./pages/admin/AdminDocuments').then(module => ({ default: module.AdminDocuments })));
+const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').then(module => ({ default: module.AdminSettings })));
 
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { SupabaseSync } from './services/supabaseSync';
@@ -46,7 +47,9 @@ import { LanguageProvider } from './services/i18n';
 export const App: React.FC = () => {
   React.useEffect(() => {
     // Fetch role-scoped authenticated data. Never upload local/demo records on startup.
-    void SupabaseSync.fetchAndMergeRemoteData(DataStore);
+    void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
+      window.dispatchEvent(new Event('driverhub_storage_updated'));
+    });
 
     // Listen for database changes and refresh only data visible to the current session.
     const cleanup = SupabaseSync.initRealtimeListeners(() => {
@@ -136,7 +139,7 @@ export const App: React.FC = () => {
           <Route path="applications" element={<AdminApplications />} />
           <Route path="documents" element={<AdminDocuments />} />
           <Route path="reports" element={<AdminDashboard />} />
-          <Route path="settings" element={<DriverSettings />} />
+          <Route path="settings" element={<AdminSettings />} />
         </Route>
 
         {/* Fallback */}

@@ -395,15 +395,15 @@ export const SupabaseSync = {
       const { data: existing } = await supabase.from('jobs').select('id').eq('id', payload.id).maybeSingle();
       if (isAdmin && !existing) return false;
       const result = existing
-        ? await supabase.from('jobs').update(payload).eq('id', payload.id)
-        : await supabase.from('jobs').insert(payload);
+        ? await supabase.from('jobs').update(payload).eq('id', payload.id).select('id').maybeSingle()
+        : await supabase.from('jobs').insert(payload).select('id').maybeSingle();
       const error = result.error;
 
       if (error) {
         console.warn('Supabase syncJob error:', error.message);
         return false;
       } else {
-        return true;
+        return Boolean(result.data?.id);
       }
     } catch (e) {
       console.warn('Failed to sync job to Supabase:', e);
@@ -581,27 +581,34 @@ export const SupabaseSync = {
   },
 
   // Update user status (active/blocked) in Supabase
-  async syncUserStatus(userId: string, status: 'active' | 'blocked' | 'pending' | 'suspended') {
+  async syncUserStatus(userId: string, status: 'active' | 'blocked' | 'pending' | 'suspended'): Promise<boolean> {
     try {
-      const { data: current } = await supabase.auth.getUser();
-      if (!current.user) return;
-      const { data: actor } = await supabase.from('profiles').select('role').eq('id', current.user.id).maybeSingle();
-      if (actor?.role !== 'admin') return;
+      const { data: current, error: authError } = await supabase.auth.getUser();
+      if (authError || !current.user) return false;
+      const { data: actor, error: actorError } = await supabase.from('profiles').select('role').eq('id', current.user.id).maybeSingle();
+      if (actorError || actor?.role !== 'admin') return false;
       const userUUID = toUUID(userId);
-      await supabase.from('profiles').update({ status }).eq('id', userUUID);
+      const { data, error } = await supabase.from('profiles').update({ status }).eq('id', userUUID).select('id').maybeSingle();
+      if (error) throw error;
+      return Boolean(data?.id);
     } catch (e) {
       console.warn('syncUserStatus error:', e);
+      return false;
     }
   },
 
-  async syncEmployerVerification(employerId: string, verified: boolean) {
+  async syncEmployerVerification(employerId: string, verified: boolean): Promise<boolean> {
     try {
-      const { data: current } = await supabase.auth.getUser();
-      if (!current.user) return;
-      const { error } = await supabase.from('companies').update({ verified, status: verified ? 'active' : 'pending' }).eq('user_id', toUUID(employerId));
-      if (error) console.warn('syncEmployerVerification error:', error.message);
+      const { data: current, error: authError } = await supabase.auth.getUser();
+      if (authError || !current.user) return false;
+      const { data: actor, error: actorError } = await supabase.from('profiles').select('role').eq('id', current.user.id).maybeSingle();
+      if (actorError || actor?.role !== 'admin') return false;
+      const { data, error } = await supabase.from('companies').update({ verified }).eq('user_id', toUUID(employerId)).select('user_id').maybeSingle();
+      if (error) throw error;
+      return Boolean(data?.user_id);
     } catch (e) {
       console.warn('syncEmployerVerification error:', e);
+      return false;
     }
   },
 
@@ -865,6 +872,74 @@ export const SupabaseSync = {
         ]);
         dataStore.mergeRemoteNotifications(authUser.id, notificationRows || []);
         dataStore.mergeRemoteMessages(authUser.id, messageRows || []);
+
+        // The admin workspace needs the full driver and employer directories.
+        // Ordinary driver/employer sessions must remain limited to their own data.
+        if (role === 'admin') {
+          const [
+            { data: driverAccounts, error: driverAccountsError },
+            { data: driverRows, error: driverRowsError },
+            { data: employerAccounts, error: employerAccountsError },
+            { data: companyRows, error: companyRowsError }
+          ] = await Promise.all([
+            supabase.from('profiles').select('*').eq('role', 'driver').order('created_at', { ascending: false }),
+            supabase.from('driver_profiles').select('*'),
+            supabase.from('profiles').select('*').eq('role', 'employer').order('created_at', { ascending: false }),
+            supabase.from('companies').select('*')
+          ]);
+          const directoryError = driverAccountsError || driverRowsError || employerAccountsError || companyRowsError;
+          if (directoryError) throw directoryError;
+
+          const driverByUserId = new Map((driverRows || []).map((row: any) => [row.user_id, row]));
+          const adminDrivers: DriverProfile[] = (driverAccounts || []).map((account: any) => {
+            const row = driverByUserId.get(account.id) as any;
+            const status = account.status === 'suspended' ? 'blocked' : account.status || 'active';
+            dataStore.addUser({
+              id: account.id, email: account.email || '', role: 'driver', status,
+              phone: account.phone || '', createdAt: account.created_at?.slice(0, 10) || ''
+            });
+            return {
+              id: account.id, fullName: account.full_name || '', phone: account.phone || '', email: account.email || '',
+              location: account.location || account.city || '', city: account.city || '', state: account.state || '',
+              driverCategory: row?.driver_category || '', licenseNumber: row?.license_number || '',
+              licenseType: row?.license_type || '', licenseExpiry: row?.license_expiry || '',
+              experienceYears: row?.years_experience || 0, experienceMonths: row?.months_experience || 0,
+              skills: row?.skills || [], languages: row?.languages || [], vehicleTypes: row?.vehicle_types || [],
+              currentRole: row?.current_role || '', previousRole: row?.previous_role || '', education: row?.education || '',
+              preferredLocation: row?.preferred_location || '', expectedSalary: row?.expected_salary || 0,
+              availability: row?.availability || 'Flexible', nightShiftWilling: Boolean(row?.night_shift_willing),
+              outstationWilling: Boolean(row?.outstation_willing), cvAttached: Boolean(row?.cv_attached),
+              policeVerified: Boolean(row?.police_verified), lastActive: row?.updated_at || account.updated_at,
+              bio: row?.bio || '', resumeUrl: row?.resume_url || undefined,
+              status: status as DriverProfile['status'], experiences: [], documents: []
+            };
+          });
+          dataStore.mergeRemoteDrivers(adminDrivers);
+
+          const companyByUserId = new Map((companyRows || []).map((row: any) => [row.user_id, row]));
+          const adminEmployers: EmployerProfile[] = (employerAccounts || []).map((account: any) => {
+            const company = companyByUserId.get(account.id) as any;
+            const status = account.status === 'suspended' || company?.status === 'suspended'
+              ? 'blocked'
+              : account.status || company?.status || 'pending';
+            dataStore.addUser({
+              id: account.id, email: account.email || '', role: 'employer', status,
+              phone: account.phone || '', createdAt: account.created_at?.slice(0, 10) || ''
+            });
+            return {
+              id: account.id, companyName: company?.company_name || 'Company profile incomplete',
+              contactPerson: company?.contact_person || account.full_name || '',
+              email: company?.email || account.email || '', phone: company?.phone || account.phone || '',
+              industry: company?.industry || '', location: company?.location || account.location || '',
+              city: company?.city || account.city || '', state: company?.state || account.state || '',
+              address: company?.address || '', website: company?.website || '', logoUrl: company?.logo_url || '',
+              description: company?.description || '', gstin: company?.gstin || '',
+              verified: Boolean(company?.verified), status: status as EmployerProfile['status'],
+              createdAt: company?.created_at?.slice(0, 10) || account.created_at?.slice(0, 10) || ''
+            };
+          });
+          dataStore.mergeRemoteEmployers(adminEmployers);
+        }
       }
 
       const { data: jobRows, error: jobError } = await supabase.from('jobs').select('*').order('posted_date', { ascending: false });

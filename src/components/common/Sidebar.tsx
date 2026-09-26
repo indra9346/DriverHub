@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { supabase } from '../../services/supabaseClient';
+import { useLanguage } from '../../services/i18n';
 import { UserRole } from '../../types';
 import { getLoginPathForRole } from '../../services/authRouting';
 
@@ -22,49 +23,51 @@ export interface NavItem {
   subItems?: { to: string; label: string }[];
 }
 
-export const getNavLinks = (role: UserRole, unreadCount: number = 0): NavItem[] => {
+export const getNavLinks = (role: UserRole, unreadCount: number = 0, t?: (key: string) => string): NavItem[] => {
+  const tr = t || ((s: string) => s);
+
   const driverLinks: NavItem[] = [
-    { to: '/driver/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/jobs', label: 'Find Jobs', icon: Search },
-    { to: '/driver/applications', label: 'My Applications', icon: FileText },
-    { to: '/driver/saved', label: 'Saved Jobs', icon: Heart },
-    { to: '/driver/messages', label: 'Messages', icon: MessageSquare },
-    { to: '/driver/profile', label: 'My Profile', icon: User },
-    { to: '/driver/documents', label: 'Documents & License', icon: FileCheck },
-    { to: '/driver/notifications', label: 'Notifications', icon: Sparkles, badge: unreadCount },
-    { to: '/driver/settings', label: 'Account Settings', icon: Settings },
+    { to: '/driver/dashboard', label: tr('Dashboard'), icon: LayoutDashboard },
+    { to: '/jobs', label: tr('Find Jobs'), icon: Search },
+    { to: '/driver/applications', label: tr('My Applications'), icon: FileText },
+    { to: '/driver/saved', label: tr('Saved Jobs'), icon: Heart },
+    { to: '/driver/messages', label: tr('Messages'), icon: MessageSquare },
+    { to: '/driver/profile', label: tr('My Profile'), icon: User },
+    { to: '/driver/documents', label: tr('Documents & License'), icon: FileCheck },
+    { to: '/driver/notifications', label: tr('Notifications'), icon: Sparkles, badge: unreadCount },
+    { to: '/driver/settings', label: tr('Account Settings'), icon: Settings },
   ];
 
   const employerLinks: NavItem[] = [
-    { to: '/employer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/employer/jobs', label: 'Jobs', icon: Briefcase },
+    { to: '/employer/dashboard', label: tr('Dashboard'), icon: LayoutDashboard },
+    { to: '/employer/jobs', label: tr('Jobs'), icon: Briefcase },
     {
       to: '/employer/candidates',
-      label: 'Database',
+      label: tr('Database'),
       icon: Database,
       subItems: [
-        { to: '/employer/candidates?tab=search', label: 'Search Candidates' },
-        { to: '/employer/candidates?tab=saved', label: 'Saved Searches' },
-        { to: '/employer/candidates?tab=unlocked', label: 'Unlocked Candidates' }
+        { to: '/employer/candidates?tab=search', label: tr('Search Candidates') },
+        { to: '/employer/candidates?tab=saved', label: tr('Saved Searches') },
+        { to: '/employer/candidates?tab=unlocked', label: tr('Unlocked Candidates') }
       ]
     },
-    { to: '/employer/applications', label: 'Applications Pipeline', icon: FileText },
-    { to: '/employer/reports', label: 'Reports', icon: BarChart3 },
-    { to: '/employer/credits', label: 'Credits & Usage', icon: CreditCard },
-    { to: '/employer/billing', label: 'Billing', icon: Receipt, tag: 'New' },
-    { to: '/employer/messages', label: 'Messages', icon: MessageSquare },
-    { to: '/employer/company', label: 'Company Profile', icon: Building2 },
-    { to: '/employer/notifications', label: 'Notifications', icon: Sparkles, badge: unreadCount },
+    { to: '/employer/applications', label: tr('Applications Pipeline'), icon: FileText },
+    { to: '/employer/reports', label: tr('Reports'), icon: BarChart3 },
+    { to: '/employer/credits', label: tr('Credits & Usage'), icon: CreditCard },
+    { to: '/employer/billing', label: tr('Billing'), icon: Receipt, tag: 'New' },
+    { to: '/employer/messages', label: tr('Messages'), icon: MessageSquare },
+    { to: '/employer/company', label: tr('Company Profile'), icon: Building2 },
+    { to: '/employer/notifications', label: tr('Notifications'), icon: Sparkles, badge: unreadCount },
   ];
 
   const adminLinks: NavItem[] = [
-    { to: '/admin/dashboard', label: 'Analytics Dashboard', icon: LayoutDashboard },
-    { to: '/admin/jobs', label: 'Job Moderation Queue', icon: ShieldCheck },
-    { to: '/admin/documents', label: 'Driver Document Reviews', icon: FileCheck },
-    { to: '/admin/candidates', label: 'Candidate Management', icon: Users },
-    { to: '/admin/employers', label: 'Employer Verification', icon: Building2 },
-    { to: '/admin/applications', label: 'Global Applications', icon: FileText },
-    { to: '/admin/settings', label: 'System Configuration', icon: Settings },
+    { to: '/admin/dashboard', label: tr('Analytics Dashboard'), icon: LayoutDashboard },
+    { to: '/admin/jobs', label: tr('Job Moderation Queue'), icon: ShieldCheck },
+    { to: '/admin/documents', label: tr('Driver Document Reviews'), icon: FileCheck },
+    { to: '/admin/candidates', label: tr('Candidate Management'), icon: Users },
+    { to: '/admin/employers', label: tr('Employer Verification'), icon: Building2 },
+    { to: '/admin/applications', label: tr('Global Applications'), icon: FileText },
+    { to: '/admin/settings', label: tr('Admin Account & Access'), icon: Settings },
   ];
 
   return role === 'admin' ? adminLinks : role === 'employer' ? employerLinks : driverLinks;
@@ -83,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile = false,
   onCloseMobile
 }) => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = DataStore.getCurrentUser();
@@ -100,12 +104,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate(getLoginPathForRole(role), { replace: true });
   };
 
-  const links = getNavLinks(role, unreadCount);
-  const roleTitle = role === 'admin' ? 'Admin Control' : role === 'employer' ? (employer?.companyName || 'Employer Desk') : 'Driver Portal';
+  const links = getNavLinks(role, unreadCount, t);
+  const roleTitle = role === 'admin' ? t('Admin Control') : role === 'employer' ? (employer?.companyName || t('Employer Desk')) : t('Driver Portal');
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white">
-      {/* Portal Company / Role Header (Matches ApnaHire top-left `B` Company badge) */}
+      {/* Portal Company / Role Header */}
       <div className="p-4 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
           <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
@@ -117,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
             <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              {role === 'employer' ? 'Verified Employer' : role === 'admin' ? 'Superadmin' : 'Verified Driver'}
+              {role === 'employer' ? t('Verified Employer') : role === 'admin' ? t('Superadmin') : t('Verified Driver')}
             </span>
           </div>
         </div>
@@ -125,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             onClick={onCloseMobile}
             className="lg:hidden p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-            aria-label="Close Sidebar"
+            aria-label={t('Close')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -231,7 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Employer ApnaHire Bottom Widget: Help & Support, Contact Sales, Credits Alert, View Plans */}
+      {/* Employer Bottom Widget */}
       {role === 'employer' && subscription && (
         <div className="p-3 border-t border-slate-100 space-y-2.5 bg-slate-50/40">
           <div className="space-y-1">
@@ -240,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="flex items-center gap-2.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
             >
               <HelpCircle className="w-4 h-4 text-slate-400" />
-              <span>Help & Support</span>
+              <span>{t('Help & Support')}</span>
             </Link>
             <Link
               to="/contact"
@@ -248,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <PhoneCall className="w-4 h-4 text-slate-400" />
-                <span>Contact Sales</span>
+                <span>{t('Contact Sales')}</span>
               </div>
               <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded-full text-[10px] font-bold">
                 Offers
@@ -274,7 +278,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="w-full py-2.5 bg-[#1F192E] hover:bg-slate-900 text-white rounded-full text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
           >
             <Coins className="w-4 h-4 text-amber-400" />
-            <span>View plans</span>
+            <span>{t('View plans')}</span>
           </Link>
         </div>
       )}
@@ -286,7 +290,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          <span>Sign Out</span>
+          <span>{t('Sign Out')}</span>
         </button>
       </div>
     </div>

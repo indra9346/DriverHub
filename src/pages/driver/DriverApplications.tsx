@@ -7,8 +7,10 @@ import {
 import { DataStore } from '../../services/store';
 import { Application } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { useLanguage } from '../../services/i18n';
 
 export const DriverApplications: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [applications, setApplications] = useState<Application[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'shortlisted' | 'closed'>('all');
@@ -58,8 +60,8 @@ export const DriverApplications: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy font-display">My Job Applications</h1>
-          <p className="text-xs text-slate-500 mt-1">Track status and review interview appointments</p>
+          <h1 className="text-2xl font-bold text-brand-navy font-display">{t('My Applications')}</h1>
+          <p className="text-xs text-slate-500 mt-1">{t('Track status and review interview appointments')}</p>
         </div>
 
         {/* Filter Pills */}
@@ -70,7 +72,7 @@ export const DriverApplications: React.FC = () => {
               filter === 'all' ? 'bg-white text-brand-navy shadow-xs' : 'text-slate-500 hover:text-brand-navy'
             }`}
           >
-            All ({applications.length})
+            {t('All')} ({applications.length})
           </button>
           <button
             onClick={() => setFilter('shortlisted')}
@@ -78,7 +80,7 @@ export const DriverApplications: React.FC = () => {
               filter === 'shortlisted' ? 'bg-white text-brand-amber shadow-xs' : 'text-slate-500 hover:text-brand-navy'
             }`}
           >
-            Shortlisted / Interviews
+            {t('Shortlisted / Interviews')}
           </button>
           <button
             onClick={() => setFilter('active')}
@@ -86,7 +88,7 @@ export const DriverApplications: React.FC = () => {
               filter === 'active' ? 'bg-white text-brand-blue shadow-xs' : 'text-slate-500 hover:text-brand-navy'
             }`}
           >
-            In Progress
+            {t('In Progress')}
           </button>
         </div>
       </div>
@@ -95,10 +97,10 @@ export const DriverApplications: React.FC = () => {
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-card space-y-3">
           <FileText className="w-12 h-12 text-slate-300 mx-auto" />
-          <h3 className="text-base font-bold text-brand-navy font-display">No applications in this category</h3>
-          <p className="text-xs text-slate-500">Apply to open driver vacancies across India</p>
+          <h3 className="text-base font-bold text-brand-navy font-display">{t('No applications in this category')}</h3>
+          <p className="text-xs text-slate-500">{t('Apply to open driver vacancies across India')}</p>
           <Link to="/jobs" className="inline-block mt-2 px-4 py-2 bg-brand-navy hover:bg-brand-navy-light text-white rounded-xl text-xs font-bold transition-all">
-            Search Open Jobs
+            {t('Search Open Jobs')}
           </Link>
         </div>
       ) : (
@@ -113,7 +115,7 @@ export const DriverApplications: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                      Application ID: #{app.id}
+                      {t('Application ID')}: #{app.id}
                     </span>
                     <h3 className="text-base font-bold text-brand-navy font-display mt-0.5">
                       {app.jobTitle}
@@ -131,7 +133,7 @@ export const DriverApplications: React.FC = () => {
                         onClick={() => handleWithdraw(app.id)}
                         className="text-xs text-red-600 hover:text-red-800 font-semibold hover:underline"
                       >
-                        Withdraw
+                        {t('Withdraw')}
                       </button>
                     )}
                   </div>
@@ -141,11 +143,11 @@ export const DriverApplications: React.FC = () => {
                 {app.status !== 'rejected' && app.status !== 'withdrawn' && (
                   <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/70 space-y-3">
                     <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                      <span className={step >= 1 ? 'text-brand-blue font-bold' : 'text-slate-400'}>1. Applied</span>
-                      <span className={step >= 2 ? 'text-brand-blue font-bold' : 'text-slate-400'}>2. Under Review</span>
-                      <span className={step >= 3 ? 'text-brand-amber font-bold' : 'text-slate-400'}>3. Shortlisted</span>
-                      <span className={step >= 4 ? 'text-purple-700 font-bold' : 'text-slate-400'}>4. Driving Test / Trial</span>
-                      <span className={step >= 5 ? 'text-emerald-700 font-bold' : 'text-slate-400'}>5. Hired</span>
+                      <span className={step >= 1 ? 'text-brand-blue font-bold' : 'text-slate-400'}>{t('1. Applied')}</span>
+                      <span className={step >= 2 ? 'text-brand-blue font-bold' : 'text-slate-400'}>{t('2. Under Review')}</span>
+                      <span className={step >= 3 ? 'text-brand-amber font-bold' : 'text-slate-400'}>{t('3. Shortlisted')}</span>
+                      <span className={step >= 4 ? 'text-purple-700 font-bold' : 'text-slate-400'}>{t('4. Driving Test / Trial')}</span>
+                      <span className={step >= 5 ? 'text-emerald-700 font-bold' : 'text-slate-400'}>{t('5. Hired')}</span>
                     </div>
 
                     <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex">
@@ -161,7 +163,7 @@ export const DriverApplications: React.FC = () => {
                 {(app.employerNotes || app.interviewDate) && (
                   <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200/80 text-xs space-y-1.5">
                     <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                      <MessageSquare className="w-4 h-4 text-brand-amber" /> Employer Message & Instructions
+                      <MessageSquare className="w-4 h-4 text-brand-amber" /> {t('Employer Message & Instructions')}
                     </div>
                     {app.interviewDate && (
                       <p className="text-amber-900 font-semibold">

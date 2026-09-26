@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link, NavLink } from 'react-router-dom';
 import { 
-  Menu, Sparkles, LayoutDashboard, Search, FileText, FileCheck, User,
+  Menu, LayoutDashboard, Search, FileText, FileCheck, User,
   PlusCircle, Briefcase, Users, Building2, ShieldCheck, Settings 
 } from 'lucide-react';
 import { Navbar } from '../components/common/Navbar';
@@ -10,6 +10,7 @@ import { AIChatbot } from '../components/common/AIChatbot';
 import { RoutePageBoundary } from '../components/common/RoutePageBoundary';
 import { DataStore } from '../services/store';
 import { supabase } from '../services/supabaseClient';
+import { useLanguage } from '../services/i18n';
 import { UserRole } from '../types';
 import { getDashboardPathForRole, getLoginPathForRole, inferRoleFromPath, isUserRole } from '../services/authRouting';
 
@@ -18,6 +19,7 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }) => {
+  const { t } = useLanguage();
   const [currentUser, setCurrentUser] = useState(DataStore.getCurrentUser());
   const [sessionReady, setSessionReady] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -52,8 +54,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         DataStore.setCurrentUser(null);
         setCurrentUser(null);
       } else {
-        // The database profile, not cached browser state or a role-tab selection,
-        // determines the authenticated role for this session.
         const verified = {
           id: data.user.id,
           email: data.user.email || profile.email || '',
@@ -111,40 +111,40 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
   const unreadNotifs = DataStore.getNotifications(currentUser.id).filter(n => !n.read).length;
 
   const roleTitle = currentUser.role === 'admin' 
-    ? 'Admin Control' 
+    ? t('Admin Control') 
     : currentUser.role === 'employer' 
-    ? 'Employer Desk' 
-    : 'Driver Portal';
+    ? t('Employer Desk') 
+    : t('Driver Portal');
 
   // Determine current section title
-  const navLinks = getNavLinks(currentUser.role, unreadNotifs);
+  const navLinks = getNavLinks(currentUser.role, unreadNotifs, t);
   const currentNav = navLinks.find(link => location.pathname === link.to) 
     || navLinks.find(link => location.pathname.startsWith(link.to) && link.to !== '/driver/dashboard' && link.to !== '/employer/dashboard' && link.to !== '/admin/dashboard');
-  const currentSectionTitle = currentNav?.label || 'Overview';
+  const currentSectionTitle = currentNav?.label || t('Dashboard');
 
   // Bottom quick tabs for mobile
   const getBottomTabs = () => {
     if (currentUser.role === 'driver') {
       return [
-        { to: '/driver/dashboard', label: 'Home', icon: LayoutDashboard },
-        { to: '/jobs', label: 'Jobs', icon: Search },
-        { to: '/driver/applications', label: 'Applied', icon: FileText },
-        { to: '/driver/profile', label: 'Profile', icon: User },
+        { to: '/driver/dashboard', label: t('Home'), icon: LayoutDashboard },
+        { to: '/jobs', label: t('Jobs'), icon: Search },
+        { to: '/driver/applications', label: t('My Applications'), icon: FileText },
+        { to: '/driver/profile', label: t('My Profile'), icon: User },
       ];
     } else if (currentUser.role === 'employer') {
       return [
-        { to: '/employer/dashboard', label: 'Home', icon: LayoutDashboard },
-        { to: '/employer/post-job', label: '+ Post', icon: PlusCircle, highlight: true },
-        { to: '/employer/jobs', label: 'Jobs', icon: Briefcase },
-        { to: '/employer/applications', label: 'Pipeline', icon: FileText },
+        { to: '/employer/dashboard', label: t('Home'), icon: LayoutDashboard },
+        { to: '/employer/post-job', label: t('Post Vacancy'), icon: PlusCircle, highlight: true },
+        { to: '/employer/jobs', label: t('Jobs'), icon: Briefcase },
+        { to: '/employer/applications', label: t('Applications Pipeline'), icon: FileText },
       ];
     } else {
       return [
-        { to: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
-        { to: '/admin/jobs', label: 'Queue', icon: ShieldCheck },
-        { to: '/admin/employers', label: 'Fleets', icon: Building2 },
-        { to: '/admin/documents', label: 'Documents', icon: FileCheck },
-        { to: '/admin/candidates', label: 'Talent', icon: Users },
+        { to: '/admin/dashboard', label: t('Home'), icon: LayoutDashboard },
+        { to: '/admin/jobs', label: t('Job Moderation Queue'), icon: ShieldCheck },
+        { to: '/admin/employers', label: t('Employer Verification'), icon: Building2 },
+        { to: '/admin/documents', label: t('Driver Document Reviews'), icon: FileCheck },
+        { to: '/admin/candidates', label: t('Candidate Management'), icon: Users },
       ];
     }
   };

@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { Bell, Check, ExternalLink, Trash2, Sparkles } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { Notification } from '../../types';
+import { useLanguage } from '../../services/i18n';
 
 export const DriverNotifications: React.FC = () => {
+  const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -34,8 +36,8 @@ export const DriverNotifications: React.FC = () => {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-brand-navy font-display">Notification Center</h1>
-          <p className="text-xs text-slate-500 mt-1">Application updates and matching driver opportunities</p>
+          <h1 className="text-2xl font-bold text-brand-navy font-display">{t('Notification Center')}</h1>
+          <p className="text-xs text-slate-500 mt-1">{t('Application updates and matching driver opportunities')}</p>
         </div>
 
         {notifications.some(n => !n.read) && (
@@ -43,7 +45,7 @@ export const DriverNotifications: React.FC = () => {
             onClick={handleMarkAllRead}
             className="text-xs font-semibold text-brand-blue hover:text-brand-navy hover:underline flex items-center gap-1 cursor-pointer"
           >
-            <Check className="w-3.5 h-3.5" /> Mark all as read
+            <Check className="w-3.5 h-3.5" /> {t('Mark all as read')}
           </button>
         )}
       </div>
@@ -52,7 +54,7 @@ export const DriverNotifications: React.FC = () => {
         {notifications.length === 0 ? (
           <div className="p-12 text-center text-xs text-slate-400 space-y-2">
             <Bell className="w-10 h-10 mx-auto opacity-30 text-slate-400" />
-            <p>You have no notifications at this time.</p>
+            <p>{t('You have no notifications at this time.')}</p>
           </div>
         ) : (
           notifications.map((notif) => (
@@ -72,7 +74,7 @@ export const DriverNotifications: React.FC = () => {
                   <span>{notif.createdAt}</span>
                   {notif.link && (
                     <Link to={notif.link} className="text-brand-blue font-semibold hover:underline flex items-center gap-0.5">
-                      View Details <ExternalLink className="w-3 h-3" />
+                      {t('View Details')} <ExternalLink className="w-3 h-3" />
                     </Link>
                   )}
                 </div>

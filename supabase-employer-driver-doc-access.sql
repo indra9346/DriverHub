@@ -23,6 +23,13 @@ $$;
 REVOKE ALL ON FUNCTION public.driverhub_employer_has_active_plan(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.driverhub_employer_has_active_plan(uuid) TO authenticated;
 
+-- The application uploads to this bucket. Creating it here is idempotent and
+-- keeps it private; a bucket with no storage.objects policies cannot serve the
+-- app's authenticated uploads or signed document views.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('driver-documents', 'driver-documents', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
+
 -- Remove legacy permissive SELECT policies before installing the intended
 -- owner/admin management policy and subscription-gated employer read policy.
 DROP POLICY IF EXISTS "docs own or admin" ON public.driver_documents;
@@ -58,6 +65,9 @@ CREATE POLICY driverhub_documents_active_employer_read ON public.driver_document
 -- Bucket remains private. Storage paths must begin with the driver's auth UUID.
 UPDATE storage.buckets SET public = false WHERE id = 'driver-documents';
 DROP POLICY IF EXISTS driverhub_documents_read ON storage.objects;
+DROP POLICY IF EXISTS driverhub_documents_insert ON storage.objects;
+DROP POLICY IF EXISTS driverhub_documents_update ON storage.objects;
+DROP POLICY IF EXISTS driverhub_documents_delete ON storage.objects;
 CREATE POLICY driverhub_documents_read ON storage.objects FOR SELECT TO authenticated
   USING (
     bucket_id = 'driver-documents'
@@ -81,4 +91,23 @@ CREATE POLICY driverhub_documents_read ON storage.objects FOR SELECT TO authenti
         )
       )
     )
+  );
+CREATE POLICY driverhub_documents_insert ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'driver-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+CREATE POLICY driverhub_documents_update ON storage.objects FOR UPDATE TO authenticated
+  USING (
+    bucket_id = 'driver-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  )
+  WITH CHECK (
+    bucket_id = 'driver-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+CREATE POLICY driverhub_documents_delete ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'driver-documents'
+    AND ((storage.foldername(name))[1] = auth.uid()::text OR public.is_driverhub_admin())
   );

@@ -5,8 +5,9 @@ import {
   UserCheck, Phone, Mail, Calendar, MessageSquare, ShieldCheck, Download 
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
-import { Application, ApplicationStatus, DriverProfile, Job } from '../../types';
+import { Application, ApplicationStatus, DriverDocument, DriverProfile, Job } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { SupabaseSync } from '../../services/supabaseSync';
 
 export const EmployerApplications: React.FC = () => {
   const { jobId: paramJobId } = useParams<{ jobId?: string }>();
@@ -26,6 +27,9 @@ export const EmployerApplications: React.FC = () => {
   const [interviewDateInput, setInterviewDateInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [driverDetails, setDriverDetails] = useState<DriverProfile | null>(null);
+  const [driverDocuments, setDriverDocuments] = useState<DriverDocument[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState('');
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -73,12 +77,22 @@ export const EmployerApplications: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleOpenCandidate = (app: Application) => {
+  const handleOpenCandidate = async (app: Application) => {
     setSelectedApp(app);
     const driver = DataStore.getDriverById(app.driverId);
     setDriverDetails(driver || null);
+    setDriverDocuments([]);
+    setDocumentsError('');
+    setDocumentsLoading(true);
     setNotesInput(app.employerNotes || '');
     setInterviewDateInput(app.interviewDate || '');
+    try {
+      setDriverDocuments(await SupabaseSync.getEmployerApplicantDocuments(app.driverId, app.jobId));
+    } catch (error) {
+      setDocumentsError(error instanceof Error ? error.message : 'Could not load driver documents.');
+    } finally {
+      setDocumentsLoading(false);
+    }
   };
 
   const filtered = applications.filter((app) => {
@@ -176,9 +190,6 @@ export const EmployerApplications: React.FC = () => {
                   <h3 className="text-base font-bold text-slate-900">
                     {app.driverName || 'Driver Candidate'}
                   </h3>
-                  <span title="License Verified">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  </span>
                   <StatusBadge status={app.status} size="sm" />
                 </div>
 
@@ -311,33 +322,37 @@ export const EmployerApplications: React.FC = () => {
                   Verified Driver Credentials & License Specs
                 </span>
                 <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                  RTO Verified
+                  Driver details
                 </span>
               </div>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-slate-700 bg-white/80 p-3 rounded-xl border border-emerald-100">
-                <p><strong>License No:</strong> {driverDetails?.licenseNumber || 'KA-04-2024009871'}</p>
-                <p><strong>License Class:</strong> {driverDetails?.licenseType || selectedApp.driverCategory || 'Commercial Transport (HMV/LMV)'}</p>
-                <p><strong>Expiry Date:</strong> {driverDetails?.licenseExpiry || '2031-10-18 (Active)'}</p>
+                <p><strong>License No:</strong> {driverDetails?.licenseNumber || 'Not provided'}</p>
+                <p><strong>License Class:</strong> {driverDetails?.licenseType || selectedApp.driverCategory || 'Not provided'}</p>
+                <p><strong>Expiry Date:</strong> {driverDetails?.licenseExpiry || 'Not provided'}</p>
               </div>
 
               {/* Uploaded Verification Documents List (Pic 1 & 2 Fix) */}
               <div className="space-y-2 pt-1 border-t border-emerald-200/60">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-slate-500" />
-                    Uploaded Documents ({DataStore.getDriverDocuments(selectedApp.driverId).length})
+                    <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    Uploaded Documents ({driverDocuments.length})
                   </span>
-                  <span className="text-[10px] text-slate-500">Encrypted Cloud Storage</span>
+                  <span className="text-[10px] text-slate-500">Private, temporary access</span>
                 </div>
 
-                {DataStore.getDriverDocuments(selectedApp.driverId).length === 0 ? (
+                {documentsLoading ? (
+                  <div className="p-3 bg-white/60 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">Loading documents…</div>
+                ) : documentsError ? (
+                  <div role="alert" className="p-3 bg-red-50 rounded-xl border border-red-200 text-center text-red-700 text-xs">{documentsError}</div>
+                ) : driverDocuments.length === 0 ? (
                   <div className="p-3 bg-white/60 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
                     No documents uploaded by driver yet.
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {DataStore.getDriverDocuments(selectedApp.driverId).map((doc) => (
+                    {driverDocuments.map((doc) => (
                       <div
                         key={doc.id}
                         className="p-3 bg-white rounded-xl border border-emerald-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -355,8 +370,8 @@ export const EmployerApplications: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-2 self-start sm:self-center">
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full text-[10px]">
-                            ✓ Verified
+                          <span className={`px-2 py-0.5 font-bold rounded-full text-[10px] ${doc.verificationStatus === 'verified' ? 'bg-emerald-100 text-emerald-800' : doc.verificationStatus === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {doc.verificationStatus === 'verified' ? '✓ Verified' : doc.verificationStatus === 'rejected' ? 'Rejected' : 'Pending review'}
                           </span>
 
                           {doc.fileUrl && (

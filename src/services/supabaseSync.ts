@@ -215,6 +215,43 @@ export const SupabaseSync = {
     return data.signedUrl;
   },
 
+  async getEmployerApplicantDocuments(driverId: string, jobId: string): Promise<DriverDocument[]> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) throw new Error('Sign in as an employer to view applicant documents.');
+    const employerId = authData.user.id;
+
+    const [{ data: employer }, { data: plan }, { data: job }, { data: application }] = await Promise.all([
+      supabase.from('profiles').select('role,status').eq('id', employerId).maybeSingle(),
+      supabase.from('employer_subscriptions').select('status,expires_at').eq('employer_id', employerId).maybeSingle(),
+      supabase.from('jobs').select('id').eq('id', toUUID(jobId)).eq('employer_id', employerId).maybeSingle(),
+      supabase.from('applications').select('id').eq('job_id', toUUID(jobId)).eq('driver_id', toUUID(driverId)).maybeSingle()
+    ]);
+    if (employer?.role !== 'employer' || employer.status !== 'active') {
+      throw new Error('An active employer account is required to view documents.');
+    }
+    if (!plan || plan.status !== 'active' || !plan.expires_at || new Date(plan.expires_at).getTime() <= Date.now()) {
+      throw new Error('An active hiring subscription is required to view driver documents.');
+    }
+    if (!job || !application) throw new Error('You can view documents only for a driver who applied to your job.');
+
+    const { data: rows, error } = await supabase.from('driver_documents').select('*')
+      .eq('driver_id', toUUID(driverId)).order('upload_date', { ascending: false });
+    if (error) throw new Error(error.message);
+
+    return await Promise.all((rows || []).map(async (row: any) => {
+      const path = String(row.file_url || '');
+      if (!path || path.startsWith('blob:') || path.startsWith('data:')) return null;
+      const { data: signed, error: signError } = await supabase.storage.from('driver-documents').createSignedUrl(path, 60);
+      if (signError || !signed?.signedUrl) return null;
+      return {
+        id: row.id, driverId: row.driver_id, name: row.name, type: row.type,
+        fileUrl: signed.signedUrl, fileSize: row.file_size || undefined,
+        uploadDate: row.upload_date?.slice(0, 10) || '',
+        verificationStatus: row.verification_status
+      } as DriverDocument;
+    })).then(documents => documents.filter((document): document is DriverDocument => Boolean(document)));
+  },
+
   // Sync a single job to Supabase
   async syncJob(job: Job, _employer?: EmployerProfile): Promise<boolean> {
     try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, MapPin, Truck, ShieldCheck, Briefcase, Users, Award, 
@@ -9,6 +9,7 @@ import { DataStore } from '../../services/store';
 import { Job } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
 import { useLanguage } from '../../services/i18n';
+import { SupabaseSync } from '../../services/supabaseSync';
 
 export const HomePage: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -20,10 +21,7 @@ export const HomePage: React.FC = () => {
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
   const navigate = useNavigate();
 
-  // Statistics Viewport Animation (fires ONCE)
-  const statsRef = useRef<HTMLDivElement>(null);
-  const [statsAnimated, setStatsAnimated] = useState(false);
-  const [counts, setCounts] = useState({ drivers: 0, employers: 0, jobs: 0, placement: 0 });
+  const [marketplaceStats, setMarketplaceStats] = useState<Awaited<ReturnType<typeof SupabaseSync.fetchPublicMarketplaceStats>>>(null);
 
   const loadData = () => {
     const active = DataStore.getJobs().filter(j => j.status === 'active');
@@ -46,43 +44,29 @@ export const HomePage: React.FC = () => {
     return () => window.removeEventListener('driverhub_storage_updated', loadData);
   }, []);
 
-  // Intersection Observer for counting numbers once
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !statsAnimated) {
-          setStatsAnimated(true);
-          const duration = 1200;
-          const steps = 30;
-          const stepTime = duration / steps;
-          let currentStep = 0;
-
-          const timer = setInterval(() => {
-            currentStep++;
-            const progress = currentStep / steps;
-            setCounts({
-              drivers: Math.floor(12500 * progress),
-              employers: Math.floor(450 * progress),
-              jobs: Math.floor(850 * progress),
-              placement: Math.floor(98 * progress),
-            });
-
-            if (currentStep >= steps) {
-              clearInterval(timer);
-              setCounts({ drivers: 12500, employers: 450, jobs: 850, placement: 98 });
-            }
-          }, stepTime);
-        }
-      },
-      { threshold: 0.2 }
-    );
-
-    if (statsRef.current) {
-      observer.observe(statsRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [statsAnimated]);
+    let disposed = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async () => {
+      const stats = await SupabaseSync.fetchPublicMarketplaceStats();
+      if (!disposed) setMarketplaceStats(stats);
+    };
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => { void refresh(); }, 350);
+    };
+    void refresh();
+    const unsubscribe = SupabaseSync.subscribeToPublicMarketplaceStats(scheduleRefresh);
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      disposed = true;
+      unsubscribe();
+      window.clearInterval(poll);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,14 +78,14 @@ export const HomePage: React.FC = () => {
   };
 
   const categories = [
-    { label: 'Heavy Truck (HMV)', filter: 'HMV', icon: '🚛', count: 48, desc: 'Multi-axle, interstate & container transport' },
-    { label: 'LMV Chauffeur', filter: 'LMV', icon: '🚗', count: 92, desc: 'Personal, corporate sedans & luxury fleet' },
-    { label: 'Cab Driver', filter: 'Cab Driver', icon: '🚕', count: 120, desc: 'App-based ride hailing & airport transfers' },
-    { label: 'Delivery Driver', filter: 'Delivery Driver', icon: '📦', count: 85, desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
-    { label: 'School / Staff Bus', filter: 'Bus Driver', icon: '🚌', count: 34, desc: 'Passenger transit & student shuttle' },
-    { label: 'Tempo / Ace', filter: 'Tempo Driver', icon: '🚚', count: 64, desc: 'Intra-city distribution & cargo logistics' },
-    { label: '40ft Trailer Driver', filter: 'Trailer Driver', icon: '🚜', count: 26, desc: 'Port container clearing & heavy haulage' },
-    { label: 'Commercial Driver', filter: 'Commercial Driver', icon: '🚐', count: 50, desc: 'Tour operations & outstation rentals' },
+    { label: 'Heavy Truck (HMV)', filter: 'HMV', countKeys: ['hmv', 'heavy truck (hmv)', 'heavy truck', 'hmv-transport'], icon: '🚛', desc: 'Multi-axle, interstate & container transport' },
+    { label: 'LMV Chauffeur', filter: 'LMV', countKeys: ['lmv', 'lmv-transport', 'personal driver', 'personal chauffeur'], icon: '🚗', desc: 'Personal, corporate sedans & luxury fleet' },
+    { label: 'Cab Driver', filter: 'Cab Driver', countKeys: ['cab driver', 'cab'], icon: '🚕', desc: 'App-based ride hailing & airport transfers' },
+    { label: 'Delivery Driver', filter: 'Delivery Driver', countKeys: ['delivery driver', 'delivery'], icon: '📦', desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
+    { label: 'School / Staff Bus', filter: 'Bus Driver', countKeys: ['bus driver', 'school bus driver', 'school / staff bus'], icon: '🚌', desc: 'Passenger transit & student shuttle' },
+    { label: 'Tempo / Ace', filter: 'Tempo Driver', countKeys: ['tempo driver', 'tempo / ace'], icon: '🚚', desc: 'Intra-city distribution & cargo logistics' },
+    { label: '40ft Trailer Driver', filter: 'Trailer Driver', countKeys: ['trailer driver', '40ft trailer driver'], icon: '🚜', desc: 'Port container clearing & heavy haulage' },
+    { label: 'Commercial Driver', filter: 'Commercial Driver', countKeys: ['commercial driver'], icon: '🚐', desc: 'Tour operations & outstation rentals' },
   ];
 
   const siteAdCards = [
@@ -110,7 +94,7 @@ export const HomePage: React.FC = () => {
       badgeColor: 'bg-amber-50 text-amber-900 border-amber-300',
       icon: '🤝',
       title: t('Zero Middlemen Commission'),
-      subtitle: t('Apply directly to 450+ verified transport and corporate fleets with 100% wage transparency.'),
+      subtitle: t('Browse verified employers and review each job listing for its pay and hiring details.'),
       cta: t('Explore Openings'),
       link: '/jobs'
     },
@@ -118,17 +102,17 @@ export const HomePage: React.FC = () => {
       badge: '🛡️ ' + t('Verified Drivers'),
       badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300',
       icon: '✅',
-      title: t('Get Verified & Hired 3x Faster'),
-      subtitle: t('Upload license & RTO documents once to earn the DriverHub Verified Badge for instant shortlists.'),
+      title: t('Driver License Verification'),
+      subtitle: t('Upload your driving license for review. A verification badge appears after an administrator approves it.'),
       cta: t('Register as Driver'),
       link: '/register?role=driver'
     },
     {
-      badge: '💰 ' + (lang === 'kn' ? 'ಖಾತರಿ ವೇತನ' : 'High Wage Guarantee'),
+      badge: '💰 ' + (lang === 'kn' ? 'ವೇತನ ವಿವರಗಳು' : 'Salary Details'),
       badgeColor: 'bg-blue-50 text-blue-900 border-blue-300',
       icon: '💵',
-      title: t('₹25k - ₹50k/mo Salary'),
-      subtitle: lang === 'kn' ? 'ಖಾತರಿ ಮೂಲ ವೇತನ, ಅಧಿಕಾವಧಿ ಭತ್ಯೆ ಮತ್ತು ಊಟದ ಭತ್ಯೆಗಳೊಂದಿಗೆ.' : 'Guaranteed base pay with documented overtime, food allowances, and route night stays.',
+      title: t('Compare Driver Job Salaries'),
+      subtitle: t('Salary and benefits vary by employer and vacancy. Check the details on each active job listing.'),
       cta: t('Browse All Jobs'),
       link: '/jobs?sort=salary'
     },
@@ -136,8 +120,8 @@ export const HomePage: React.FC = () => {
       badge: '🏢 ' + (lang === 'kn' ? 'ಫ್ಲೀಟ್ ಕಂಪನಿಗಳು' : 'Fleet Operators'),
       badgeColor: 'bg-purple-50 text-purple-900 border-purple-300',
       icon: '🚛',
-      title: lang === 'kn' ? 'ಭಾರತ್ ಲಾಜಿಸ್ಟಿಕ್ಸ್ ಮತ್ತು ಪ್ರಮುಖ ಫ್ಲೀಟ್‌ಗಳು' : 'Bharat Logistics & VRL Express',
-      subtitle: lang === 'kn' ? 'ರಾಷ್ಟ್ರೀಯ ಸಾರಿಗೆ ಸಂಸ್ಥೆಗಳಲ್ಲಿ ಅಂತಾರಾಜ್ಯ HMV ಮತ್ತು ಸಿಟಿ ಡೆಲಿವರಿ ಉದ್ಯೋಗಗಳು.' : 'National logistics fleets hiring Interstate HMV, Trailer & City Delivery Drivers today.',
+      title: t('Verified Fleet Employers'),
+      subtitle: t('Explore verified employers and see their active vacancies.'),
       cta: t('Top Employers'),
       link: '/companies'
     },
@@ -145,8 +129,8 @@ export const HomePage: React.FC = () => {
       badge: '🔔 ' + (lang === 'kn' ? 'ತ್ವರಿತ ಮಾಹಿತಿ' : 'Real-Time Alerts'),
       badgeColor: 'bg-rose-50 text-rose-900 border-rose-300',
       icon: '📱',
-      title: lang === 'kn' ? 'ತಕ್ಷಣ SMS ಮತ್ತು ಟ್ರಯಲ್ ಅಪ್‌ಡೇಟ್‌ಗಳು' : 'Instant SMS & Trial Updates',
-      subtitle: lang === 'kn' ? 'ಉದ್ಯೋಗದಾತರು ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ನೋಡಿದಾಗ ತಕ್ಷಣ ಅಧಿಸೂಚನೆ ಪಡೆಯಿರಿ.' : 'Get notified immediately when employers view your profile or schedule driving trials.',
+      title: t('Application Updates'),
+      subtitle: t('Check your account notifications for updates supported by your current account settings.'),
       cta: t('Register'),
       link: '/register'
     },
@@ -181,7 +165,7 @@ export const HomePage: React.FC = () => {
         <div className="max-w-6xl mx-auto relative z-10 w-full text-center space-y-7 sm:space-y-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-amber-400/30 text-xs text-amber-400 font-bold shadow-lg">
             <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-            <span>{t("India's #1 Professional Driver Recruitment Network")}</span>
+            <span>{t('Driver Recruitment & Fleet Hiring')}</span>
           </div>
 
           <div className="space-y-3.5 max-w-4xl mx-auto">
@@ -201,10 +185,10 @@ export const HomePage: React.FC = () => {
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> {t('Direct Hiring')}
             </span>
             <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/70 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-semibold shadow">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" /> {t('100% RTO Verified')}
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" /> {t('License documents reviewed')}
             </span>
             <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/70 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-semibold shadow">
-              <IndianRupee className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> {t('₹25k - ₹50k/mo Salary')}
+              <IndianRupee className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> {t('Salary shown on each job listing')}
             </span>
             <span className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/70 backdrop-blur-md border border-white/15 text-[11px] sm:text-xs font-semibold shadow">
               <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" /> {t('Zero Commission')}
@@ -265,33 +249,36 @@ export const HomePage: React.FC = () => {
             </form>
           </div>
 
-          {/* Statistics Ticker with Viewport Animation */}
-          <div ref={statsRef} className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4 max-w-5xl mx-auto pt-6 sm:pt-8 text-slate-200 text-center">
+          {/* Live aggregates; never substitute marketing estimates for database values. */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4 max-w-5xl mx-auto pt-6 sm:pt-8 text-slate-200 text-center">
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {statsAnimated ? `${counts.drivers.toLocaleString('en-IN')}+` : '12,500+'}
+                {marketplaceStats?.verifiedDrivers.toLocaleString('en-IN') ?? '—'}
               </p>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Verified Drivers')}</p>
             </div>
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {statsAnimated ? `${counts.employers.toLocaleString('en-IN')}+` : '450+'}
+                {marketplaceStats?.verifiedEmployers.toLocaleString('en-IN') ?? '—'}
               </p>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Fleet & Corporate Employers')}</p>
             </div>
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {statsAnimated ? `${counts.jobs.toLocaleString('en-IN')}+` : '850+'}
+                {marketplaceStats?.activeVacancies.toLocaleString('en-IN') ?? '—'}
               </p>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Active Job Openings')}</p>
             </div>
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {statsAnimated ? `${counts.placement}%` : '98%'}
+                {marketplaceStats?.hires.toLocaleString('en-IN') ?? '—'}
               </p>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Placement Success Rate')}</p>
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Successful Hires')}</p>
             </div>
           </div>
+          <p className="text-[11px] text-slate-300/90" role="status" aria-live="polite">
+            {marketplaceStats ? t('Live figures from the marketplace database.') : t('Live figures are unavailable. Please check the database setup.')}
+          </p>
         </div>
       </section>
 
@@ -368,7 +355,9 @@ export const HomePage: React.FC = () => {
 
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400 group-hover:text-slate-700">
                 <span className="text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full text-[11px] font-bold border border-blue-200/60">
-                  {t('{count} Vacancies', { count: cat.count })}
+                  {marketplaceStats
+                    ? t('{count} Vacancies', { count: cat.countKeys.reduce((total, key) => total + (marketplaceStats.vacanciesByCategory[key] || 0), 0) })
+                    : '—'}
                 </span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-500 group-hover:text-blue-700" />
               </div>

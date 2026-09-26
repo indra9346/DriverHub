@@ -20,7 +20,7 @@ export const Footer: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1.5 rounded-full font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5" /> {t('100% License Verified')}
+                <ShieldCheck className="w-3.5 h-3.5" /> {t('License verification available')}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-3 py-1.5 rounded-full font-semibold">
                 <Award className="w-3.5 h-3.5" /> {t('Direct Employer Hiring')}

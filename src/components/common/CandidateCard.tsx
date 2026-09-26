@@ -16,6 +16,9 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
   onSelect,
 }) => {
   const { t } = useLanguage();
+  const hasVerifiedLicense = driver.documents?.some(document =>
+    document.type === 'driving_license' && document.verificationStatus === 'verified'
+  ) ?? false;
 
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-slate-300 transition-all flex flex-col justify-between">
@@ -44,9 +47,11 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
               <h3 className="text-base font-bold text-[#08233F] truncate">
                 {driver.fullName}
               </h3>
-              <span title={t('100% License Verified')}>
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-              </span>
+              {hasVerifiedLicense && (
+                <span title={t('License verified')}>
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 mt-1">

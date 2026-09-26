@@ -13,13 +13,13 @@ export const AboutPage: React.FC = () => {
       {/* Hero Section */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-[#08233F] text-xs font-bold uppercase tracking-wider shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> {t("India's #1 Professional Driver Recruitment Network")}
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> {t('Driver Recruitment & Fleet Hiring')}
         </div>
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#08233F] font-display tracking-tight leading-tight">
           {t('Empowering Commercial Drivers & Connecting Fleet Leaders')}
         </h1>
         <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto">
-          {t('Driver Hub organizes commercial transport hiring across India. We eliminate exploitative middlemen, verify RTO commercial credentials, and ensure timely, transparent wages with zero broker commissions.')}
+          {t('Driver Hub connects drivers and employers through job listings, applications, and profile verification tools. Check each listing and account status for current details.')}
         </p>
       </div>
 
@@ -29,9 +29,9 @@ export const AboutPage: React.FC = () => {
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-xl font-bold border border-amber-200/60">
             <ShieldCheck className="w-6 h-6 text-amber-600" />
           </div>
-          <h3 className="text-lg font-bold text-[#08233F] font-display">{t('100% RTO Verified')}</h3>
+          <h3 className="text-lg font-bold text-[#08233F] font-display">{t('License documents reviewed')}</h3>
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-            {t('Upload license & RTO documents once to earn the DriverHub Verified Badge for instant shortlists.')}
+            {t('Upload your driving license for review. A verification badge appears after an administrator approves it.')}
           </p>
         </div>
 
@@ -41,7 +41,7 @@ export const AboutPage: React.FC = () => {
           </div>
           <h3 className="text-lg font-bold text-[#08233F] font-display">{t('Zero Commission')}</h3>
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-            {t('Apply directly to 450+ verified transport and corporate fleets with 100% wage transparency.')}
+            {t('Browse verified employers and review each job listing for its pay and hiring details.')}
           </p>
         </div>
 
@@ -51,7 +51,7 @@ export const AboutPage: React.FC = () => {
           </div>
           <h3 className="text-lg font-bold text-[#08233F] font-display">{t('Direct Hiring')}</h3>
           <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-            {t('Connecting verified commercial and personal drivers directly with top logistics fleets, corporate employers, and private vehicle owners. Direct hiring, verified licenses, zero agency cuts.')}
+            {t('Driver Hub connects drivers and employers through job listings, applications, and profile verification tools. Check each listing and account status for current details.')}
           </p>
         </div>
       </div>
@@ -66,7 +66,7 @@ export const AboutPage: React.FC = () => {
             {t('Why Choose DriverHub')}
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            {t('Connecting verified commercial and personal drivers directly with top logistics fleets, corporate employers, and private vehicle owners. Direct hiring, verified licenses, zero agency cuts.')}
+              {t('Driver Hub connects drivers and employers through job listings, applications, and profile verification tools. Check each listing and account status for current details.')}
           </p>
         </div>
 
@@ -81,8 +81,8 @@ export const AboutPage: React.FC = () => {
           <div className="flex items-start gap-3.5 bg-white/5 p-4 rounded-xl border border-white/10">
             <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-white block">{t('100% License Verified')}</span>
-              <span>{t('100% RTO Verified')}</span>
+              <span className="font-bold text-white block">{t('License documents reviewed')}</span>
+              <span>{t('Verified status appears after document review.')}</span>
             </div>
           </div>
         </div>

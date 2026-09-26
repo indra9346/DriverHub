@@ -108,6 +108,20 @@ export const SupabaseSync = {
     }
   },
 
+  subscribeToPublicMarketplaceStats(onChange: () => void) {
+    if (!isSupabaseConfigured) return () => undefined;
+    const channel = supabase
+      .channel(`public-marketplace-stats-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_profiles' }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_documents' }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, onChange)
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  },
+
   async updateAdminJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user) return false;
@@ -954,6 +968,21 @@ export const SupabaseSync = {
           if (directoryError) throw directoryError;
 
           const driverByUserId = new Map((driverRows || []).map((row: any) => [row.user_id, row]));
+          const adminDriverIds = (driverAccounts || []).map((account: any) => account.id);
+          const { data: adminDocumentRows, error: adminDocumentsError } = adminDriverIds.length
+            ? await supabase.from('driver_documents').select('*').in('driver_id', adminDriverIds)
+            : { data: [], error: null };
+          if (adminDocumentsError) throw adminDocumentsError;
+          const documentsByDriverId = new Map<string, DriverDocument[]>();
+          for (const row of adminDocumentRows || []) {
+            const documents = documentsByDriverId.get(row.driver_id) || [];
+            documents.push({
+              id: row.id, driverId: row.driver_id, name: row.name || '', type: row.type,
+              fileUrl: row.file_url || '', fileSize: row.file_size || undefined,
+              uploadDate: row.upload_date?.slice(0, 10) || '', verificationStatus: row.verification_status
+            });
+            documentsByDriverId.set(row.driver_id, documents);
+          }
           const adminDrivers: DriverProfile[] = (driverAccounts || []).map((account: any) => {
             const row = driverByUserId.get(account.id) as any;
             const status = account.status === 'suspended' ? 'blocked' : account.status || 'active';
@@ -974,7 +1003,7 @@ export const SupabaseSync = {
               outstationWilling: Boolean(row?.outstation_willing), cvAttached: Boolean(row?.cv_attached),
               policeVerified: Boolean(row?.police_verified), lastActive: row?.updated_at || account.updated_at,
               bio: row?.bio || '', resumeUrl: row?.resume_url || undefined,
-              status: status as DriverProfile['status'], experiences: [], documents: []
+              status: status as DriverProfile['status'], experiences: [], documents: documentsByDriverId.get(account.id) || []
             };
           });
           dataStore.mergeRemoteDrivers(adminDrivers);

@@ -149,7 +149,7 @@ export const RegisterPage: React.FC = () => {
           id: 'notif-welcome-' + Date.now(),
           userId: userId,
           title: 'Welcome to Driver Hub Employer Portal! 🏢',
-          message: `Welcome ${companyName}! You can now post driver job vacancies and access 12,500+ verified commercial drivers across India.`,
+          message: `Welcome ${companyName}! You can now post driver job vacancies and review applications from drivers who apply to your listings.`,
           type: 'system',
           read: false,
           createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),

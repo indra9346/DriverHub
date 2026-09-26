@@ -21,7 +21,13 @@ export const EmployerReports: React.FC = () => {
   const [downloadedMsg, setDownloadedMsg] = useState<string | null>(null);
 
   const ownJobIds = new Set(DataStore.getJobs().filter(job => job.employerId === employerId).map(job => job.id));
-  const applications = DataStore.getApplications().filter(app => ownJobIds.has(app.jobId));
+  const allApplications = DataStore.getApplications().filter(app => ownJobIds.has(app.jobId));
+  const cutoff = daysRange === 'all' ? null : Date.now() - Number(daysRange) * 24 * 60 * 60 * 1000;
+  const applications = allApplications.filter(app => {
+    if (cutoff === null) return true;
+    const appliedAt = Date.parse(app.appliedDate);
+    return Number.isFinite(appliedAt) && appliedAt >= cutoff;
+  });
   const unlocks = DataStore.getCandidateUnlocks(employerId);
 
   const handleDownloadApplicationsCSV = () => {
@@ -43,10 +49,10 @@ export const EmployerReports: React.FC = () => {
       `"${app.jobTitle || 'Commercial Driver'}"`,
       `"${app.companyName || ''}"`,
       `"${app.driverName || 'Driver Candidate'}"`,
-      `"${app.driverCategory || 'HMV'}"`,
-      `"${app.driverExperienceYears || 3} Years"`,
+      `"${app.driverCategory || ''}"`,
+      `"${app.driverExperienceYears ?? ''}${app.driverExperienceYears == null ? '' : ' Years'}"`,
       `"${app.driverPhone || ''}"`,
-      `"${app.driverLocation || 'Bengaluru'}"`,
+      `"${app.driverLocation || ''}"`,
       `"${app.status.toUpperCase()}"`,
       `"${app.appliedDate}"`
     ].join(','));

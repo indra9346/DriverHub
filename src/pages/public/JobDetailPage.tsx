@@ -10,6 +10,7 @@ import { DataStore } from '../../services/store';
 import { Job, Application, DriverProfile } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useLanguage, formatSalaryDisplay } from '../../services/i18n';
+import { getJobCardBanner } from '../../services/cardBanners';
 
 export const JobDetailPage: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -142,25 +143,42 @@ export const JobDetailPage: React.FC = () => {
       </Link>
 
       {/* Main Job Hero Header */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/90 shadow-subtle space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-subtle">
-              {job.companyLogo ? (
-                <img src={job.companyLogo} alt={job.companyName} className="w-full h-full object-cover" />
-              ) : (
-                <Building2 className="w-8 h-8 text-slate-400" />
-              )}
-            </div>
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-subtle overflow-hidden">
+        {/* Realistic Vehicle / Route Banner */}
+        <div className="relative h-36 sm:h-48 w-full overflow-hidden bg-slate-900">
+          <img
+            src={getJobCardBanner(job).url}
+            alt={getJobCardBanner(job).alt}
+            className="w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#08233F] via-[#08233F]/50 to-black/30" />
+          <div className="absolute top-4 left-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md text-amber-400 font-bold text-xs border border-amber-400/30 shadow-md">
+              <Sparkles className="w-3.5 h-3.5" />
+              {t(job.category)}
+            </span>
+          </div>
+        </div>
 
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  to={`/jobs?category=${encodeURIComponent(job.category)}`}
-                  className="badge-category text-xs bg-blue-50 text-blue-800 font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
-                >
-                  {t(job.category)}
-                </Link>
+        <div className="p-6 sm:p-8 pt-0 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 -mt-8 sm:-mt-10">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white border-2 border-white overflow-hidden flex items-center justify-center shrink-0 shadow-lg relative z-10">
+                {job.companyLogo ? (
+                  <img src={job.companyLogo} alt={job.companyName} className="w-full h-full object-cover" />
+                ) : (
+                  <Building2 className="w-8 h-8 text-slate-400" />
+                )}
+              </div>
+
+              <div className="space-y-1.5 pt-7 sm:pt-9">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link
+                    to={`/jobs?category=${encodeURIComponent(job.category)}`}
+                    className="badge-category text-xs bg-blue-50 text-blue-800 font-semibold hover:bg-blue-100 transition-colors cursor-pointer"
+                  >
+                    {t(job.category)}
+                  </Link>
                 <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
                   {t(job.employmentType)}
                 </span>
@@ -286,6 +304,7 @@ export const JobDetailPage: React.FC = () => {
             </span>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Main Content Layout */}

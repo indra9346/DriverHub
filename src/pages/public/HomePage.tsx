@@ -6,10 +6,10 @@ import {
   IndianRupee, Phone, Check, Clock, Zap, Shield, FileCheck
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { Job } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
 import { useLanguage } from '../../services/i18n';
-import { SupabaseSync } from '../../services/supabaseSync';
 
 export const HomePage: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -22,6 +22,7 @@ export const HomePage: React.FC = () => {
   const [trustedEmployersError, setTrustedEmployersError] = useState(false);
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
+  const [verifiedEmployers, setVerifiedEmployers] = useState<any[]>([]);
   const navigate = useNavigate();
 
   const [marketplaceStats, setMarketplaceStats] = useState<Awaited<ReturnType<typeof SupabaseSync.fetchPublicMarketplaceStats>>>(null);
@@ -29,6 +30,11 @@ export const HomePage: React.FC = () => {
   const loadData = () => {
     const active = DataStore.getJobs().filter(j => j.status === 'active');
     setFeaturedJobs(active.slice(0, 6));
+
+    // Dynamic verified partners list (employers approved/verified by admin)
+    const allEmps = DataStore.getEmployers();
+    const verified = allEmps.filter(e => e.verified);
+    setVerifiedEmployers(verified.length > 0 ? verified : allEmps.slice(0, 8));
 
     const user = DataStore.getCurrentUser();
     if (user && user.role === 'driver') {
@@ -394,38 +400,34 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {categories.map((cat, idx) => (
+          {categories.map((cat, idx) => {
+            const count = marketplaceStats 
+              ? cat.countKeys.reduce((acc, key) => acc + (marketplaceStats.vacanciesByCategory[key] || 0), 0)
+              : 0;
+            return (
             <Link
               key={idx}
               to={`/jobs?category=${encodeURIComponent(cat.filter)}`}
-              className="group overflow-hidden bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between"
+              className="group p-5 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between"
             >
-              <div className="relative h-28 overflow-hidden bg-[#0d3154]">
-                <img src={cat.image} alt="" aria-hidden="true" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 motion-reduce:transition-none" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#08233F]/70 via-[#08233F]/20 to-transparent" />
-                <span className="absolute bottom-3 left-4 text-3xl drop-shadow">{cat.icon}</span>
+              <div className="space-y-2">
+                <span className="text-3xl block group-hover:scale-105 transition-transform">{cat.icon}</span>
+                <h3 className="text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors">
+                  {t(cat.label)}
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  {t(cat.desc)}
+                </p>
               </div>
-              <div className="flex flex-1 flex-col justify-between p-5">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors">
-                    {t(cat.label)}
-                  </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    {t(cat.desc)}
-                  </p>
-                </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400 group-hover:text-slate-700">
-                  <span className="text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full text-[11px] font-bold border border-blue-200/60">
-                    {marketplaceStats
-                      ? t('{count} Vacancies', { count: cat.countKeys.reduce((total, key) => total + (marketplaceStats.vacanciesByCategory[key] || 0), 0) })
-                      : '—'}
-                  </span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-500 group-hover:text-blue-700" />
-                </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400 group-hover:text-slate-700">
+                <span className="text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full text-[11px] font-bold border border-blue-200/60">
+                  {t('{count} Vacancies', { count })}
+                </span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-500 group-hover:text-blue-700" />
               </div>
             </Link>
-          ))}
+          )})}
         </div>
       </section>
 
@@ -474,19 +476,22 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* SECTION 5: TRUSTED FLEETS SHOWCASE */}
+      {/* SECTION 5: TRUSTED FLEETS SHOWCASE (Verified Partners auto-dropped when verified by Admin) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            {t('Top Employers')}
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-wider border border-amber-200">
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> {t('Verified Partner')}
           </span>
           <h2 className="text-2xl font-extrabold text-[#08233F] font-display">
             {lang === 'kn' ? 'ಭಾರತದ ಪ್ರಮುಖ ಫ್ಲೀಟ್ ಮತ್ತು ಸಾರಿಗೆ ಸಂಸ್ಥೆಗಳು' : 'Trusted by Leading Fleets & Enterprises'}
           </h2>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {t('Explore verified transport companies, corporate fleets, and schools hiring drivers directly.')}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {trustedEmployers.map(({ employer: emp }) => (
+          {DataStore.getEmployers().map((emp) => (
             <Link
               key={emp.id}
               to={`/jobs?q=${encodeURIComponent(emp.companyName)}`}

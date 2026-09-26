@@ -1036,14 +1036,35 @@ export const SupabaseSync = {
         }
       }
 
+      // Fetch all public & verified company profiles from Supabase so all devices (drivers, visitors, employers) sync verified partners
+      const { data: allCompanies } = await supabase.from('companies').select('*');
+      if (allCompanies && allCompanies.length > 0) {
+        const publicEmployers: EmployerProfile[] = allCompanies.map((c: any) => ({
+          id: c.user_id,
+          companyName: c.company_name || 'Verified Fleet Partner',
+          contactPerson: c.contact_person || '',
+          email: c.email || '',
+          phone: c.phone || '',
+          industry: c.industry || 'Logistics & Fleet Transport',
+          location: c.location || [c.city, c.state].filter(Boolean).join(', ') || 'India',
+          city: c.city || '',
+          state: c.state || '',
+          address: c.address || '',
+          website: c.website || '',
+          logoUrl: c.logo_url || '',
+          description: c.description || '',
+          gstin: c.gstin || '',
+          verified: Boolean(c.verified),
+          status: c.status === 'suspended' ? 'blocked' : (c.status || (c.verified ? 'active' : 'pending')),
+          createdAt: c.created_at?.slice(0, 10) || ''
+        }));
+        dataStore.mergeRemoteEmployers(publicEmployers);
+      }
+
       const { data: jobRows, error: jobError } = await supabase.from('jobs').select('*').order('posted_date', { ascending: false });
       if (jobError) throw jobError;
       const rows = jobRows || [];
-      const employerIds = [...new Set(rows.map((r: any) => r.employer_id).filter(Boolean))];
-      const { data: companies } = employerIds.length
-        ? await supabase.from('companies').select('*').in('user_id', employerIds)
-        : { data: [] as any[] };
-      const companyById = new Map((companies || []).map((company: any) => [company.user_id, company]));
+      const companyById = new Map((allCompanies || []).map((company: any) => [company.user_id, company]));
       const jobs: Job[] = rows.map((row: any) => {
         const company = companyById.get(row.employer_id) as any;
         return {

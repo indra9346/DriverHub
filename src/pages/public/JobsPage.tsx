@@ -6,6 +6,7 @@ import {
   Building2, Compass, CheckCircle2, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { useLanguage } from '../../services/i18n';
 import { Job, DriverCategory } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
 import { 
@@ -66,6 +67,7 @@ const jobMatchesState = (job: Job, state: string) => {
 
 export const JobsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { lang, t } = useLanguage();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [currentUser, setCurrentUser] = useState(DataStore.getCurrentUser());
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
@@ -497,9 +499,9 @@ export const JobsPage: React.FC = () => {
           {/* 8. Salary Min Slider */}
           <div>
             <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-              <span>Minimum Guaranteed Salary</span>
+              <span>{t('Minimum Guaranteed Salary')}</span>
               <span className="text-emerald-700 font-bold">
-                {minSalary > 0 ? `₹${minSalary.toLocaleString('en-IN')}+/mo` : 'Any'}
+                {minSalary > 0 ? `₹${minSalary.toLocaleString('en-IN')}+${lang === 'kn' ? ' / ತಿಂಗಳು' : '/mo'}` : t('Any')}
               </span>
             </div>
             <input
@@ -716,9 +718,9 @@ export const JobsPage: React.FC = () => {
               {/* Min Salary */}
               <div>
                 <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                  <span>Min Salary</span>
+                  <span>{t('Min Salary')}</span>
                   <span className="text-emerald-700 font-bold">
-                    {minSalary > 0 ? `₹${minSalary.toLocaleString('en-IN')}+` : 'Any'}
+                    {minSalary > 0 ? `₹${minSalary.toLocaleString('en-IN')}+${lang === 'kn' ? ' / ತಿಂಗಳು' : ''}` : t('Any')}
                   </span>
                 </div>
                 <input

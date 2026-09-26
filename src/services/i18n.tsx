@@ -38,6 +38,10 @@ const EN_TO_KN: Record<string, string> = {
   '₹25k - ₹50k/mo Salary': '₹25k - ₹50k/ತಿಂಗಳ ವೇತನ',
   'Zero Commission': 'ಶೂನ್ಯ ಕಮಿಷನ್',
   'All Driver Types': 'ಎಲ್ಲಾ ಚಾಲಕ ವಿಭಾಗಗಳು',
+  'Bus Driver': 'ಬಸ್ ಚಾಲಕ',
+  'Driver License / Vehicle Category': 'ಚಾಲನಾ ಪರವಾನಗಿ / ವಾಹನದ ವಿಭಾಗ',
+  'Must-Have Skill': 'ಅಗತ್ಯ ಕೌಶಲ್ಯ',
+  'Shift / Employment Type': 'ಪಾಳಿ / ಉದ್ಯೋಗದ ವಿಧ',
   'All Vehicle Categories': 'ಎಲ್ಲಾ ವಾಹನ ವಿಭಾಗಗಳು',
   'Any Type': 'ಯಾವುದೇ ಕೆಲಸದ ವಿಧ',
   'Minimum Guaranteed Salary': 'ಕನಿಷ್ಠ ಖಾತರಿಪಡಿಸಿದ ವೇತನ',
@@ -73,6 +77,14 @@ const EN_TO_KN: Record<string, string> = {
   'Fleet & Corporate Employers': 'ಫ್ಲೀಟ್ ಮತ್ತು ಕಾರ್ಪೊರೇಟ್ ಕಂಪನಿಗಳು',
   'Active Job Openings': 'ಸಕ್ರಿಯ ಉದ್ಯೋಗಾವಕಾಶಗಳು',
   'Placement Success Rate': 'ನೇಮಕಾತಿ ಯಶಸ್ಸಿನ ದರ',
+  'Hired Applications': 'ನೇಮಕಗೊಂಡ ಅರ್ಜಿಗಳು',
+  'Pan-India Hubs:': 'ಭಾರತದಾದ್ಯಂತದ ಪ್ರಮುಖ ನಗರಗಳು:',
+  'Delhi NCR': 'ದೆಹಲಿ ಎನ್‌ಸಿಆರ್',
+  'Pune': 'ಪುಣೆ',
+  'Ahmedabad': 'ಅಹಮದಾಬಾದ್',
+  'Kolkata': 'ಕೊಲ್ಕತ್ತಾ',
+  'Featured Opportunities & Why DriverHub': 'ಪ್ರಮುಖ ಉದ್ಯೋಗಾವಕಾಶಗಳು ಮತ್ತು ಡ್ರೈವರ್ ಹಬ್ ಏಕೆ',
+  'Live database totals refresh automatically. Driver counts require an approved driving license; hires count applications marked hired.': 'ನೇರ ಡೇಟಾಬೇಸ್ ಸಂಖ್ಯೆಗಳು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ನವೀಕರಿಸುತ್ತವೆ. ಚಾಲಕರ ಎಣಿಕೆಗೆ ಅನುಮೋದಿತ ಚಾಲನಾ ಪರವಾನಗಿ ಅಗತ್ಯ; ನೇಮಕಾತಿ ಎಣಿಕೆಯಲ್ಲಿ ನೇಮಕಗೊಂಡ ಸ್ಥಿತಿಯ ಅರ್ಜಿಗಳನ್ನಷ್ಟೇ ಪರಿಗಣಿಸಲಾಗುತ್ತದೆ.',
 
   // Home Categories & Cards
   'Heavy Truck (HMV)': 'ಭಾರಿ ಟ್ರಕ್ ಚಾಲಕ (HMV)',
@@ -169,6 +181,17 @@ const EN_TO_KN: Record<string, string> = {
   'Recent Applications': 'ಇತ್ತೀಚಿನ ಅರ್ಜಿಗಳು',
   'Recent Updates': 'ಇತ್ತೀಚಿನ ಮಾಹಿತಿ',
   'View Inbox': 'ಇನ್‌ಬಾಕ್ಸ್ ನೋಡಿ',
+  'No unread notifications': 'ಓದದ ಅಧಿಸೂಚನೆಗಳಿಲ್ಲ',
+  'Applied': 'ಅರ್ಜಿ ಸಲ್ಲಿಸಲಾಗಿದೆ',
+  'View All': 'ಎಲ್ಲವನ್ನೂ ನೋಡಿ',
+  'Based on your Bus category profile in Chikkaballapur': 'ಚಿಕ್ಕಬಳ್ಳಾಪುರದಲ್ಲಿನ ನಿಮ್ಮ ಬಸ್ ಚಾಲಕ ಪ್ರೊಫೈಲ್ ಆಧರಿಸಿ',
+  'Looking for a cautious, punctual, and child-friendly driver to operate 32-seater school buses for daily student pick-up and drop-off across Mysuru.': 'ಮೈಸೂರಿನಾದ್ಯಂತ ವಿದ್ಯಾರ್ಥಿಗಳ ದೈನಂದಿನ ಪಿಕ್‌ಅಪ್ ಮತ್ತು ಡ್ರಾಪ್‌ಗಾಗಿ 32 ಆಸನಗಳ ಶಾಲಾ ಬಸ್ ಓಡಿಸಲು ಎಚ್ಚರಿಕೆಯ, ಸಮಯಪಾಲಕ ಮತ್ತು ಮಕ್ಕಳೊಂದಿಗೆ ಸ್ನೇಹಪರ ಚಾಲಕರನ್ನು ಹುಡುಕುತ್ತಿದ್ದೇವೆ.',
+  'Safe student and faculty transit across designated school routes in Mysuru. Zero tolerance for speeding or rash driving.': 'ಮೈಸೂರಿನ ನಿಗದಿತ ಶಾಲಾ ಮಾರ್ಗಗಳಲ್ಲಿ ವಿದ್ಯಾರ್ಥಿಗಳು ಮತ್ತು ಸಿಬ್ಬಂದಿಗೆ ಸುರಕ್ಷಿತ ಸಾರಿಗೆ. ಅತಿವೇಗ ಅಥವಾ ಅಜಾಗರೂಕ ಚಾಲನೆಗೆ ಯಾವುದೇ ಸಹನೆ ಇಲ್ಲ.',
+  'School Bus & Student Van Driver': 'ಶಾಲಾ ಬಸ್ ಮತ್ತು ವಿದ್ಯಾರ್ಥಿ ವ್ಯಾನ್ ಚಾಲಕ',
+  'School & Staff Bus Driver': 'ಶಾಲೆ ಮತ್ತು ಸಿಬ್ಬಂದಿ ಬಸ್ ಚಾಲಕ',
+  'Split Shift: 6:30 AM - 10:00 AM / 1:30 PM - 5:30 PM': 'ವಿಭಜಿತ ಪಾಳಿ: ಬೆಳಿಗ್ಗೆ 6:30–10:00 / ಮಧ್ಯಾಹ್ನ 1:30–ಸಂಜೆ 5:30',
+  'Morning & Afternoon split shifts': 'ಬೆಳಿಗ್ಗೆ ಮತ್ತು ಮಧ್ಯಾಹ್ನದ ವಿಭಜಿತ ಪಾಳಿಗಳು',
+  'Sunrise Educational Transit': 'ಸನ್‌ರೈಸ್ ಎಜುಕೇಶನಲ್ ಟ್ರಾನ್ಸಿಟ್',
   'Recommended for Your License & Location': 'ನಿಮ್ಮ ಲೈಸೆನ್ಸ್ ಮತ್ತು ಸ್ಥಳಕ್ಕೆ ಶಿಫಾರಸು ಮಾಡಿದ ಕೆಲಸಗಳು',
   'View All Vacancies →': 'ಎಲ್ಲಾ ಕೆಲಸಗಳನ್ನು ನೋಡಿ →',
 
@@ -198,6 +221,20 @@ const EN_TO_KN: Record<string, string> = {
   'Unlocked Database Drivers': 'ಅನ್‌ಲಾಕ್ ಮಾಡಿದ ಚಾಲಕರು',
   'View Report': 'ವರದಿ ನೋಡಿ',
   'View Unlocked Drivers': 'ಅನ್‌ಲಾಕ್ ಮಾಡಿದ ಚಾಲಕರನ್ನು ನೋಡಿ',
+  'GET IN TOUCH': 'ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ',
+  "We're Here to Help Chauffeurs & Fleets 24/7": 'ಚಾಲಕರು ಮತ್ತು ಸಾರಿಗೆ ಕಂಪನಿಗಳಿಗೆ 24/7 ಸಹಾಯಕ್ಕೆ ನಾವು ಸಿದ್ಧ',
+  'Have questions about job listings, RTO verification, or enterprise fleet hiring? Reach out to our dedicated support desk.': 'ಉದ್ಯೋಗ ಪ್ರಕಟಣೆಗಳು, ಆರ್‌ಟಿಒ ಪರಿಶೀಲನೆ ಅಥವಾ ದೊಡ್ಡ ಸಾರಿಗೆ ಕಂಪನಿಗಳ ನೇಮಕಾತಿ ಕುರಿತು ಪ್ರಶ್ನೆಗಳಿವೆಯೇ? ನಮ್ಮ ಬೆಂಬಲ ತಂಡವನ್ನು ಸಂಪರ್ಕಿಸಿ.',
+  'Central Operations & Helpdesk': 'ಕೇಂದ್ರ ಕಾರ್ಯಾಚರಣೆ ಮತ್ತು ಸಹಾಯವಾಣಿ',
+  'Full Name': 'ಪೂರ್ಣ ಹೆಸರು',
+  'Phone Number': 'ದೂರವಾಣಿ ಸಂಖ್ಯೆ',
+  'Email Address': 'ಇಮೇಲ್ ವಿಳಾಸ',
+  'Inquiry Type': 'ವಿಚಾರಣೆಯ ವಿಧ',
+  'Submit Inquiry': 'ವಿಚಾರಣೆ ಸಲ್ಲಿಸಿ',
+  'How can our recruitment team assist you today?': 'ಇಂದು ನಮ್ಮ ನೇಮಕಾತಿ ತಂಡ ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?',
+  'Need help with a specific issue?': 'ನಿರ್ದಿಷ್ಟ ಸಮಸ್ಯೆಗೆ ಸಹಾಯ ಬೇಕೇ?',
+  'Our national dispatch & verification desk is based in Bengaluru with regional support coordinators across South and Western India.': 'ನಮ್ಮ ರಾಷ್ಟ್ರೀಯ ಕಾರ್ಯಾಚರಣೆ ಮತ್ತು ಪರಿಶೀಲನಾ ಕೇಂದ್ರ ಬೆಂಗಳೂರಿನಲ್ಲಿದೆ. ದಕ್ಷಿಣ ಮತ್ತು ಪಶ್ಚಿಮ ಭಾರತದಲ್ಲಿ ಪ್ರಾದೇಶಿಕ ಸಹಾಯ ಸಂಯೋಜಕರಿದ್ದಾರೆ.',
+  'For verified drivers currently on interstate transit routes:': 'ಅಂತರರಾಜ್ಯ ಮಾರ್ಗಗಳಲ್ಲಿ ಪ್ರಯಾಣಿಸುತ್ತಿರುವ ಪರಿಶೀಲಿತ ಚಾಲಕರಿಗಾಗಿ:',
+  'Monday - Saturday (9:00 AM - 7:00 PM IST)': 'ಸೋಮವಾರದಿಂದ ಶನಿವಾರದವರೆಗೆ (ಬೆಳಿಗ್ಗೆ 9ರಿಂದ ಸಂಜೆ 7ರವರೆಗೆ, ಭಾರತೀಯ ಸಮಯ)',
 
   // Admin Console
   'Driver Hub Administration & Moderation': 'ಡ್ರೈವರ್ ಹಬ್ ಅಡ್ಮಿನ್ ಮತ್ತು ಅನುಮೋದನೆ ಕೇಂದ್ರ',
@@ -221,6 +258,9 @@ const EN_TO_KN: Record<string, string> = {
 // 2. DYNAMIC REGEX RULES (Translates Dynamic Counts, Salaries, Experience, Dates)
 // ============================================================================
 const REGEX_KN_RULES: Array<[RegExp, (...args: string[]) => string]> = [
+  [/^₹\s*([\d,]+)\s*[-–]\s*₹?\s*([\d,]+)\s*\/\s*mo$/i, (_, min, max) => `₹${min} – ₹${max} / ತಿಂಗಳು`],
+  [/^Exp:\s*(\d+\+?(?:\s*[-–]\s*\d+\+?)?)\s*Years?$/i, (_, years) => `ಅನುಭವ: ${years} ವರ್ಷ`],
+  [/^Page\s+(\d+)\s+of\s+(\d+)\s+\((\d+)\s+Vacancies\)$/i, (_, page, pages, count) => `ಪುಟ ${page} / ${pages} (${count} ಹುದ್ದೆಗಳು)`],
   [/^(\d+)\s+profiles found for\s+(.+)$/i, (_, count, query) => `${query} ಗಾಗಿ ${count} ಚಾಲಕರ ಪ್ರೊಫೈಲ್‌ಗಳು ಕಂಡುಬಂದಿವೆ`],
   [/^All Jobs\s*\((\d+)\)$/i, (_, n) => `ಎಲ್ಲಾ ಉದ್ಯೋಗಗಳು (${n})`],
   [/^All Filters\s*\((\d+)\)$/i, (_, n) => `ಎಲ್ಲಾ ಫಿಲ್ಟರ್‌ಗಳು (${n})`],
@@ -233,6 +273,8 @@ const REGEX_KN_RULES: Array<[RegExp, (...args: string[]) => string]> = [
   [/^Unlocked Candidates\s*\((\d+)\)$/i, (_, n) => `ಅನ್‌ಲಾಕ್ ಮಾಡಿದ ಚಾಲಕರು (${n})`],
   [/^Select All\s*\((\d+)\)$/i, (_, n) => `ಎಲ್ಲಾ ಆಯ್ಕೆಮಾಡಿ (${n})`],
   [/^Filters\s*\((\d+)\)$/i, (_, n) => `ಫಿಲ್ಟರ್‌ಗಳು (${n})`],
+  [/^View All\s*\((\d+)\)$/i, (_, n) => `ಎಲ್ಲವನ್ನೂ ನೋಡಿ (${n})`],
+  [/^Based on your (.+) category profile in (.+)$/i, (_, category, city) => `${translateStringToKannada(category)} ವಿಭಾಗದ ನಿಮ್ಮ ${translateStringToKannada(city)} ಪ್ರೊಫೈಲ್ ಆಧರಿಸಿ`],
   [/^View Applicants\s*\((\d+)\)$/i, (_, n) => `ಅರ್ಜಿದಾರರನ್ನು ನೋಡಿ (${n})`],
   [/^Review Pending Jobs\s*\((\d+)\)$/i, (_, n) => `ಬಾಕಿ ಉದ್ಯೋಗಗಳನ್ನು ಪರಿಶೀಲಿಸಿ (${n})`],
   [/^Pending Approvals\s*\((\d+)\)$/i, (_, n) => `ಬಾಕಿ ಅನುಮೋದನೆಗಳು (${n})`],
@@ -253,6 +295,18 @@ const REGEX_KN_RULES: Array<[RegExp, (...args: string[]) => string]> = [
 // 3. PHRASE & VOCABULARY REPLACEMENT (Translates Composite & Dynamic Data Strings)
 // ============================================================================
 const PHRASE_REPLACEMENTS: Array<[string, string]> = [
+  ["We're Here to Help", 'ಸಹಾಯ ಮಾಡಲು ನಾವು ಇಲ್ಲಿದ್ದೇವೆ'],
+  ['Chauffeurs & Fleets', 'ಚಾಲಕರು ಮತ್ತು ಸಾರಿಗೆ ಕಂಪನಿಗಳು'],
+  ['Get in Touch', 'ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ'],
+  ['GET IN TOUCH', 'ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ'],
+  ['Featured Opportunities & Why', 'ಪ್ರಮುಖ ಉದ್ಯೋಗಾವಕಾಶಗಳು ಮತ್ತು'],
+  ['Live database totals refresh automatically.', 'ನೇರ ಡೇಟಾಬೇಸ್ ಸಂಖ್ಯೆಗಳು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ನವೀಕರಿಸುತ್ತವೆ.'],
+  ['Driver counts require an approved driving license;', 'ಚಾಲಕರ ಎಣಿಕೆಗೆ ಅನುಮೋದಿತ ಚಾಲನಾ ಪರವಾನಗಿ ಅಗತ್ಯ;'],
+  ['hires count applications marked hired.', 'ನೇಮಕಗೊಂಡ ಸ್ಥಿತಿಯ ಅರ್ಜಿಗಳನ್ನಷ್ಟೇ ನೇಮಕಾತಿ ಎಣಿಕೆಯಲ್ಲಿ ಪರಿಗಣಿಸಲಾಗುತ್ತದೆ.'],
+  ['No unread notifications', 'ಓದದ ಅಧಿಸೂಚನೆಗಳಿಲ್ಲ'],
+  ['View All', 'ಎಲ್ಲವನ್ನೂ ನೋಡಿ'],
+  ['Hired Applications', 'ನೇಮಕಗೊಂಡ ಅರ್ಜಿಗಳು'],
+  ['Fleet & Corporate', 'ಫ್ಲೀಟ್ ಮತ್ತು ಕಾರ್ಪೊರೇಟ್'],
   ['Active & Verified', 'ಸಕ್ರಿಯ ಮತ್ತು ಪರಿಶೀಲಿಸಲಾಗಿದೆ'],
   ['Verified Employer', 'ಪರಿಶೀಲಿಸಿದ ಉದ್ಯೋಗದಾತ'],
   ['Verified Driver', 'ಪರಿಶೀಲಿಸಿದ ಚಾಲಕ'],
@@ -408,8 +462,11 @@ const LanguageContext = createContext<LanguageContextValue>({
 });
 
 const originalTextMap = new WeakMap<Text, string>();
+const lastAppliedTextMap = new WeakMap<Text, string>();
 const originalPlaceholderMap = new WeakMap<Element, string>();
+const lastAppliedPlaceholderMap = new WeakMap<Element, string>();
 const originalAttributeMap = new WeakMap<Element, Map<string, string>>();
+const lastAppliedAttributeMap = new WeakMap<Element, Map<string, string>>();
 let isApplyingTranslation = false;
 
 function clearAnyLegacyGoogleTranslateCookies() {
@@ -449,43 +506,34 @@ function applyDOMTranslation(lang: AppLanguage) {
       const currentVal = textNode.nodeValue || '';
       const trimmed = currentVal.trim();
       if (!trimmed) continue;
-
-      if (lang === 'kn') {
-        const original = originalTextMap.get(textNode) ?? currentVal;
-        if (!originalTextMap.has(textNode)) {
-          originalTextMap.set(textNode, currentVal);
-        }
-        const translated = translateStringToKannada(original);
-        if (translated !== currentVal) {
-          textNode.nodeValue = translated;
-        }
-      } else {
-        const original = originalTextMap.get(textNode);
-        if (original !== undefined && currentVal !== original) {
-          textNode.nodeValue = original;
-        }
+      const lastApplied = lastAppliedTextMap.get(textNode);
+      let original = originalTextMap.get(textNode);
+      if (original === undefined || (lastApplied !== undefined && currentVal !== lastApplied)) {
+        // React changed this text since our last pass: use the new React value
+        // as the source instead of restoring an outdated translation.
+        original = currentVal;
+        originalTextMap.set(textNode, original);
       }
+      const next = lang === 'kn' ? translateStringToKannada(original) : original;
+      lastAppliedTextMap.set(textNode, next);
+      if (next !== currentVal) textNode.nodeValue = next;
     }
 
     // 2. Translate or restore Input & Textarea Placeholders
     const inputs = document.querySelectorAll('input[placeholder], textarea[placeholder]');
     inputs.forEach((el) => {
       const currentPh = el.getAttribute('placeholder') || '';
-      if (lang === 'kn') {
-        const origPh = originalPlaceholderMap.get(el) ?? currentPh;
-        if (!originalPlaceholderMap.has(el)) {
-          originalPlaceholderMap.set(el, currentPh);
-        }
-        const translatedPh = PLACEHOLDER_EN_TO_KN[origPh] || translateStringToKannada(origPh);
-        if (translatedPh !== currentPh) {
-          el.setAttribute('placeholder', translatedPh);
-        }
-      } else {
-        const origPh = originalPlaceholderMap.get(el);
-        if (origPh !== undefined && currentPh !== origPh) {
-          el.setAttribute('placeholder', origPh);
-        }
+      const lastApplied = lastAppliedPlaceholderMap.get(el);
+      let original = originalPlaceholderMap.get(el);
+      if (original === undefined || (lastApplied !== undefined && currentPh !== lastApplied)) {
+        original = currentPh;
+        originalPlaceholderMap.set(el, original);
       }
+      const next = lang === 'kn'
+        ? (PLACEHOLDER_EN_TO_KN[original] || translateStringToKannada(original))
+        : original;
+      lastAppliedPlaceholderMap.set(el, next);
+      if (next !== currentPh) el.setAttribute('placeholder', next);
     });
 
     // Keep accessible labels, tooltips and image descriptions in the same
@@ -500,9 +548,17 @@ function applyDOMTranslation(lang: AppLanguage) {
       for (const attribute of translatableAttributes) {
         const current = el.getAttribute(attribute);
         if (current === null) continue;
-        if (!originals.has(attribute)) originals.set(attribute, current);
+        let applied = lastAppliedAttributeMap.get(el);
+        if (!applied) {
+          applied = new Map<string, string>();
+          lastAppliedAttributeMap.set(el, applied);
+        }
+        if (!originals.has(attribute) || (applied.has(attribute) && current !== applied.get(attribute))) {
+          originals.set(attribute, current);
+        }
         const original = originals.get(attribute)!;
         const next = lang === 'kn' ? translateStringToKannada(original) : original;
+        applied.set(attribute, next);
         if (current !== next) el.setAttribute(attribute, next);
       }
     });

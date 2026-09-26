@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" fill="none">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0B3155"/><stop offset="1" stop-color="#146B62"/></linearGradient><linearGradient id="coin" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFD76B"/><stop offset="1" stop-color="#E99B19"/></linearGradient></defs>
+  <path fill="url(#bg)" d="M0 0h960v320H0z"/><circle cx="778" cy="94" r="165" fill="#F4B63D" opacity=".15"/><path d="M0 265c181-64 296 20 456-3 132-18 318-91 504-51v109H0z" fill="#041D36" opacity=".55"/>
+  <g transform="translate(605 43)"><path d="M0 80c0-19 58-35 130-35s130 16 130 35v137c0 20-58 36-130 36S0 237 0 217z" fill="#D88A14"/><ellipse cx="130" cy="80" rx="130" ry="36" fill="url(#coin)"/><path d="M0 126c0 20 58 36 130 36s130-16 130-36" stroke="#FFE49B" stroke-width="9"/><path d="M0 171c0 20 58 36 130 36s130-16 130-36" stroke="#FFE49B" stroke-width="9"/><text x="130" y="126" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="54" fill="#8C5209">₹</text></g>
+  <path d="M175 213h202M215 175h120M245 137h72" stroke="#8ECABB" stroke-width="8" stroke-linecap="round" opacity=".68"/><circle cx="175" cy="213" r="12" fill="#F8B431"/>
+</svg>

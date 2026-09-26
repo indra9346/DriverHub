@@ -7,7 +7,7 @@ import { useLanguage } from '../../services/i18n';
 
 export const CompaniesPage: React.FC = () => {
   const { t, lang } = useLanguage();
-  const [directory, setDirectory] = useState<Array<{ employer: EmployerProfile; activeJobCount: number }>>([]);
+  const [directory, setDirectory] = useState<Array<{ employer: EmployerProfile; activeVacancyCount: number }>>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -96,7 +96,7 @@ export const CompaniesPage: React.FC = () => {
 
       {/* Companies Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map(({ employer: company, activeJobCount: openJobs }) => {
+        {filtered.map(({ employer: company, activeVacancyCount: openVacancies }) => {
           return (
             <div
               key={company.id}
@@ -154,7 +154,7 @@ export const CompaniesPage: React.FC = () => {
 
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  {t('{count} Open Jobs', { count: openJobs })}
+                  {t('{count} Open Vacancies', { count: openVacancies })}
                 </span>
 
                 <Link

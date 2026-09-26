@@ -18,7 +18,7 @@ export function toUUID(id: string): string {
 }
 
 export const SupabaseSync = {
-  async fetchPublicEmployerDirectory(): Promise<Array<{ employer: EmployerProfile; activeJobCount: number }>> {
+  async fetchPublicEmployerDirectory(): Promise<Array<{ employer: EmployerProfile; activeVacancyCount: number }>> {
     if (!isSupabaseConfigured) throw new Error('The public employer directory is not connected to Supabase.');
 
     const { data: companyRows, error: companyError } = await supabase
@@ -36,15 +36,17 @@ export const SupabaseSync = {
     const now = new Date().toISOString();
     const { data: activeJobRows, error: jobsError } = await supabase
       .from('jobs')
-      .select('employer_id')
+      .select('employer_id,vacancies')
       .in('employer_id', employerIds)
       .eq('status', 'active')
-      .or(`expires_at.is.null,expires_at.gt.${now}`);
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+      .or(`application_deadline.is.null,application_deadline.gte.${now}`);
     if (jobsError) throw new Error(`Could not load live vacancy counts: ${jobsError.message}`);
 
     const counts = new Map<string, number>();
     for (const row of activeJobRows || []) {
-      counts.set(row.employer_id, (counts.get(row.employer_id) || 0) + 1);
+      const vacancies = Math.max(0, Number(row.vacancies) || 1);
+      counts.set(row.employer_id, (counts.get(row.employer_id) || 0) + vacancies);
     }
 
     return companies.map((row: any) => ({
@@ -67,7 +69,7 @@ export const SupabaseSync = {
         status: row.status || 'active',
         createdAt: row.created_at?.slice(0, 10) || ''
       },
-      activeJobCount: counts.get(row.user_id) || 0
+      activeVacancyCount: counts.get(row.user_id) || 0
     }));
   },
 

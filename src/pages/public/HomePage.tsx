@@ -17,6 +17,9 @@ export const HomePage: React.FC = () => {
   const [category, setCategory] = useState<string>('');
   const [location, setLocation] = useState('');
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
+  const [trustedEmployers, setTrustedEmployers] = useState<Awaited<ReturnType<typeof SupabaseSync.fetchPublicEmployerDirectory>>>([]);
+  const [trustedEmployersLoading, setTrustedEmployersLoading] = useState(true);
+  const [trustedEmployersError, setTrustedEmployersError] = useState(false);
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
   const navigate = useNavigate();
@@ -42,6 +45,45 @@ export const HomePage: React.FC = () => {
     loadData();
     window.addEventListener('driverhub_storage_updated', loadData);
     return () => window.removeEventListener('driverhub_storage_updated', loadData);
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let refreshTimer: number | undefined;
+    let requestVersion = 0;
+    const refresh = async () => {
+      const version = ++requestVersion;
+      try {
+        const employers = await SupabaseSync.fetchPublicEmployerDirectory();
+        if (!disposed && version === requestVersion) {
+          setTrustedEmployers(employers);
+          setTrustedEmployersError(false);
+        }
+      } catch (error) {
+        console.warn('Could not load the live verified employer cards:', error);
+        if (!disposed && version === requestVersion) setTrustedEmployersError(true);
+      } finally {
+        if (!disposed && version === requestVersion) setTrustedEmployersLoading(false);
+      }
+    };
+    const scheduleRefresh = () => {
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => { if (!disposed) void refresh(); }, 250);
+    };
+    void refresh();
+    const unsubscribe = SupabaseSync.subscribeToPublicEmployerDirectory(scheduleRefresh);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh();
+    }, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      disposed = true;
+      requestVersion++;
+      unsubscribe();
+      window.clearInterval(interval);
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+      window.removeEventListener('focus', refresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -78,70 +120,72 @@ export const HomePage: React.FC = () => {
   };
 
   const categories = [
-    { label: 'Heavy Truck (HMV)', filter: 'HMV', countKeys: ['hmv', 'heavy truck (hmv)', 'heavy truck', 'hmv-transport'], icon: '🚛', desc: 'Multi-axle, interstate & container transport' },
-    { label: 'LMV Chauffeur', filter: 'LMV', countKeys: ['lmv', 'lmv-transport', 'personal driver', 'personal chauffeur'], icon: '🚗', desc: 'Personal, corporate sedans & luxury fleet' },
-    { label: 'Cab Driver', filter: 'Cab Driver', countKeys: ['cab driver', 'cab'], icon: '🚕', desc: 'App-based ride hailing & airport transfers' },
-    { label: 'Delivery Driver', filter: 'Delivery Driver', countKeys: ['delivery driver', 'delivery'], icon: '📦', desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
-    { label: 'School / Staff Bus', filter: 'Bus Driver', countKeys: ['bus driver', 'school bus driver', 'school / staff bus'], icon: '🚌', desc: 'Passenger transit & student shuttle' },
-    { label: 'Tempo / Ace', filter: 'Tempo Driver', countKeys: ['tempo driver', 'tempo / ace'], icon: '🚚', desc: 'Intra-city distribution & cargo logistics' },
-    { label: '40ft Trailer Driver', filter: 'Trailer Driver', countKeys: ['trailer driver', '40ft trailer driver'], icon: '🚜', desc: 'Port container clearing & heavy haulage' },
-    { label: 'Commercial Driver', filter: 'Commercial Driver', countKeys: ['commercial driver'], icon: '🚐', desc: 'Tour operations & outstation rentals' },
+    { label: 'Heavy Truck (HMV)', filter: 'HMV', countKeys: ['hmv', 'heavy truck (hmv)', 'heavy truck', 'hmv-transport'], icon: '🚛', image: '/hero-truck.jpg', desc: 'Multi-axle, interstate & container transport' },
+    { label: 'LMV Chauffeur', filter: 'LMV', countKeys: ['lmv', 'lmv-transport', 'personal driver', 'personal chauffeur'], icon: '🚗', image: '/auth-banner.jpg', desc: 'Personal, corporate sedans & luxury fleet' },
+    { label: 'Cab Driver', filter: 'Cab Driver', countKeys: ['cab driver', 'cab'], icon: '🚕', image: '/card-banners/taxi.svg', desc: 'App-based ride hailing & airport transfers' },
+    { label: 'Delivery Driver', filter: 'Delivery Driver', countKeys: ['delivery driver', 'delivery'], icon: '📦', image: '/card-banners/delivery.svg', desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
+    { label: 'School / Staff Bus', filter: 'Bus Driver', countKeys: ['bus driver', 'school bus driver', 'school / staff bus'], icon: '🚌', image: '/card-banners/bus.svg', desc: 'Passenger transit & student shuttle' },
+    { label: 'Tempo / Ace', filter: 'Tempo Driver', countKeys: ['tempo driver', 'tempo / ace'], icon: '🚚', image: '/card-banners/tempo.svg', desc: 'Intra-city distribution & cargo logistics' },
+    { label: '40ft Trailer Driver', filter: 'Trailer Driver', countKeys: ['trailer driver', '40ft trailer driver'], icon: '🚜', image: '/hero-truck.jpg', desc: 'Port container clearing & heavy haulage' },
+    { label: 'Commercial Driver', filter: 'Commercial Driver', countKeys: ['commercial driver'], icon: '🚐', image: '/card-banners/commercial.svg', desc: 'Tour operations & outstation rentals' },
   ];
 
   const siteAdCards = [
     {
-      badge: '⚡ ' + t('Direct Hiring'),
-      badgeColor: 'bg-amber-50 text-amber-900 border-amber-300',
+      badge: 'Direct Hiring',
       icon: '🤝',
-      title: t('Zero Middlemen Commission'),
-      subtitle: t('Browse verified employers and review each job listing for its pay and hiring details.'),
-      cta: t('Explore Openings'),
-      link: '/jobs'
+      title: 'Zero Middlemen Commission',
+      subtitle: 'Browse verified employers and review each job listing for its pay and hiring details.',
+      cta: 'Explore Openings',
+      link: '/jobs',
+      image: '/auth-banner.jpg',
+      imagePosition: '70% center'
     },
     {
-      badge: '🛡️ ' + t('Verified Drivers'),
-      badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300',
+      badge: 'Verified Drivers',
       icon: '✅',
-      title: t('Driver License Verification'),
-      subtitle: t('Upload your driving license for review. A verification badge appears after an administrator approves it.'),
-      cta: t('Register as Driver'),
-      link: '/register?role=driver'
+      title: 'Driver License Verification',
+      subtitle: 'Upload your driving license for review. A verification badge appears after an administrator approves it.',
+      cta: 'Register as Driver',
+      link: '/register?role=driver',
+      image: '/card-banners/license.svg'
     },
     {
-      badge: '💰 ' + (lang === 'kn' ? 'ವೇತನ ವಿವರಗಳು' : 'Salary Details'),
-      badgeColor: 'bg-blue-50 text-blue-900 border-blue-300',
+      badge: 'Salary Details',
       icon: '💵',
-      title: t('Compare Driver Job Salaries'),
-      subtitle: t('Salary and benefits vary by employer and vacancy. Check the details on each active job listing.'),
-      cta: t('Browse All Jobs'),
-      link: '/jobs?sort=salary'
+      title: 'Compare Driver Job Salaries',
+      subtitle: 'Salary and benefits vary by employer and vacancy. Check the details on each active job listing.',
+      cta: 'Browse All Jobs',
+      link: '/jobs?sort=salary',
+      image: '/card-banners/salary.svg'
     },
     {
-      badge: '🏢 ' + (lang === 'kn' ? 'ಫ್ಲೀಟ್ ಕಂಪನಿಗಳು' : 'Fleet Operators'),
-      badgeColor: 'bg-purple-50 text-purple-900 border-purple-300',
+      badge: 'Fleet Operators',
       icon: '🚛',
-      title: t('Verified Fleet Employers'),
-      subtitle: t('Explore verified employers and see their active vacancies.'),
-      cta: t('Top Employers'),
-      link: '/companies'
+      title: 'Verified Fleet Employers',
+      subtitle: 'Explore verified employers and see their active vacancies.',
+      cta: 'Top Employers',
+      link: '/companies',
+      image: '/hero-truck.jpg',
+      imagePosition: 'center 60%'
     },
     {
-      badge: '🔔 ' + (lang === 'kn' ? 'ತ್ವರಿತ ಮಾಹಿತಿ' : 'Real-Time Alerts'),
-      badgeColor: 'bg-rose-50 text-rose-900 border-rose-300',
+      badge: 'Real-Time Alerts',
       icon: '📱',
-      title: t('Application Updates'),
-      subtitle: t('Check your account notifications for updates supported by your current account settings.'),
-      cta: t('Register'),
-      link: '/register'
+      title: 'Application Updates',
+      subtitle: 'Check your account notifications for updates supported by your current account settings.',
+      cta: 'Register',
+      link: '/register',
+      image: '/card-banners/notifications.svg'
     },
     {
-      badge: '⭐ ' + (lang === 'kn' ? 'ಕಾರ್ಪೊರೇಟ್ ಚಾಲಕ' : 'VIP Chauffeur'),
-      badgeColor: 'bg-indigo-50 text-indigo-900 border-indigo-300',
+      badge: 'Corporate Driver Hiring',
       icon: '🚗',
-      title: lang === 'kn' ? 'ಕಾರ್ಪೊರೇಟ್ ಮತ್ತು ಎಕ್ಸಿಕ್ಯೂಟಿವ್ ಕಾರುಗಳು' : 'Corporate & Executive Sedans',
-      subtitle: lang === 'kn' ? 'ಐಟಿ ಪಾರ್ಕ್‌ಗಳು ಮತ್ತು ಐಷಾರಾಮಿ ಹೋಟೆಲ್‌ಗಳಲ್ಲಿ ಪ್ರೀಮಿಯಂ ಸೆಡಾನ್ ಚಾಲಕ ಉದ್ಯೋಗಗಳು.' : 'Premium sedan & SUV openings with top IT tech parks, 5-star hotels, and luxury fleet operators.',
-      cta: t('Find Jobs'),
-      link: '/jobs?category=LMV'
+      title: 'Corporate & Executive Sedans',
+      subtitle: 'Browse chauffeur openings and review each employer\'s requirements and pay details.',
+      cta: 'Find Jobs',
+      link: '/jobs?category=LMV',
+      image: '/card-banners/sedan.svg'
     }
   ];
 
@@ -290,26 +334,39 @@ export const HomePage: React.FC = () => {
               <Link
                 key={idx}
                 to={card.link}
-                className="w-80 shrink-0 p-4 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all duration-200 group flex flex-col justify-between"
+                className="w-80 shrink-0 overflow-hidden bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all duration-300 group flex flex-col justify-between"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${card.badgeColor}`}>
-                      {card.badge}
-                    </span>
-                    <span className="text-xl">{card.icon}</span>
-                  </div>
-                  <h4 className="text-xs sm:text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1">
-                    {card.title}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
-                    {card.subtitle}
-                  </p>
+                <div className="relative h-28 overflow-hidden bg-[#0d3154]">
+                  <img
+                    src={card.image}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 motion-reduce:transition-none"
+                    style={{ objectPosition: card.imagePosition || 'center' }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#08233F]/80 via-[#08233F]/30 to-transparent" />
+                  <span className="absolute bottom-3 left-4 inline-flex rounded-full border border-white/50 bg-white/90 px-2.5 py-1 text-[10px] font-bold text-[#08233F] shadow-sm">
+                    {t(card.badge)}
+                  </span>
                 </div>
+                <div className="flex flex-1 flex-col justify-between p-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xl">{card.icon}</span>
+                    </div>
+                    <h4 className="text-xs sm:text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1">
+                      {t(card.title)}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                      {t(card.subtitle)}
+                    </p>
+                  </div>
 
-                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700 group-hover:text-blue-900">
-                  <span>{card.cta}</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-700 group-hover:text-blue-900">
+                    <span>{t(card.cta)}</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
               </Link>
             ))}
@@ -341,25 +398,31 @@ export const HomePage: React.FC = () => {
             <Link
               key={idx}
               to={`/jobs?category=${encodeURIComponent(cat.filter)}`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between"
+              className="group overflow-hidden bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between"
             >
-              <div className="space-y-2">
-                <span className="text-3xl block group-hover:scale-105 transition-transform">{cat.icon}</span>
-                <h3 className="text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors">
-                  {t(cat.label)}
-                </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {t(cat.desc)}
-                </p>
+              <div className="relative h-28 overflow-hidden bg-[#0d3154]">
+                <img src={cat.image} alt="" aria-hidden="true" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 motion-reduce:transition-none" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#08233F]/70 via-[#08233F]/20 to-transparent" />
+                <span className="absolute bottom-3 left-4 text-3xl drop-shadow">{cat.icon}</span>
               </div>
+              <div className="flex flex-1 flex-col justify-between p-5">
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors">
+                    {t(cat.label)}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {t(cat.desc)}
+                  </p>
+                </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400 group-hover:text-slate-700">
-                <span className="text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full text-[11px] font-bold border border-blue-200/60">
-                  {marketplaceStats
-                    ? t('{count} Vacancies', { count: cat.countKeys.reduce((total, key) => total + (marketplaceStats.vacanciesByCategory[key] || 0), 0) })
-                    : '—'}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-500 group-hover:text-blue-700" />
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400 group-hover:text-slate-700">
+                  <span className="text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full text-[11px] font-bold border border-blue-200/60">
+                    {marketplaceStats
+                      ? t('{count} Vacancies', { count: cat.countKeys.reduce((total, key) => total + (marketplaceStats.vacanciesByCategory[key] || 0), 0) })
+                      : '—'}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-500 group-hover:text-blue-700" />
+                </div>
               </div>
             </Link>
           ))}
@@ -423,7 +486,7 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {DataStore.getEmployers().map((emp) => (
+          {trustedEmployers.map(({ employer: emp }) => (
             <Link
               key={emp.id}
               to={`/jobs?q=${encodeURIComponent(emp.companyName)}`}
@@ -446,6 +509,15 @@ export const HomePage: React.FC = () => {
             </Link>
           ))}
         </div>
+        {trustedEmployers.length === 0 && trustedEmployersLoading && (
+          <p className="py-5 text-center text-sm text-slate-500">{t('Loading verified employers…')}</p>
+        )}
+        {trustedEmployers.length === 0 && !trustedEmployersLoading && trustedEmployersError && (
+          <p className="py-5 text-center text-sm text-slate-500">{t('Verified employers could not be loaded. Please try again.')}</p>
+        )}
+        {trustedEmployers.length === 0 && !trustedEmployersLoading && !trustedEmployersError && (
+          <p className="py-5 text-center text-sm text-slate-500">{t('No verified employers are currently listed.')}</p>
+        )}
       </section>
 
       {/* SECTION 6: CTA BANNER */}

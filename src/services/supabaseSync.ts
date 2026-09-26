@@ -18,6 +18,73 @@ export function toUUID(id: string): string {
 }
 
 export const SupabaseSync = {
+  async updateAdminJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) return false;
+    const { data: actor, error: actorError } = await supabase.from('profiles').select('role')
+      .eq('id', authData.user.id).maybeSingle();
+    if (actorError || actor?.role !== 'admin') return false;
+
+    const { data: job, error: jobError } = await supabase.from('jobs').select('status')
+      .eq('id', toUUID(jobId)).maybeSingle();
+    if (jobError || !job) return false;
+    const allowed: Record<Job['status'], Job['status'][]> = {
+      draft: ['pending', 'active', 'closed'], pending: ['active', 'rejected', 'closed'],
+      active: ['closed'], closed: ['active'], rejected: []
+    };
+    if (job.status !== status && !allowed[job.status as Job['status']]?.includes(status)) return false;
+    if (job.status === status) return true;
+
+    const { data, error } = await supabase.from('jobs').update({ status })
+      .eq('id', toUUID(jobId)).eq('status', job.status).select('id').maybeSingle();
+    if (error) {
+      console.warn('Supabase admin job moderation error:', error.message);
+      return false;
+    }
+    return Boolean(data?.id);
+  },
+
+  async getAdminJobs(): Promise<Job[]> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) throw new Error('Sign in with an administrator account to review jobs.');
+    const { data: actor, error: actorError } = await supabase.from('profiles').select('role')
+      .eq('id', authData.user.id).maybeSingle();
+    if (actorError || actor?.role !== 'admin') throw new Error('Administrator access is required to review jobs.');
+
+    const { data: rows, error } = await supabase.from('jobs').select('*').order('posted_date', { ascending: false });
+    if (error) throw new Error(error.message);
+    const employerIds = [...new Set((rows || []).map((row: any) => row.employer_id).filter(Boolean))];
+    const { data: companies, error: companiesError } = employerIds.length
+      ? await supabase.from('companies').select('user_id,company_name,logo_url,contact_person').in('user_id', employerIds)
+      : { data: [], error: null };
+    if (companiesError) throw new Error(companiesError.message);
+    const companyById = new Map((companies || []).map((company: any) => [company.user_id, company]));
+    return (rows || []).map((row: any): Job => {
+      const company = companyById.get(row.employer_id) as any;
+      return {
+        id: row.id, employerId: row.employer_id,
+        companyName: row.company_name || company?.company_name || 'Employer',
+        companyLogo: row.company_logo || company?.logo_url || undefined,
+        postedBy: row.posted_by || company?.contact_person || undefined,
+        title: row.title, category: row.category, location: row.location,
+        city: row.city || '', state: row.state || '', experienceRequired: row.experience_required || '',
+        experienceMinYears: row.experience_min_years || 0, salaryMin: Number(row.salary_min || 0),
+        salaryMax: Number(row.salary_max || 0), salaryType: row.salary_type || 'monthly',
+        workingHours: row.working_hours || '', employmentType: row.employment_type || 'Full-time',
+        description: row.description || '', requiredSkills: row.required_skills || [],
+        requiredDocs: row.required_docs || [], routeType: row.route_type || undefined,
+        vehicleType: row.vehicle_type || undefined, payType: row.pay_type || undefined,
+        perks: row.perks || [], nightShift: Boolean(row.night_shift),
+        workLocationType: row.work_location_type || undefined,
+        joiningFeeRequired: Boolean(row.joining_fee_required), screeningQuestions: row.screening_questions || [],
+        vacancies: row.vacancies || 1, status: row.status, postedDate: row.posted_date || '',
+        applicationDeadline: row.application_deadline || undefined,
+        creditConsumed: Boolean(row.credit_consumed), slotConsumed: Boolean(row.slot_consumed),
+        expiresAt: row.expires_at || undefined
+      };
+    });
+  },
+
   async getAdminDocumentQueue(): Promise<Array<DriverDocument & {
     driverName: string; driverEmail: string; driverPhone: string; driverCity: string; driverState: string;
   }>> {

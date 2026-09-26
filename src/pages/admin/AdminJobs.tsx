@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ShieldCheck, Check, X, Ban, Eye, Briefcase, 
-  Building2, MapPin, IndianRupee, Clock, CheckCircle2 
-} from 'lucide-react';
+import { Check, X, Eye, RotateCw, CheckCircle2, LoaderCircle } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { Job, JobStatus } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
@@ -11,21 +9,48 @@ export const AdminJobs: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filter, setFilter] = useState<string>('pending');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [workingId, setWorkingId] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
-  const loadJobs = () => {
-    setJobs(DataStore.getJobs());
+  const loadJobs = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const freshJobs = await SupabaseSync.getAdminJobs();
+      DataStore.mergeRemoteJobs(freshJobs);
+      setJobs(freshJobs);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Could not load the moderation queue.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    loadJobs();
+    void loadJobs();
+    const syncJobs = () => setJobs(DataStore.getJobs());
+    window.addEventListener('driverhub_storage_updated', syncJobs);
+    return () => window.removeEventListener('driverhub_storage_updated', syncJobs);
   }, []);
 
   const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
-    const updated = await DataStore.updateJobStatus(jobId, status);
-    if (!updated) return;
-    loadJobs();
-    if (selectedJob?.id === jobId) {
-      setSelectedJob({ ...selectedJob, status });
+    setWorkingId(jobId);
+    setError('');
+    setNotice('');
+    try {
+      const updated = await DataStore.updateJobStatus(jobId, status);
+      if (!updated) throw new Error('The change was not saved. Confirm administrator access and database connection, then refresh and retry.');
+      const freshJobs = await SupabaseSync.getAdminJobs();
+      DataStore.mergeRemoteJobs(freshJobs);
+      setJobs(freshJobs);
+      if (selectedJob?.id === jobId) setSelectedJob(freshJobs.find(job => job.id === jobId) || null);
+      setNotice(`Job ${status === 'active' ? 'approved and published' : status === 'rejected' ? 'rejected' : 'closed'} successfully.`);
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : 'Could not update this job.');
+    } finally {
+      setWorkingId('');
     }
   };
 
@@ -42,6 +67,11 @@ export const AdminJobs: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1">Review new employer listings, enforce safety standards, approve or reject</p>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => { void loadJobs(); }} disabled={loading || Boolean(workingId)}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">
+          <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
         {/* Filter Pills */}
         <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 overflow-x-auto">
           {['pending', 'active', 'closed', 'rejected', 'all'].map((st) => (
@@ -58,13 +88,19 @@ export const AdminJobs: React.FC = () => {
             </button>
           ))}
         </div>
+        </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
+
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-12 text-sm text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin" /> Loading live moderation queue…</div>
+      ) : filtered.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-card space-y-3">
           <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-          <h3 className="text-base font-bold text-brand-navy font-display">No jobs in this category</h3>
-          <p className="text-xs text-slate-500">All submissions have been moderated.</p>
+          <h3 className="text-base font-bold text-brand-navy font-display">No {filter === 'all' ? '' : `${filter} `}jobs</h3>
+          <p className="text-xs text-slate-500">This queue is up to date with the database.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -104,13 +140,15 @@ export const AdminJobs: React.FC = () => {
                 {job.status === 'pending' && (
                   <>
                     <button
-                      onClick={() => handleUpdateStatus(job.id, 'active')}
+                      onClick={() => { void handleUpdateStatus(job.id, 'active'); }}
+                      disabled={Boolean(workingId)}
                       className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all"
                     >
-                      <Check className="w-3.5 h-3.5" /> Approve & Publish
+                      {workingId === job.id ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Approve & Publish
                     </button>
                     <button
-                      onClick={() => handleUpdateStatus(job.id, 'rejected')}
+                      onClick={() => { void handleUpdateStatus(job.id, 'rejected'); }}
+                      disabled={Boolean(workingId)}
                       className="px-3.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-all"
                     >
                       <X className="w-3.5 h-3.5" /> Reject
@@ -120,7 +158,8 @@ export const AdminJobs: React.FC = () => {
 
                 {job.status === 'active' && (
                   <button
-                    onClick={() => handleUpdateStatus(job.id, 'closed')}
+                    onClick={() => { void handleUpdateStatus(job.id, 'closed'); }}
+                    disabled={Boolean(workingId)}
                     className="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg cursor-pointer transition-all"
                   >
                     Suspend / Close
@@ -172,13 +211,11 @@ export const AdminJobs: React.FC = () => {
               </button>
               {selectedJob.status === 'pending' && (
                 <button
-                  onClick={() => {
-                    handleUpdateStatus(selectedJob.id, 'active');
-                    setSelectedJob(null);
-                  }}
+                  onClick={() => { void handleUpdateStatus(selectedJob.id, 'active'); }}
+                  disabled={Boolean(workingId)}
                   className="px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl text-xs"
                 >
-                  Approve Job Now
+                  {workingId === selectedJob.id ? 'Saving…' : 'Approve Job Now'}
                 </button>
               )}
             </div>

@@ -318,6 +318,13 @@ export const DataStore = {
   },
 
   mergeRemoteJobs(remoteJobs: Job[]): void {
+    // In production Supabase is the source of truth. Keeping local rows that
+    // are absent from an RLS-scoped response can surface stale/demo jobs in
+    // dashboards and moderation queues.
+    if (!DEMO_DATA_ENABLED) {
+      setStorage(STORAGE_KEYS.JOBS, remoteJobs);
+      return;
+    }
     const existing = getStorage<Job[]>(STORAGE_KEYS.JOBS, initialJobs);
     const remoteIds = new Set(remoteJobs.map(job => job.id));
     setStorage(STORAGE_KEYS.JOBS, [...remoteJobs, ...existing.filter(job => !remoteIds.has(job.id))]);
@@ -340,6 +347,14 @@ export const DataStore = {
       active: ['closed'], closed: ['active'], rejected: []
     };
     if (original.status !== status && !allowed[original.status].includes(status)) return false;
+    if (!DEMO_DATA_ENABLED && actor.role === 'admin') {
+      // Moderation changes only the status. Sending a full job payload from the
+      // admin UI could overwrite employer fields with client defaults.
+      const saved = await SupabaseSync.updateAdminJobStatus(jobId, status);
+      if (!saved) return false;
+      await SupabaseSync.fetchAndMergeRemoteData(this);
+      return true;
+    }
     let creditConsumed = original.creditConsumed || false;
     let slotConsumed = original.slotConsumed || false;
     if (DEMO_DATA_ENABLED && status === 'active' && actor.role === 'employer' && original.status !== 'active' && !creditConsumed && !slotConsumed) {

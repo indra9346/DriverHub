@@ -133,49 +133,60 @@ export function getJobCardBanner(job: {
   routeType?: string;
   title?: string;
 }): BannerInfo {
+  const cat = (job.category || '').toLowerCase();
   const text = `${job.category || ''} ${job.vehicleType || ''} ${job.title || ''} ${job.routeType || ''}`.toLowerCase();
 
-  // 1. Trailer / Flatbed / Container
+  // 1. School Bus, Student Van & Educational Transit (highest priority)
+  if (text.includes('school') || text.includes('student') || text.includes('education') || (cat.includes('bus') && text.includes('van'))) {
+    return BANNER_ASSETS.bus;
+  }
+
+  // 2. Heavy Specialized (Trailer, Tipper, Tanker)
   if (text.includes('trailer') || text.includes('40ft') || text.includes('flatbed') || text.includes('container') || text.includes('port')) {
     return BANNER_ASSETS.trailer;
   }
-  // 2. Tipper / Dumper / Mining / Construction
   if (text.includes('tipper') || text.includes('dumper') || text.includes('mining') || text.includes('construction') || text.includes('quarry')) {
     return BANNER_ASSETS.tipper;
   }
-  // 3. Tanker / Bulk Liquid / Fuel
   if (text.includes('tanker') || text.includes('bulk liquid') || text.includes('fuel') || text.includes('petroleum')) {
     return BANNER_ASSETS.tanker;
   }
-  // 4. Tempo / Tata Ace / Mini Truck / Pickup / Bolero
-  if (text.includes('tempo') || text.includes('ace') || text.includes('tata ace') || text.includes('mini truck') || text.includes('407') || text.includes('pickup') || text.includes('bolero')) {
+
+  // 3. Tempo / Tata Ace / Mini Truck / Pickup / Bolero
+  if (text.includes('tempo') || text.includes('tata ace') || text.includes('mini truck') || text.includes('407') || text.includes('pickup') || text.includes('bolero') || (cat.includes('tempo') && !text.includes('bus'))) {
     return BANNER_ASSETS.tempo;
   }
-  // 5. Electric / Delivery Van / Hyperlocal Parcel Cargo
-  if (text.includes('van') || text.includes('delivery') || text.includes('hyperlocal') || text.includes('grocery') || text.includes('parcel') || text.includes('electric') || text.includes('courier')) {
-    return BANNER_ASSETS.delivery;
-  }
-  // 6. Bus / School Bus / Staff Transit / Coach
-  if (text.includes('school') || text.includes('student') || text.includes('staff transit')) {
+
+  // 4. Bus & Staff Transit
+  if (cat.includes('bus') || text.includes('bus driver') || text.includes('staff bus') || text.includes('staff transit')) {
     return BANNER_ASSETS.bus;
   }
-  if (text.includes('bus') || text.includes('coach') || text.includes('sleeper')) {
+  if (text.includes('coach') || text.includes('sleeper') || text.includes('intercity bus') || text.includes('tourist bus')) {
     return BANNER_ASSETS.commercial;
   }
-  // 7. Cab / Taxi / Rideshare / Airport
-  if (text.includes('cab') || text.includes('taxi') || text.includes('ola') || text.includes('uber') || text.includes('airport')) {
+
+  // 5. Electric Delivery Cargo Van & Hyperlocal Parcel Cargo
+  if (cat.includes('delivery') || text.includes('delivery van') || text.includes('cargo van') || text.includes('hyperlocal') || text.includes('grocery') || text.includes('parcel') || text.includes('courier') || (text.includes('van') && !text.includes('student') && !text.includes('school') && !text.includes('passenger') && !text.includes('tour') && !cat.includes('bus'))) {
+    return BANNER_ASSETS.delivery;
+  }
+
+  // 6. Cab / Taxi / Urban Mobility
+  if (cat.includes('cab') || text.includes('cab') || text.includes('taxi') || text.includes('ola') || text.includes('uber') || text.includes('airport')) {
     return BANNER_ASSETS.cab;
   }
-  // 8. Personal / Chauffeur / Executive / VIP / LMV / Sedan
-  if (text.includes('chauffeur') || text.includes('personal') || text.includes('vip') || text.includes('private') || text.includes('sedan') || text.includes('innova') || text.includes('lmv')) {
+
+  // 7. Personal Chauffeur & Executive LMV
+  if (cat.includes('personal') || cat.includes('lmv') || text.includes('chauffeur') || text.includes('personal') || text.includes('vip') || text.includes('private') || text.includes('sedan') || text.includes('innova')) {
     return BANNER_ASSETS.lmv;
   }
-  // 9. Heavy Motor Vehicle / Multi-axle / Highway Truck
-  if (text.includes('hmv') || text.includes('heavy') || text.includes('truck') || text.includes('16-wheeler') || text.includes('10-wheeler') || text.includes('multi-axle') || text.includes('interstate')) {
+
+  // 8. Heavy Motor Vehicle / Multi-axle / Highway Truck
+  if (cat.includes('hmv') || text.includes('hmv') || text.includes('heavy') || text.includes('truck') || text.includes('16-wheeler') || text.includes('10-wheeler') || text.includes('multi-axle') || text.includes('interstate')) {
     return BANNER_ASSETS.hmv;
   }
-  // 10. Commercial tour / traveller
-  if (text.includes('commercial') || text.includes('tour') || text.includes('traveller')) {
+
+  // 9. Commercial tour / traveller
+  if (cat.includes('commercial') || text.includes('commercial') || text.includes('tour') || text.includes('traveller')) {
     return BANNER_ASSETS.commercial;
   }
 

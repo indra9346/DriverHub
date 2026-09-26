@@ -549,6 +549,7 @@ export const initialJobs: Job[] = [
     companyLogo: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=150&auto=format&fit=crop&q=80',
     title: 'School Bus & Student Van Driver',
     category: 'Bus Driver',
+    vehicleType: 'School Bus / Van',
     location: 'Kuvempunagar, Mysuru',
     city: 'Mysuru',
     state: 'Karnataka',

@@ -32,6 +32,8 @@ export const JobsPage: React.FC = () => {
   const [selectedArea, setSelectedArea] = useState(() => searchParams.get('area') || '');
   const [selectedType, setSelectedType] = useState(() => searchParams.get('type') || '');
   const [minSalary, setMinSalary] = useState<number>(() => Number(searchParams.get('minSalary')) || 0);
+  const [salaryDraft, setSalaryDraft] = useState<number>(() => Number(searchParams.get('minSalary')) || 0);
+  const [isSalaryAdjusting, setIsSalaryAdjusting] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState(() => searchParams.get('skill') || '');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
@@ -79,6 +81,8 @@ export const JobsPage: React.FC = () => {
     setSelectedArea(ar);
     setSelectedType(ty);
     setMinSalary(sal);
+    setSalaryDraft(sal);
+    setIsSalaryAdjusting(false);
     setSelectedSkill(sk);
   }, [searchParams]);
 
@@ -116,7 +120,18 @@ export const JobsPage: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const handleSalaryChange = (newSalary: number) => {
+  const handleSalaryInput = (newSalary: number) => {
+    // Keep the thumb/amount responsive during a drag, but don't change the
+    // result grid or URL until release. Replacing cards on every pointer move
+    // changes document height and makes the browser scroll position jump.
+    setSalaryDraft(newSalary);
+    setIsSalaryAdjusting(true);
+  };
+
+  const applySalaryFilter = (newSalary: number) => {
+    setSalaryDraft(newSalary);
+    setIsSalaryAdjusting(false);
+    if (newSalary === minSalary) return;
     setMinSalary(newSalary);
     updateUrlParams({ minSalary: newSalary });
   };
@@ -142,6 +157,8 @@ export const JobsPage: React.FC = () => {
     setSelectedArea('');
     setSelectedType('');
     setMinSalary(0);
+    setSalaryDraft(0);
+    setIsSalaryAdjusting(false);
     setSelectedSkill('');
     setSearchParams({}, { replace: true });
     setCurrentPage(1);
@@ -534,7 +551,7 @@ export const JobsPage: React.FC = () => {
             <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
               <span>{t('Minimum Guaranteed Salary')}</span>
               <span className="text-emerald-700 font-bold" aria-live="polite">
-                {formatMinSalaryThreshold(minSalary, lang)}
+                {formatMinSalaryThreshold(salaryDraft, lang)}
               </span>
             </div>
             <input
@@ -542,16 +559,25 @@ export const JobsPage: React.FC = () => {
               min="0"
               max="40000"
               step="2000"
-              value={minSalary}
+              value={salaryDraft}
               aria-label={t('Minimum Guaranteed Salary')}
               aria-valuemin={0}
               aria-valuemax={40000}
-              aria-valuenow={minSalary}
-              aria-valuetext={formatMinSalaryThreshold(minSalary, lang)}
-              onChange={(e) => handleSalaryChange(Number(e.target.value))}
+              aria-valuenow={salaryDraft}
+              aria-valuetext={formatMinSalaryThreshold(salaryDraft, lang)}
+              onChange={(e) => handleSalaryInput(Number(e.target.value))}
+              onPointerUp={(e) => applySalaryFilter(Number(e.currentTarget.value))}
+              onPointerCancel={(e) => applySalaryFilter(Number(e.currentTarget.value))}
+              onKeyUp={(e) => applySalaryFilter(Number(e.currentTarget.value))}
+              onBlur={(e) => applySalaryFilter(Number(e.currentTarget.value))}
               style={{ touchAction: 'none' }}
               className="w-full accent-amber-500 cursor-pointer touch-none"
             />
+            {isSalaryAdjusting && (
+              <p className="mt-1 text-[10px] text-slate-500" aria-live="polite">
+                {lang === 'kn' ? 'ಸ್ಲೈಡರ್ ಬಿಡಿಸಿದಾಗ ಫಲಿತಾಂಶಗಳನ್ನು ಅನ್ವಯಿಸಲಾಗುತ್ತದೆ.' : 'Release the slider to apply results.'}
+              </p>
+            )}
           </div>
         </aside>
 
@@ -609,7 +635,7 @@ export const JobsPage: React.FC = () => {
               {minSalary > 0 && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
                   {formatMinSalaryThreshold(minSalary, lang)}
-                  <button onClick={() => handleSalaryChange(0)} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                  <button onClick={() => applySalaryFilter(0)} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 
@@ -764,7 +790,7 @@ export const JobsPage: React.FC = () => {
                 <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
                   <span>{t('Minimum Guaranteed Salary')}</span>
                   <span className="text-emerald-700 font-bold">
-                    {formatMinSalaryThreshold(minSalary, lang)}
+                    {formatMinSalaryThreshold(salaryDraft, lang)}
                   </span>
                 </div>
                 <input
@@ -772,11 +798,20 @@ export const JobsPage: React.FC = () => {
                   min="0"
                   max="40000"
                   step="2000"
-                  value={minSalary}
-                  onChange={(e) => handleSalaryChange(Number(e.target.value))}
+                  value={salaryDraft}
+                  onChange={(e) => handleSalaryInput(Number(e.target.value))}
+                  onPointerUp={(e) => applySalaryFilter(Number(e.currentTarget.value))}
+                  onPointerCancel={(e) => applySalaryFilter(Number(e.currentTarget.value))}
+                  onKeyUp={(e) => applySalaryFilter(Number(e.currentTarget.value))}
+                  onBlur={(e) => applySalaryFilter(Number(e.currentTarget.value))}
                   style={{ touchAction: 'none' }}
                   className="w-full accent-amber-500 touch-none"
                 />
+                {isSalaryAdjusting && (
+                  <p className="mt-1 text-[10px] text-slate-500" aria-live="polite">
+                    {lang === 'kn' ? 'ಸ್ಲೈಡರ್ ಬಿಡಿಸಿದಾಗ ಫಲಿತಾಂಶಗಳನ್ನು ಅನ್ವಯಿಸಲಾಗುತ್ತದೆ.' : 'Release the slider to apply results.'}
+                  </p>
+                )}
               </div>
             </div>
 

@@ -92,14 +92,14 @@ export const HomePage: React.FC = () => {
   };
 
   const categories = [
-    { label: 'Heavy Truck (HMV)', filter: 'HMV', icon: '🚛', count: 48, desc: 'Multi-axle, interstate & container transport' },
-    { label: 'LMV Chauffeur', filter: 'LMV', icon: '🚗', count: 92, desc: 'Personal, corporate sedans & luxury fleet' },
-    { label: 'Cab Driver', filter: 'Cab Driver', icon: '🚕', count: 120, desc: 'App-based ride hailing & airport transfers' },
-    { label: 'Delivery Driver', filter: 'Delivery Driver', icon: '📦', count: 85, desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
-    { label: 'School / Staff Bus', filter: 'Bus Driver', icon: '🚌', count: 34, desc: 'Passenger transit & student shuttle' },
-    { label: 'Tempo / Ace', filter: 'Tempo Driver', icon: '🚚', count: 64, desc: 'Intra-city distribution & cargo logistics' },
-    { label: '40ft Trailer Driver', filter: 'Trailer Driver', icon: '🚜', count: 26, desc: 'Port container clearing & heavy haulage' },
-    { label: 'Commercial Driver', filter: 'Commercial Driver', icon: '🚐', count: 50, desc: 'Tour operations & outstation rentals' },
+    { label: 'Heavy Truck (HMV)', filter: 'HMV', icon: '🚛', count: 48, desc: 'Multi-axle, interstate & container transport', image: '/hero-truck.jpg' },
+    { label: 'LMV Chauffeur', filter: 'LMV', icon: '🚗', count: 92, desc: 'Personal, corporate sedans & luxury fleet', image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=900&q=80' },
+    { label: 'Cab Driver', filter: 'Cab Driver', icon: '🚕', count: 120, desc: 'App-based ride hailing & airport transfers', image: 'https://images.unsplash.com/photo-1718943824702-e4dbcff35452?auto=format&fit=crop&w=900&q=80' },
+    { label: 'Delivery Driver', filter: 'Delivery Driver', icon: '📦', count: 85, desc: 'E-commerce vans, 2-wheelers & hyperlocal', image: 'https://images.unsplash.com/photo-1758707845038-1f28b342b487?auto=format&fit=crop&w=900&q=80' },
+    { label: 'School / Staff Bus', filter: 'Bus Driver', icon: '🚌', count: 34, desc: 'Passenger transit & student shuttle', image: 'https://images.unsplash.com/photo-1613688263142-67f1e0c25ef1?auto=format&fit=crop&w=900&q=80' },
+    { label: 'Tempo / Ace', filter: 'Tempo Driver', icon: '🚚', count: 64, desc: 'Intra-city distribution & cargo logistics', image: 'https://images.unsplash.com/photo-1758707845038-1f28b342b487?auto=format&fit=crop&w=900&q=80' },
+    { label: '40ft Trailer Driver', filter: 'Trailer Driver', icon: '🚜', count: 26, desc: 'Port container clearing & heavy haulage', image: 'https://images.unsplash.com/photo-1501700493788-fa1a4fc9fe62?auto=format&fit=crop&w=900&q=80' },
+    { label: 'Commercial Driver', filter: 'Commercial Driver', icon: '🚐', count: 50, desc: 'Tour operations & outstation rentals', image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=900&q=80' },
   ];
 
   // Professional Featured Recruitment & Platform Showcase Cards
@@ -107,6 +107,7 @@ export const HomePage: React.FC = () => {
     {
       badge: '⚡ Direct Hiring',
       badgeColor: 'bg-amber-50 text-amber-900 border-amber-300',
+      image: '/hero-truck.jpg',
       icon: '🤝',
       title: 'Zero Middlemen Commission',
       subtitle: 'Apply directly to 450+ verified transport and corporate fleets with 100% wage transparency.',
@@ -116,6 +117,7 @@ export const HomePage: React.FC = () => {
     {
       badge: '🛡️ Verified Drivers',
       badgeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300',
+      image: '/auth-banner.jpg',
       icon: '✅',
       title: 'Get Verified & Hired 3x Faster',
       subtitle: 'Upload license & RTO documents once to earn the DriverHub Verified Badge for instant shortlists.',
@@ -125,6 +127,7 @@ export const HomePage: React.FC = () => {
     {
       badge: '💰 High Wage Guarantee',
       badgeColor: 'bg-blue-50 text-blue-900 border-blue-300',
+      image: '/hero-truck.jpg',
       icon: '💵',
       title: '₹25,000 - ₹50,000/mo Salary',
       subtitle: 'Guaranteed base pay with documented overtime, food allowances, and route night stays.',
@@ -134,6 +137,7 @@ export const HomePage: React.FC = () => {
     {
       badge: '🏢 Fleet Operators',
       badgeColor: 'bg-purple-50 text-purple-900 border-purple-300',
+      image: 'https://images.unsplash.com/photo-1501700493788-fa1a4fc9fe62?auto=format&fit=crop&w=900&q=80',
       icon: '🚛',
       title: 'Bharat Logistics & VRL Express',
       subtitle: 'National logistics fleets hiring Interstate HMV, Trailer & City Delivery Drivers today.',
@@ -143,6 +147,7 @@ export const HomePage: React.FC = () => {
     {
       badge: '🔔 Real-Time Alerts',
       badgeColor: 'bg-rose-50 text-rose-900 border-rose-300',
+      image: 'https://images.unsplash.com/photo-1758707845038-1f28b342b487?auto=format&fit=crop&w=900&q=80',
       icon: '📱',
       title: 'Instant SMS & Trial Updates',
       subtitle: 'Get notified immediately when employers view your profile or schedule driving trials.',
@@ -152,6 +157,7 @@ export const HomePage: React.FC = () => {
     {
       badge: '⭐ VIP Chauffeur',
       badgeColor: 'bg-indigo-50 text-indigo-900 border-indigo-300',
+      image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=900&q=80',
       icon: '🚗',
       title: 'Corporate & Executive Sedans',
       subtitle: 'Premium sedan & SUV openings with top IT tech parks, 5-star hotels, and luxury fleet operators.',
@@ -446,8 +452,10 @@ export const HomePage: React.FC = () => {
               <Link
                 key={idx}
                 to={card.link}
-                className="w-80 shrink-0 p-4 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all duration-200 group flex flex-col justify-between"
+                className="relative isolate w-80 min-h-[190px] shrink-0 overflow-hidden rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all duration-200 group flex flex-col justify-between p-4"
               >
+                <img src={card.image} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 -z-20 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-br from-white/85 via-white/75 to-white/60 group-hover:from-white/80 group-hover:via-white/70 group-hover:to-white/55 transition-colors" />
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${card.badgeColor}`}>
@@ -499,8 +507,10 @@ export const HomePage: React.FC = () => {
             <Link
               key={idx}
               to={`/jobs?category=${encodeURIComponent(cat.filter)}`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between"
+              className="group relative isolate min-h-[224px] overflow-hidden rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between p-5"
             >
+              <img src={cat.image} alt="" aria-hidden="true" loading="lazy" className="absolute inset-0 -z-20 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-br from-white/85 via-white/75 to-white/60 group-hover:from-white/80 group-hover:via-white/70 group-hover:to-white/55 transition-colors" />
               <div className="space-y-2">
                 <span className="text-3xl block group-hover:scale-105 transition-transform">{cat.icon}</span>
                 <h3 className="text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors">

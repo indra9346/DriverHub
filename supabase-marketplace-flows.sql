@@ -736,7 +736,7 @@ BEGIN
     FOREACH table_name IN ARRAY ARRAY[
       'jobs', 'applications', 'profiles', 'driver_profiles', 'driver_documents',
       'driver_experiences', 'favorite_jobs', 'saved_searches', 'candidate_unlocks',
-      'direct_messages', 'notifications'
+      'direct_messages', 'notifications', 'employer_subscriptions', 'billing_transactions'
     ] LOOP
       IF to_regclass('public.' || table_name) IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM pg_publication_tables

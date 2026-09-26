@@ -767,18 +767,21 @@ export const DataStore = {
     setStorage(STORAGE_KEYS.UNLOCKS, [newUnlock, ...unlocks]);
     await SupabaseSync.fetchAndMergeRemoteData(this);
 
-    // Notify driver that a verified employer viewed/unlocked their contact
-    const employer = this.getEmployerById(employerId);
-    this.addNotification({
-      id: 'notif-unlock-' + Date.now(),
-      userId: driverId,
-      title: 'Employer Unlocked Your Contact 📞',
-      message: `${employer?.companyName || 'An employer'} unlocked your profile from the DriverHub Database and may call you directly.`,
-      type: 'application_status',
-      read: false,
-      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      link: '/driver/profile'
-    });
+    // In production the database trigger creates the driver's notification
+    // atomically with the successful, credit-backed candidate unlock.
+    if (DEMO_DATA_ENABLED) {
+      const employer = this.getEmployerById(employerId);
+      this.addNotification({
+        id: 'notif-unlock-' + Date.now(),
+        userId: driverId,
+        title: 'Employer Unlocked Your Contact 📞',
+        message: `${employer?.companyName || 'An employer'} unlocked your profile from the DriverHub Database and may call you directly.`,
+        type: 'application_status',
+        read: false,
+        createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        link: '/driver/profile'
+      });
+    }
 
     return { success: true, message: 'Phone number unlocked! 1 Database Credit used.' };
   },

@@ -48,33 +48,54 @@ A driver recruitment and job portal connecting **Drivers / Candidates**, **Emplo
 
 ---
 
-## 🚀 Running the Web Application
+## Run the Web Application
 
-1. Install dependencies:
+1. Install dependencies with Node.js/npm installed:
    ```bash
-   npm install
+   npm ci
    ```
+2. Create `.env.local` from `.env.example`. Set only the Supabase project URL and public anon/publishable key in this browser environment. Never put a Supabase service-role/secret key in a `VITE_` variable or browser env file.
+3. Start the app with `npm run dev`; create a production build with `npm run build`.
 
-2. (Optional) Set up Supabase environment variables in `.env`:
-   ```env
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   ```
-   *(If omitted, the app runs with full interactive local persistence and preloaded real demo data)*
+The production app requires a configured Supabase project and the SQL files below. Demo data, authentication, and checkout are disabled by default and are for local development only. Do not use the demo settings for a live deployment.
 
-3. Start development server:
-   ```bash
-   npm run dev
-   ```
+## Production Database and Hiring Plans
 
-4. Build for production:
-   ```bash
-   npm run build
-   ```
+Apply these SQL files in order using the Supabase SQL Editor:
+
+1. `supabase-schema.sql`
+2. `supabase-apnahire-upgrade.sql`
+3. `supabase-security-hardening.sql`
+4. `supabase-marketplace-flows.sql`
+5. `supabase-payment-checkout.sql`
+
+The final migration creates payment-order records and a server-only, idempotent entitlement grant. Employer credits are activated only after the payment provider reports a captured payment and its signature is verified. Do not run these files against production until you have reviewed the SQL and backed up any existing production data.
+
+### Razorpay checkout
+
+Create Razorpay test keys first. Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` as Supabase Edge Function secrets, using Supabase Dashboard → Edge Functions → Secrets (or the CLI secrets command). Never add these values to `.env`, `.env.local`, Vercel client variables, or Git.
+
+Deploy the three Edge Functions after linking this directory to the correct Supabase project:
+
+```bash
+supabase functions deploy create-payment-order --project-ref YOUR_PROJECT_REF
+supabase functions deploy verify-payment --project-ref YOUR_PROJECT_REF
+supabase functions deploy razorpay-webhook --no-verify-jwt --project-ref YOUR_PROJECT_REF
+```
+
+Configure a Razorpay webhook for `payment.captured` at:
+
+```text
+https://YOUR_PROJECT_REF.supabase.co/functions/v1/razorpay-webhook
+```
+
+Use the same webhook secret in Razorpay and Supabase. Verify the complete flow with Razorpay test mode before setting live keys, configure the frontend's `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the hosting provider, then deploy the web build. Payment-provider activation and a Supabase deployment still require account access and credentials outside this repository.
 
 ---
 
-## 👤 Quick Demo Accounts (1-Click Switcher Available on Login Screen)
+## Development Demo Accounts
+
+Only use these demo identities with local demo authentication enabled. They are not production accounts.
 - **Driver**: `ravi.kumar@driverhub.in`
 - **Employer**: `deepa@bharatlogistics.in`
 - **Admin**: `admin@driverhub.in`

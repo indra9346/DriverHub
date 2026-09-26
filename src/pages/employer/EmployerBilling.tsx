@@ -7,6 +7,16 @@ import {
 import { DataStore } from '../../services/store';
 import { EmployerSubscription, BillingTransaction } from '../../types';
 import { SupabaseSync } from '../../services/supabaseSync';
+import { supabase } from '../../services/supabaseClient';
+
+type RazorpayCheckoutOptions = {
+  key: string; amount: number; currency: string; name: string; description: string; order_id: string;
+  prefill: { email?: string; contact?: string };
+  handler: (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => void | Promise<void>;
+  modal: { ondismiss: () => void };
+};
+type RazorpayCheckout = new (options: RazorpayCheckoutOptions) => { open: () => void; on: (event: string, handler: (response: { error?: { description?: string } }) => void) => void };
+declare global { interface Window { Razorpay?: RazorpayCheckout } }
 
 export const EmployerBilling: React.FC = () => {
   const currentUser = DataStore.getCurrentUser();
@@ -21,7 +31,7 @@ export const EmployerBilling: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Success' | 'Pending' | 'Failed'>('All');
   const [showGstinModal, setShowGstinModal] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<{ name: string; amount: number; jobs: number; drivers: number; validity: string; days: number; slots: number } | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<{ code: string; name: string; amount: number; jobs: number; drivers: number; validity: string; days: number; slots: number } | null>(null);
   const demoCheckoutAvailable = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_CHECKOUT === 'true';
 
   // GSTIN Form
@@ -30,6 +40,7 @@ export const EmployerBilling: React.FC = () => {
   const [addressInput, setAddressInput] = useState(subscription.billingAddress);
   const [toast, setToast] = useState<string | null>(null);
   const [savingBilling, setSavingBilling] = useState(false);
+  const [startingPayment, setStartingPayment] = useState(false);
 
   const refreshData = () => {
     setSubscription(DataStore.getSubscription(employerId));
@@ -68,8 +79,8 @@ export const EmployerBilling: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const selectPlan = (name: string, amount: number, jobs: number, drivers: number, validity: string, days: number, slots = 0) =>
-    setSelectedPlan({ name, amount, jobs, drivers, validity, days, slots });
+  const selectPlan = (code: string, name: string, amount: number, jobs: number, drivers: number, validity: string, days: number, slots = 0) =>
+    setSelectedPlan({ code, name, amount, jobs, drivers, validity, days, slots });
 
   const activateDemoPlan = () => {
     if (!selectedPlan || !demoCheckoutAvailable) return;
@@ -83,11 +94,71 @@ export const EmployerBilling: React.FC = () => {
     setTimeout(() => setToast(null), 4500);
   };
 
+  const startCheckout = async () => {
+    if (!selectedPlan || startingPayment) return;
+    setStartingPayment(true);
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) throw new Error('Sign in again to continue to secure checkout.');
+      const { data: order, error: orderError } = await supabase.functions.invoke('create-payment-order', { body: { plan_code: selectedPlan.code } });
+      if (orderError || !order?.order_id || !order?.key_id) throw new Error(order?.error || orderError?.message || 'Could not create a secure payment order.');
+      if (!window.Razorpay) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Could not load secure checkout. Check your connection and retry.'));
+          document.head.appendChild(script);
+        });
+      }
+      const Checkout = window.Razorpay;
+      if (!Checkout) throw new Error('Secure checkout is unavailable. Please retry.');
+
+      const checkout = new Checkout({
+        key: order.key_id, amount: order.amount, currency: order.currency,
+        name: 'DriverHub', description: order.name, order_id: order.order_id,
+        prefill: { email: order.email, contact: order.contact },
+        handler: async (response) => {
+          try {
+            const { data: result, error } = await supabase.functions.invoke('verify-payment', { body: response });
+            if (error || !result?.verified) {
+              setToast(result?.error || error?.message || 'Payment received; verification is still pending. Reload Billing in a moment.');
+              return;
+            }
+            await SupabaseSync.fetchAndMergeRemoteData(DataStore);
+            refreshData();
+            setToast('Payment verified. Your plan and credits are active.');
+            setShowPlansModal(false);
+            setSelectedPlan(null);
+            window.setTimeout(() => setToast(null), 4500);
+          } catch {
+            setToast('Payment received; verification is still pending. Reload Billing in a moment.');
+          } finally {
+            setStartingPayment(false);
+          }
+        },
+        modal: { ondismiss: () => setStartingPayment(false) },
+      });
+      checkout.on('payment.failed', (event) => {
+        setStartingPayment(false);
+        setToast(event.error?.description || 'Payment failed. No hiring credits were granted.');
+      });
+      checkout.open();
+    } catch (error) {
+      setStartingPayment(false);
+      setToast(error instanceof Error ? error.message : 'Could not start secure checkout.');
+      window.setTimeout(() => setToast(null), 5000);
+    }
+  };
+
   const filteredTxns = transactions.filter(t => {
     if (statusFilter === 'All') return true;
     if (statusFilter === 'Failed') return t.status === 'Failed' || t.status === 'Cancelled';
     return t.status === statusFilter;
   });
+  const selectedPlanGst = selectedPlan ? Math.round(selectedPlan.amount * 0.18) : 0;
+  const selectedPlanTotal = selectedPlan ? selectedPlan.amount + selectedPlanGst : 0;
 
   return (
     <div className="space-y-6 pb-12">
@@ -361,10 +432,10 @@ export const EmployerBilling: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               {[
-                { name: '3 Job credits', amount: 1949, jobs: 3, drivers: 0, days: 30, old: 2097, detail: 'Ideal for small hiring teams' },
-                { name: '6 Job credits', amount: 3649, jobs: 6, drivers: 0, days: 90, old: 4194, detail: 'For growing fleet teams', recommended: true },
-                { name: '13 Job credits', amount: 7099, jobs: 13, drivers: 0, days: 180, old: 9087, detail: 'For larger driver hiring needs' },
-                { name: 'DriverHub Unlimited', amount: 5999, jobs: 0, drivers: 600, days: 90, detail: 'Quarterly plan · single city' },
+                { code: 'jobs-3', name: '3 Job credits', amount: 1949, jobs: 3, drivers: 0, days: 30, old: 2097, detail: 'Ideal for small hiring teams' },
+                { code: 'jobs-6', name: '6 Job credits', amount: 3649, jobs: 6, drivers: 0, days: 90, old: 4194, detail: 'For growing fleet teams', recommended: true },
+                { code: 'jobs-13', name: '13 Job credits', amount: 7099, jobs: 13, drivers: 0, days: 180, detail: 'For larger driver hiring needs' },
+                { code: 'unlimited-quarterly', name: 'DriverHub Unlimited', amount: 5999, jobs: 0, drivers: 600, days: 90, detail: 'Quarterly plan · single city' },
               ].map(plan => (
                 <section key={plan.name} className={`relative p-5 rounded-2xl border flex flex-col justify-between gap-5 ${plan.recommended ? 'border-emerald-600 bg-emerald-50/30' : 'border-slate-200'}`}>
                   {plan.recommended && <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 bg-emerald-600 text-white rounded-full text-[10px] font-bold">Recommended</span>}
@@ -381,7 +452,7 @@ export const EmployerBilling: React.FC = () => {
                       <li>✓ Driver candidate applications and follow-up</li>
                     </ul>
                   </div>
-                  <button onClick={() => selectPlan(plan.name, plan.amount, plan.jobs, plan.drivers, `Valid for ${plan.days} days`, plan.days, plan.jobs === 0 ? 1 : 0)} className="w-full py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs cursor-pointer">View order</button>
+                  <button onClick={() => selectPlan(plan.code, plan.name, plan.amount, plan.jobs, plan.drivers, `Valid for ${plan.days} days`, plan.days, plan.jobs === 0 ? 1 : 0)} className="w-full py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs cursor-pointer">View order</button>
                 </section>
               ))}
             </div>
@@ -395,8 +466,8 @@ export const EmployerBilling: React.FC = () => {
               <div><h4 className="font-bold text-slate-900">Frequently asked questions</h4><details className="mt-2 text-xs text-slate-600"><summary className="cursor-pointer font-semibold">How do job credits work?</summary><p className="mt-1">Credits are used when you publish driver vacancies. Credit validity is shown on each plan.</p></details><details className="mt-2 text-xs text-slate-600"><summary className="cursor-pointer font-semibold">What happens if I need more candidates?</summary><p className="mt-1">Search the driver database, filter by license class, experience, location and availability, then use database credits to unlock contact details.</p></details></div>
             </section>
             {selectedPlan && <aside className="rounded-2xl bg-slate-50 border border-slate-200 p-5 grid md:grid-cols-[1fr_auto] gap-4 items-center">
-              <div><h4 className="font-bold text-slate-900">Order summary · {selectedPlan.name}</h4><p className="text-xs text-slate-600 mt-1">{selectedPlan.jobs ? `${selectedPlan.jobs} job credits` : `${selectedPlan.drivers} driver database credits`} · {selectedPlan.validity}</p><div className="text-xs text-slate-600 mt-3 space-y-1"><p>Subtotal <span className="float-right">₹{selectedPlan.amount.toLocaleString('en-IN')}</span></p><p>GST (18%) <span className="float-right">₹{Math.round(selectedPlan.amount * 0.18).toLocaleString('en-IN')}</span></p><p className="font-extrabold text-slate-900 border-t border-slate-200 pt-2">Total incl. GST <span className="float-right">₹{Math.round(selectedPlan.amount * 1.18).toLocaleString('en-IN')}</span></p></div></div>
-              <div className="text-right">{demoCheckoutAvailable ? <><p className="text-xs text-amber-800 font-semibold">Development-only test checkout.</p><p className="text-[11px] text-slate-500 mt-1">No real payment. Entitlement stays in this browser.</p><button onClick={activateDemoPlan} className="mt-3 px-5 py-2.5 rounded-xl bg-[#19745B] text-white text-xs font-bold">Activate demo plan</button></> : <><p className="text-xs text-amber-800 font-semibold">Online checkout is not connected yet.</p><p className="text-[11px] text-slate-500 mt-1">No payment has been taken and credits are not activated.</p><button disabled className="mt-3 px-5 py-2.5 rounded-xl bg-slate-300 text-slate-600 text-xs font-bold cursor-not-allowed">Proceed to payment</button></>}</div>
+              <div><h4 className="font-bold text-slate-900">Order summary · {selectedPlan.name}</h4><p className="text-xs text-slate-600 mt-1">{selectedPlan.jobs ? `${selectedPlan.jobs} job credits` : `${selectedPlan.drivers} driver database credits`} · {selectedPlan.validity}</p><div className="text-xs text-slate-600 mt-3 space-y-1"><p>Subtotal <span className="float-right">₹{selectedPlan.amount.toLocaleString('en-IN')}</span></p><p>GST (18%) <span className="float-right">₹{selectedPlanGst.toLocaleString('en-IN')}</span></p><p className="font-extrabold text-slate-900 border-t border-slate-200 pt-2">Total incl. GST <span className="float-right">₹{selectedPlanTotal.toLocaleString('en-IN')}</span></p></div></div>
+              <div className="text-right">{demoCheckoutAvailable ? <><p className="text-xs text-amber-800 font-semibold">Development-only test checkout.</p><p className="text-[11px] text-slate-500 mt-1">No real payment. Entitlement stays in this browser.</p><button onClick={activateDemoPlan} className="mt-3 px-5 py-2.5 rounded-xl bg-[#19745B] text-white text-xs font-bold">Activate demo plan</button></> : <><p className="text-xs text-slate-600 font-semibold">Secure checkout · 18% GST included.</p><p className="text-[11px] text-slate-500 mt-1">Credits activate only after the payment provider confirms capture.</p><button onClick={() => void startCheckout()} disabled={startingPayment} className="mt-3 px-5 py-2.5 rounded-xl bg-[#19745B] text-white text-xs font-bold disabled:opacity-60">{startingPayment ? 'Connecting…' : `Proceed to pay ₹${selectedPlanTotal.toLocaleString('en-IN')}`}</button></>}</div>
             </aside>}
           </div>
         </div>

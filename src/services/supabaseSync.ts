@@ -520,6 +520,8 @@ export const SupabaseSync = {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'candidate_unlocks' }, () => onUpdate?.())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, () => onUpdate?.())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'employer_subscriptions' }, () => onUpdate?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'billing_transactions' }, () => onUpdate?.())
         .subscribe();
 
       return () => {

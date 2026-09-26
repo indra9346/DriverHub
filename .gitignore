@@ -7,6 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Secrets must stay out of Git (including local Supabase Edge Function secrets).
+.env
+.env.*
+!.env.example
+supabase/functions/.env
+
 node_modules
 dist
 dist-ssr

@@ -38,7 +38,31 @@ const EN_TO_KN: Record<string, string> = {
   '₹25k - ₹50k/mo Salary': '₹25k - ₹50k/ತಿಂಗಳ ವೇತನ',
   'Zero Commission': 'ಶೂನ್ಯ ಕಮಿಷನ್',
   'All Driver Types': 'ಎಲ್ಲಾ ಚಾಲಕ ವಿಭಾಗಗಳು',
-  'Search': 'ಹುಡುಕಿ',
+  'All Vehicle Categories': 'ಎಲ್ಲಾ ವಾಹನ ವಿಭಾಗಗಳು',
+  'Any Type': 'ಯಾವುದೇ ಕೆಲಸದ ವಿಧ',
+  'Minimum Guaranteed Salary': 'ಕನಿಷ್ಠ ಖಾತರಿಪಡಿಸಿದ ವೇತನ',
+  'Minimum guaranteed monthly salary': 'ಕನಿಷ್ಠ ಖಾತರಿಪಡಿಸಿದ ಮಾಸಿಕ ವೇತನ',
+  'Min Salary': 'ಕನಿಷ್ಠ ವೇತನ',
+  'Any': 'ಯಾವುದಾದರೂ',
+  'Any Skill': 'ಯಾವುದೇ ಕೌಶಲ್ಯ',
+  'Search Keywords / Roles': 'ಹುಡುಕಾಟ ಪದಗಳು / ಹುದ್ದೆಗಳು',
+  'Indian State / Union Territory': 'ಭಾರತೀಯ ರಾಜ್ಯ / ಕೇಂದ್ರಾಡಳಿತ ಪ್ರದೇಶ',
+  'City / Operating District': 'ನಗರ / ಕಾರ್ಯಾಚರಣೆ ಜಿಲ್ಲೆ',
+  'Type or select any Indian city': 'ಯಾವುದೇ ಭಾರತೀಯ ನಗರವನ್ನು ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಆಯ್ಕೆಮಾಡಿ',
+  'Type or select a city in': 'ಈ ಪ್ರದೇಶದ ನಗರವನ್ನು ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಆಯ್ಕೆಮಾಡಿ',
+  'All Cities': 'ಎಲ್ಲಾ ನಗರಗಳು',
+  'All States': 'ಎಲ್ಲಾ ರಾಜ್ಯಗಳು',
+  'All Indian States & UTs': 'ಎಲ್ಲಾ ಭಾರತೀಯ ರಾಜ್ಯಗಳು ಮತ್ತು ಕೇಂದ್ರಾಡಳಿತ ಪ್ರದೇಶಗಳು',
+  'PAN-INDIA JOB FILTERS': 'ಭಾರತದಾದ್ಯಂತ ಉದ್ಯೋಗ ಹುಡುಕಾಟ ಶೋಧಕಗಳು',
+  'Clear All': 'ಎಲ್ಲವನ್ನೂ ತೆರವುಗೊಳಿಸಿ',
+  'Active Filters': 'ಸಕ್ರಿಯ ಶೋಧಕಗಳು',
+  'Results': 'ಫಲಿತಾಂಶಗಳು',
+  'Page': 'ಪುಟ',
+  'Vacancies': 'ಖಾಲಿ ಹುದ್ದೆಗಳು',
+  'Showing': 'ತೋರಿಸಲಾಗುತ್ತಿದೆ',
+  'No driving vacancies matching your search': 'ನಿಮ್ಮ ಹುಡುಕಾಟಕ್ಕೆ ಹೊಂದುವ ಚಾಲಕ ಹುದ್ದೆಗಳು ಇಲ್ಲ',
+  'Try clearing your state/city filter or search across all Indian states to see nationwide logistics openings.': 'ರಾಜ್ಯ ಅಥವಾ ನಗರ ಶೋಧಕವನ್ನು ತೆರವುಗೊಳಿಸಿ, ಅಥವಾ ಭಾರತದಾದ್ಯಂತದ ಸಾರಿಗೆ ಹುದ್ದೆಗಳನ್ನು ಹುಡುಕಿ.',
+  'View All Pan-India Vacancies': 'ಭಾರತದಾದ್ಯಂತದ ಎಲ್ಲಾ ಹುದ್ದೆಗಳನ್ನು ನೋಡಿ',
   'Search Jobs': 'ಕೆಲಸ ಹುಡುಕಿ',
   'Trending:': 'ಟ್ರೆಂಡಿಂಗ್:',
   'Interstate HMV': 'ಅಂತಾರಾಜ್ಯ HMV ಟ್ರಕ್',
@@ -220,6 +244,8 @@ const REGEX_KN_RULES: Array<[RegExp, (...args: string[]) => string]> = [
   [/^Available credits:\s*(\d+)\s*Jobs$/i, (_, n) => `ಲಭ್ಯವಿರುವ ಕ್ರೆಡಿಟ್ಸ್: ${n} ಉದ್ಯೋಗಗಳು`],
   [/^(\d+)\s*Unlocks$/i, (_, n) => `${n} ಅನ್‌ಲಾಕ್ಸ್`],
   [/^₹\s*([\d,]+)\s*\/mo$/i, (_, amt) => `₹${amt} / ತಿಂಗಳು`],
+  [/^₹\s*([\d,]+)\s*\+\s*\/mo$/i, (_, amt) => `₹${amt}+ / ತಿಂಗಳು`],
+  [/^₹\s*([\d,]+)\s*\+$/i, (_, amt) => `₹${amt}+`],
   [/^₹\s*([\d,]+)\s*[–-]\s*₹\s*([\d,]+)\s*\/mo$/i, (_, min, max) => `₹${min} – ₹${max} / ತಿಂಗಳು`]
 ];
 
@@ -383,6 +409,7 @@ const LanguageContext = createContext<LanguageContextValue>({
 
 const originalTextMap = new WeakMap<Text, string>();
 const originalPlaceholderMap = new WeakMap<Element, string>();
+const originalAttributeMap = new WeakMap<Element, Map<string, string>>();
 let isApplyingTranslation = false;
 
 function clearAnyLegacyGoogleTranslateCookies() {
@@ -460,6 +487,25 @@ function applyDOMTranslation(lang: AppLanguage) {
         }
       }
     });
+
+    // Keep accessible labels, tooltips and image descriptions in the same
+    // language as visible labels. Never rewrite values the user has typed.
+    const translatableAttributes = ['aria-label', 'title', 'alt'];
+    document.querySelectorAll(translatableAttributes.map(attribute => `[${attribute}]`).join(',')).forEach((el) => {
+      let originals = originalAttributeMap.get(el);
+      if (!originals) {
+        originals = new Map<string, string>();
+        originalAttributeMap.set(el, originals);
+      }
+      for (const attribute of translatableAttributes) {
+        const current = el.getAttribute(attribute);
+        if (current === null) continue;
+        if (!originals.has(attribute)) originals.set(attribute, current);
+        const original = originals.get(attribute)!;
+        const next = lang === 'kn' ? translateStringToKannada(original) : original;
+        if (current !== next) el.setAttribute(attribute, next);
+      }
+    });
   } finally {
     isApplyingTranslation = false;
   }
@@ -511,7 +557,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     observer.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['placeholder', 'aria-label', 'title', 'alt']
     });
 
     return () => {

@@ -509,7 +509,8 @@ export const JobsPage: React.FC = () => {
               step="2000"
               value={minSalary}
               onChange={(e) => setMinSalary(Number(e.target.value))}
-              className="w-full accent-amber-500 cursor-pointer"
+              aria-label="Minimum guaranteed monthly salary"
+              className="w-full accent-amber-500 cursor-pointer touch-pan-y select-none"
             />
           </div>
         </aside>
@@ -727,7 +728,8 @@ export const JobsPage: React.FC = () => {
                   step="2000"
                   value={minSalary}
                   onChange={(e) => setMinSalary(Number(e.target.value))}
-                  className="w-full accent-amber-500"
+                  aria-label="Minimum guaranteed monthly salary"
+                  className="w-full accent-amber-500 touch-pan-y select-none"
                 />
               </div>
             </div>

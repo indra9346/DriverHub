@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
  * ensuring seamless user experience across the entire site.
  */
 export const ScrollToTop = () => {
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
 
   useEffect(() => {
     window.scrollTo({
@@ -14,7 +14,9 @@ export const ScrollToTop = () => {
       left: 0,
       behavior: 'instant' as ScrollBehavior,
     });
-  }, [pathname, search]);
+  // Filter state is mirrored into the query string. Query-only changes must
+  // preserve the user's scroll position (for example, while dragging salary).
+  }, [pathname]);
 
   return null;
 };

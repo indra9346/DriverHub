@@ -11,6 +11,7 @@ import { JobCard } from '../../components/common/JobCard';
 import { 
   ALL_INDIAN_STATES, 
   CITY_AREAS_MAP, 
+  getAllIndianCities,
   getCitiesForState, 
   POPULAR_INDIAN_SKILLS 
 } from '../../data/indiaLocations';
@@ -154,10 +155,11 @@ export const JobsPage: React.FC = () => {
 
   // Quick State/City Available Options
   const availableCities = useMemo(() => {
-    if (!selectedState) {
-      return ['Bengaluru', 'Mumbai', 'Delhi NCR', 'Chennai', 'Hyderabad', 'Pune', 'Ahmedabad', 'Kolkata', 'Jaipur', 'Lucknow', 'Kochi', 'Mysuru', 'Hubballi-Dharwad', 'Chandigarh', 'Indore', 'Surat'];
-    }
-    return getCitiesForState(selectedState);
+    const source = selectedState
+      ? getCitiesForState(selectedState)
+      : getAllIndianCities().map(({ city }) => city);
+    const collator = new Intl.Collator('en-IN', { sensitivity: 'base' });
+    return [...new Set(source)].sort(collator.compare);
   }, [selectedState]);
 
   const availableAreas = useMemo(() => {
@@ -400,19 +402,22 @@ export const JobsPage: React.FC = () => {
                 </button>
               )}
             </div>
-            <select
+            <input
+              type="search"
               value={selectedCity}
-              onChange={(e) => {
-                setSelectedCity(e.target.value);
-                setSelectedArea('');
-              }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
-            >
-              <option value="">{selectedState ? `-- Select City in ${selectedState} --` : 'All Major Indian Cities'}</option>
+              onChange={(e) => { setSelectedCity(e.target.value); setSelectedArea(''); }}
+              list="driverhub-city-options-desktop"
+              placeholder={selectedState ? `Type or select a city in ${selectedState}` : 'Type or select any Indian city'}
+              autoComplete="off"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              aria-label="Search city or operating district"
+            />
+            <datalist id="driverhub-city-options-desktop">
               {availableCities.map((city) => (
                 <option key={city} value={city}>{city}</option>
               ))}
-            </select>
+            </datalist>
+            <p className="mt-1 text-[10px] text-slate-500">{availableCities.length} cities in the current location directory. Type to search; results show active vacancies only.</p>
           </div>
 
           {/* 4. Industrial Corridor / Micro-Area Filter (If City Selected) */}
@@ -675,16 +680,21 @@ export const JobsPage: React.FC = () => {
               {/* City */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
-                <select
+                <input
+                  type="search"
                   value={selectedCity}
-                  onChange={(e) => setSelectedCity(e.target.value)}
+                  onChange={(e) => { setSelectedCity(e.target.value); setSelectedArea(''); }}
+                  list="driverhub-city-options-mobile"
+                  placeholder={selectedState ? `Type or select a city in ${selectedState}` : 'Type or select any Indian city'}
+                  autoComplete="off"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs"
-                >
-                  <option value="">All Cities</option>
+                  aria-label="Search city"
+                />
+                <datalist id="driverhub-city-options-mobile">
                   {availableCities.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
-                </select>
+                </datalist>
               </div>
 
               {/* Category */}

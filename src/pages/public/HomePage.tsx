@@ -490,38 +490,47 @@ export const HomePage: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {DataStore.getEmployers().map((emp) => (
-            <Link
-              key={emp.id}
-              to={`/jobs?q=${encodeURIComponent(emp.companyName)}`}
-              className="p-5 bg-white rounded-2xl border border-slate-200/90 text-center space-y-2.5 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all group block cursor-pointer"
-            >
-              <div className="w-12 h-12 rounded-xl bg-slate-50 mx-auto overflow-hidden border border-slate-200 flex items-center justify-center group-hover:scale-105 transition-transform">
-                {emp.logoUrl ? (
-                  <img src={emp.logoUrl} alt={emp.companyName} className="w-full h-full object-cover" />
-                ) : (
-                  <Building2 className="w-6 h-6 text-slate-400" />
-                )}
+        {trustedEmployersLoading && trustedEmployers.length === 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-5 bg-white rounded-2xl border border-slate-200/90 text-center space-y-3 animate-pulse">
+                <div className="w-12 h-12 rounded-xl bg-slate-200 mx-auto" />
+                <div className="h-4 bg-slate-200 rounded w-3/4 mx-auto" />
+                <div className="h-3 bg-slate-100 rounded w-1/2 mx-auto" />
               </div>
-              <div>
-                <h4 className="text-xs font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1">{emp.companyName}</h4>
-                <p className="text-[11px] text-slate-400">{emp.industry}</p>
-              </div>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                <ShieldCheck className="w-3 h-3 text-emerald-600" /> {t('Verified Partner')}
-              </span>
-            </Link>
-          ))}
-        </div>
-        {trustedEmployers.length === 0 && trustedEmployersLoading && (
-          <p className="py-5 text-center text-sm text-slate-500">{t('Loading verified employers…')}</p>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {(trustedEmployers.length > 0
+              ? trustedEmployers.map((t) => t.employer)
+              : DataStore.getEmployers().filter((e) => e.verified)
+            ).map((emp) => (
+              <Link
+                key={emp.id}
+                to={`/jobs?q=${encodeURIComponent(emp.companyName)}`}
+                className="p-5 bg-white rounded-2xl border border-slate-200/90 text-center space-y-2.5 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all group block cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-xl bg-slate-50 mx-auto overflow-hidden border border-slate-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  {emp.logoUrl ? (
+                    <img src={emp.logoUrl} alt={emp.companyName} className="w-full h-full object-cover" />
+                  ) : (
+                    <Building2 className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1">{emp.companyName}</h4>
+                  <p className="text-[11px] text-slate-400 truncate">{emp.industry}</p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" /> {t('Verified Partner')}
+                </span>
+              </Link>
+            ))}
+          </div>
         )}
-        {trustedEmployers.length === 0 && !trustedEmployersLoading && trustedEmployersError && (
+        {!trustedEmployersLoading && trustedEmployersError && trustedEmployers.length === 0 && (
           <p className="py-5 text-center text-sm text-slate-500">{t('Verified employers could not be loaded. Please try again.')}</p>
-        )}
-        {trustedEmployers.length === 0 && !trustedEmployersLoading && !trustedEmployersError && (
-          <p className="py-5 text-center text-sm text-slate-500">{t('No verified employers are currently listed.')}</p>
         )}
       </section>
 

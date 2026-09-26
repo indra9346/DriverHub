@@ -113,14 +113,14 @@ export const CompaniesPage: React.FC = () => {
               className="group bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between overflow-hidden"
             >
               {/* 100% Realistic Logistics Hub / Transport Terminal Banner */}
-              <div className="relative h-28 w-full overflow-hidden bg-slate-900 shrink-0">
+              <div className="relative h-32 w-full overflow-hidden bg-slate-900 shrink-0">
                 <img
                   src={banner.url}
                   alt={banner.alt}
                   className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#08233F] via-[#08233F]/50 to-black/30" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                 
                 {company.verified && (
                   <div className="absolute top-2.5 right-2.5">
@@ -129,12 +129,18 @@ export const CompaniesPage: React.FC = () => {
                     </span>
                   </div>
                 )}
+
+                <div className="absolute bottom-2 right-2.5">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-200 bg-slate-950/70 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/15">
+                    {banner.tag}
+                  </span>
+                </div>
               </div>
 
-              <div className="p-5 pt-1 flex-1 flex flex-col justify-between">
+              <div className="p-5 pt-0 flex-1 flex flex-col justify-between">
                 <div>
-                  {/* Floating Logo + Company Title */}
-                  <div className="flex items-start gap-3.5 -mt-8 mb-3">
+                  {/* Floating Logo Badge */}
+                  <div className="flex items-end justify-between -mt-7 mb-2.5">
                     <Link
                       to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
                       className="w-14 h-14 rounded-2xl bg-white border-2 border-white shadow-md overflow-hidden flex items-center justify-center shrink-0 hover:border-amber-400 transition-colors cursor-pointer relative z-10"
@@ -145,16 +151,17 @@ export const CompaniesPage: React.FC = () => {
                         <Building2 className="w-7 h-7 text-slate-400" />
                       )}
                     </Link>
+                  </div>
 
-                    <div className="flex-1 min-w-0 pt-3">
-                      <Link
-                        to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
-                        className="text-base font-bold text-[#08233F] group-hover:text-blue-700 transition-colors truncate block cursor-pointer"
-                      >
-                        {company.companyName}
-                      </Link>
-                      <p className="text-xs text-slate-500 font-medium truncate">{company.industry}</p>
-                    </div>
+                  {/* Company Title and Category on clean white card surface */}
+                  <div className="mb-3">
+                    <Link
+                      to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                      className="text-base font-bold text-[#08233F] group-hover:text-blue-700 transition-colors truncate block cursor-pointer"
+                    >
+                      {company.companyName}
+                    </Link>
+                    <p className="text-xs text-slate-500 font-medium truncate mt-0.5">{company.industry}</p>
                   </div>
 
                   {/* Metadata */}

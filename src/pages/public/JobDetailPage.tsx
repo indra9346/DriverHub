@@ -151,7 +151,7 @@ export const JobDetailPage: React.FC = () => {
             alt={getJobCardBanner(job).alt}
             className="w-full h-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#08233F] via-[#08233F]/50 to-black/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           <div className="absolute top-4 left-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md text-amber-400 font-bold text-xs border border-amber-400/30 shadow-md">
               <Sparkles className="w-3.5 h-3.5" />

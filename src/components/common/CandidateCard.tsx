@@ -26,14 +26,14 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
     <div className="group bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all duration-200 flex flex-col justify-between overflow-hidden">
       
       {/* Realistic Contextual Background Banner representing driving specialization */}
-      <div className="relative h-24 sm:h-28 w-full overflow-hidden bg-slate-900 shrink-0">
+      <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-900 shrink-0">
         <img
           src={banner.url}
           alt={banner.alt}
           className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#08233F] via-[#08233F]/50 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
         {/* Top Badges */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2">
@@ -48,11 +48,11 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
         </div>
       </div>
 
-      <div className="p-4 sm:p-5 pt-2 flex-1 flex flex-col justify-between">
+      <div className="p-4 sm:p-5 pt-0 flex-1 flex flex-col justify-between">
         <div>
           {/* Header with Avatar overlapping banner */}
-          <div className="flex items-start gap-3.5 -mt-8 mb-3">
-            <div className="w-13 h-13 rounded-2xl bg-white border-2 border-white overflow-hidden shrink-0 shadow-md relative z-10">
+          <div className="flex items-end gap-3.5 -mt-7 mb-2.5">
+            <div className="w-14 h-14 rounded-2xl bg-white border-2 border-white overflow-hidden shrink-0 shadow-md relative z-10">
               {driver.avatarUrl ? (
                 <img
                   src={driver.avatarUrl}
@@ -69,7 +69,7 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
               )}
             </div>
 
-            <div className="flex-1 min-w-0 pt-3">
+            <div className="flex-1 min-w-0 pb-1">
               <div className="flex items-center gap-1.5">
                 <h3 className="text-base font-bold text-[#08233F] group-hover:text-blue-700 transition-colors truncate">
                   {driver.fullName}
@@ -80,7 +80,7 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 truncate">
+              <p className="text-xs text-slate-500 truncate mt-0.5">
                 {driver.currentRole || driver.licenseType}
               </p>
             </div>

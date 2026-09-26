@@ -37,7 +37,7 @@ export const JobCard: React.FC<JobCardProps> = ({
           loading="lazy"
         />
         {/* Subtle photo-darkening & readability gradients */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#08233F] via-[#08233F]/50 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(#F5A800_1px,transparent_1px)] opacity-[0.08] [background-size:16px_16px] pointer-events-none" />
 
         {/* Top Badges over realistic banner */}
@@ -76,10 +76,10 @@ export const JobCard: React.FC<JobCardProps> = ({
       </div>
 
       {/* Main Card Content */}
-      <div className="p-4 sm:p-5 pt-3 flex-1 flex flex-col justify-between">
+      <div className="p-4 sm:p-5 pt-0 flex-1 flex flex-col justify-between">
         <div>
           {/* Company header with floating logo */}
-          <div className="flex items-start gap-3 -mt-7 mb-2.5">
+          <div className="flex items-end gap-3 -mt-6 mb-2.5">
             <Link
               to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
               title={`View all jobs from ${job.companyName}`}
@@ -99,7 +99,7 @@ export const JobCard: React.FC<JobCardProps> = ({
               )}
             </Link>
 
-            <div className="flex-1 min-w-0 pt-3">
+            <div className="flex-1 min-w-0 pb-1">
               <Link
                 to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
                 className="text-xs font-semibold text-slate-600 hover:text-blue-700 flex items-center gap-1.5 transition-colors truncate"

@@ -18,6 +18,69 @@ export function toUUID(id: string): string {
 }
 
 export const SupabaseSync = {
+  async fetchPublicEmployerDirectory(): Promise<Array<{ employer: EmployerProfile; activeJobCount: number }>> {
+    if (!isSupabaseConfigured) throw new Error('The public employer directory is not connected to Supabase.');
+
+    const { data: companyRows, error: companyError } = await supabase
+      .from('companies')
+      .select('user_id,company_name,industry,location,city,state,website,logo_url,description,verified,status,created_at')
+      .eq('verified', true)
+      .eq('status', 'active')
+      .order('company_name', { ascending: true });
+    if (companyError) throw new Error(`Could not load verified employers: ${companyError.message}`);
+
+    const companies = companyRows || [];
+    if (!companies.length) return [];
+
+    const employerIds = companies.map((row: any) => row.user_id).filter(Boolean);
+    const now = new Date().toISOString();
+    const { data: activeJobRows, error: jobsError } = await supabase
+      .from('jobs')
+      .select('employer_id')
+      .in('employer_id', employerIds)
+      .eq('status', 'active')
+      .or(`expires_at.is.null,expires_at.gt.${now}`);
+    if (jobsError) throw new Error(`Could not load live vacancy counts: ${jobsError.message}`);
+
+    const counts = new Map<string, number>();
+    for (const row of activeJobRows || []) {
+      counts.set(row.employer_id, (counts.get(row.employer_id) || 0) + 1);
+    }
+
+    return companies.map((row: any) => ({
+      employer: {
+        id: row.user_id,
+        companyName: row.company_name || '',
+        contactPerson: '',
+        email: '',
+        phone: '',
+        industry: row.industry || '',
+        location: row.location || row.city || '',
+        city: row.city || '',
+        state: row.state || '',
+        address: '',
+        website: row.website || '',
+        logoUrl: row.logo_url || '',
+        description: row.description || '',
+        gstin: '',
+        verified: Boolean(row.verified),
+        status: row.status || 'active',
+        createdAt: row.created_at?.slice(0, 10) || ''
+      },
+      activeJobCount: counts.get(row.user_id) || 0
+    }));
+  },
+
+  subscribeToPublicEmployerDirectory(onChange: () => void) {
+    if (!isSupabaseConfigured) return () => undefined;
+    const channel = supabase
+      .channel(`public-employer-directory-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, onChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, onChange)
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  },
+
   async fetchPublicMarketplaceStats(): Promise<{ verifiedDrivers: number; verifiedEmployers: number; activeVacancies: number; hires: number; vacanciesByCategory: Record<string, number> } | null> {
     if (!isSupabaseConfigured) return null;
     try {

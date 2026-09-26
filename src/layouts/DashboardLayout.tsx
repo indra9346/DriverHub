@@ -7,6 +7,7 @@ import {
 import { Navbar } from '../components/common/Navbar';
 import { Sidebar, getNavLinks } from '../components/common/Sidebar';
 import { AIChatbot } from '../components/common/AIChatbot';
+import { RoutePageBoundary } from '../components/common/RoutePageBoundary';
 import { DataStore } from '../services/store';
 import { supabase } from '../services/supabaseClient';
 import { UserRole } from '../types';
@@ -191,7 +192,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
         <main className="flex-1 p-3.5 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden pb-24 lg:pb-8">
-          <Outlet />
+          <RoutePageBoundary key={location.pathname}>
+            <Outlet />
+          </RoutePageBoundary>
         </main>
       </div>
 

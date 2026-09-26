@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { isSupabaseConfigured, supabase } from './supabaseClient';
 import { Job, Application, DriverProfile, EmployerProfile, User, Notification, DriverDocument, DirectMessage, SavedSearch, FavoriteJob, DriverExperience } from '../types';
 
 // Helper to convert any string ID to a valid deterministic UUID
@@ -18,6 +18,33 @@ export function toUUID(id: string): string {
 }
 
 export const SupabaseSync = {
+  async fetchPublicMarketplaceStats(): Promise<{ verifiedDrivers: number; verifiedEmployers: number; activeVacancies: number; hires: number; vacanciesByCategory: Record<string, number> } | null> {
+    if (!isSupabaseConfigured) return null;
+    try {
+      const { data, error } = await supabase.rpc('get_driverhub_public_stats');
+      if (error) throw error;
+      if (!data || typeof data !== 'object') return null;
+      const stats = data as Record<string, unknown>;
+      const values = [stats.verifiedDrivers, stats.verifiedEmployers, stats.activeVacancies, stats.hires];
+      if (values.some(value => typeof value !== 'number' || !Number.isFinite(value)) ||
+        !stats.vacanciesByCategory || typeof stats.vacanciesByCategory !== 'object' || Array.isArray(stats.vacanciesByCategory)) return null;
+      const vacanciesByCategory = Object.fromEntries(
+        Object.entries(stats.vacanciesByCategory as Record<string, unknown>)
+          .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))
+      );
+      return {
+        verifiedDrivers: stats.verifiedDrivers as number,
+        verifiedEmployers: stats.verifiedEmployers as number,
+        activeVacancies: stats.activeVacancies as number,
+        hires: stats.hires as number,
+        vacanciesByCategory
+      };
+    } catch (error) {
+      console.warn('Could not load live public marketplace statistics:', error);
+      return null;
+    }
+  },
+
   async updateAdminJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user) return false;
@@ -616,6 +643,7 @@ export const SupabaseSync = {
           console.log('⚡ Realtime Profiles Update from Supabase:', payload);
           if (onUpdate) onUpdate();
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, () => onUpdate?.())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_profiles' }, () => onUpdate?.())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_documents' }, () => onUpdate?.())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'driver_experiences' }, () => onUpdate?.())

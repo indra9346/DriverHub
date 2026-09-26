@@ -15,6 +15,54 @@ import {
   POPULAR_INDIAN_SKILLS 
 } from '../../data/indiaLocations';
 
+const normalizeSearchText = (value: string) => value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ');
+const categoryFamilies: Record<string, string[]> = {
+  hmv: ['hmv', 'hmv transport', 'heavy truck', 'truck driver', 'trailer driver'],
+  'heavy truck': ['hmv', 'hmv transport', 'heavy truck', 'truck driver', 'trailer driver'],
+  truck: ['hmv', 'hmv transport', 'heavy truck', 'truck driver', 'trailer driver'],
+  lmv: ['lmv', 'lmv transport', 'personal driver'],
+  chauffeur: ['lmv', 'lmv transport', 'personal driver'],
+  cab: ['cab driver'],
+  'cab driver': ['cab driver'],
+  delivery: ['delivery driver'],
+  'delivery pilot': ['delivery driver'],
+  'delivery driver': ['delivery driver'],
+  bus: ['bus driver'],
+  'bus driver': ['bus driver'],
+  trailer: ['trailer driver'],
+  'trailer driver': ['trailer driver'],
+  'tempo driver': ['tempo driver'],
+  'commercial driver': ['commercial driver'],
+  'personal driver': ['personal driver'],
+};
+
+const categoryMatches = (jobCategory: string, selectedCategory: string) => {
+  const job = normalizeSearchText(jobCategory);
+  const selected = normalizeSearchText(selectedCategory);
+  const family = categoryFamilies[selected] || [selected];
+  return family.some(category => job === category || job.includes(category));
+};
+
+const cityAliases = (value: string) => {
+  const city = normalizeSearchText(value);
+  if (city === 'bengaluru' || city === 'bangalore') return ['bengaluru', 'bangalore'];
+  if (city === 'mysuru' || city === 'mysore') return ['mysuru', 'mysore'];
+  if (city === 'delhi ncr' || city === 'delhi') return ['delhi ncr', 'delhi', 'new delhi', 'gurugram', 'gurgaon', 'noida', 'ghaziabad', 'faridabad'];
+  return city ? [city] : [];
+};
+
+const jobMatchesLocation = (job: Job, location: string) => {
+  const aliases = cityAliases(location);
+  const fields = [job.city, job.location, job.state].map(value => normalizeSearchText(value || ''));
+  return aliases.some(alias => fields.some(field => field.includes(alias)));
+};
+
+const jobMatchesState = (job: Job, state: string) => {
+  const normalizedState = normalizeSearchText(state);
+  if (normalizedState === 'delhi ncr') return jobMatchesLocation(job, state);
+  return [job.state, job.location].some(value => normalizeSearchText(value || '').includes(normalizedState));
+};
+
 export const JobsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -40,7 +88,12 @@ export const JobsPage: React.FC = () => {
   const loadData = () => {
     const user = DataStore.getCurrentUser();
     setCurrentUser(user);
-    const allJobs = DataStore.getJobs().filter(j => j.status === 'active');
+    const now = Date.now();
+    const allJobs = DataStore.getJobs().filter(j =>
+      j.status === 'active' &&
+      (!j.expiresAt || new Date(j.expiresAt).getTime() > now) &&
+      (!j.applicationDeadline || new Date(j.applicationDeadline).getTime() > now)
+    );
     setJobs(allJobs);
 
     if (user && user.role === 'driver') {
@@ -131,37 +184,26 @@ export const JobsPage: React.FC = () => {
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
       // 1. Keyword search (title, company, description, location, state, city)
-      const matchesQuery = 
-        !searchQuery ||
-        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.state.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.requiredSkills?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+      const queryTokens = normalizeSearchText(searchQuery).split(/\s+/).filter(Boolean);
+      const searchableText = normalizeSearchText([
+        job.title, job.companyName, job.description, job.category, job.city, job.state, job.location,
+        ...(job.requiredSkills || [])
+      ].filter(Boolean).join(' '));
+      const isDelhiNcrPhrase = normalizeSearchText(searchQuery).includes('delhi ncr') &&
+        cityAliases('Delhi NCR').some(alias => searchableText.includes(alias));
+      const matchesQuery = !queryTokens.length || isDelhiNcrPhrase || queryTokens.every(token =>
+        searchableText.includes(token) || categoryMatches(job.category, token) ||
+        cityAliases(token).some(alias => searchableText.includes(alias))
+      );
 
       // 2. Category match
-      const matchesCategory = 
-        !selectedCategory ||
-        job.category.toLowerCase() === selectedCategory.toLowerCase() ||
-        job.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-        selectedCategory.toLowerCase().includes(job.category.toLowerCase()) ||
-        (selectedCategory === 'HMV' && ['HMV', 'HMV-Transport', 'Trailer Driver', 'Heavy Truck'].some(c => job.category.includes(c))) ||
-        (selectedCategory === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].some(c => job.category.includes(c)));
+      const matchesCategory = !selectedCategory || categoryMatches(job.category, selectedCategory);
 
       // 3. State match
-      const matchesState = 
-        !selectedState ||
-        job.state.toLowerCase() === selectedState.toLowerCase() ||
-        job.location.toLowerCase().includes(selectedState.toLowerCase());
+      const matchesState = !selectedState || jobMatchesState(job, selectedState);
 
       // 4. City match
-      const matchesCity = 
-        !selectedCity ||
-        job.city.toLowerCase() === selectedCity.toLowerCase() ||
-        job.location.toLowerCase().includes(selectedCity.toLowerCase());
+      const matchesCity = !selectedCity || jobMatchesLocation(job, selectedCity);
 
       // 5. Area / Corridor match
       const matchesArea = 

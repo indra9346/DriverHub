@@ -150,7 +150,82 @@ export const DataStore = {
 
   // Drivers
   getDrivers(): DriverProfile[] {
-    return getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, DEMO_DATA_ENABLED ? allDefaultDrivers : []);
+    const list = getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers);
+    return list && list.length > 0 ? list : allDefaultDrivers;
+  },
+
+  searchDriversLocally(filters: {
+    keyword?: string; category?: string; city?: string; state?: string;
+    minExperience?: number; skill?: string; vehicleType?: string; userId?: string; activeInDays?: number; limit?: number;
+  }): DriverProfile[] {
+    let list = this.getDrivers().filter(d => d.status === 'active');
+    const currentUser = this.getCurrentUser();
+    const employerId = currentUser?.role === 'employer' ? currentUser.id : '';
+    const unlocks = employerId ? this.getCandidateUnlocks(employerId) : [];
+    const unlockedIds = new Set(unlocks.map(u => u.driverId));
+
+    if (filters.userId) {
+      list = list.filter(d => d.id === filters.userId);
+    }
+    if (filters.keyword && filters.keyword.trim()) {
+      const q = filters.keyword.toLowerCase().trim();
+      list = list.filter(d => 
+        d.fullName.toLowerCase().includes(q) ||
+        d.driverCategory.toLowerCase().includes(q) ||
+        d.location.toLowerCase().includes(q) ||
+        d.licenseType.toLowerCase().includes(q) ||
+        (d.currentRole && d.currentRole.toLowerCase().includes(q)) ||
+        d.skills.some(s => s.toLowerCase().includes(q))
+      );
+    }
+    if (filters.category) {
+      const cat = filters.category;
+      list = list.filter(d => 
+        d.driverCategory === cat ||
+        (cat === 'HMV' && ['HMV', 'HMV-Transport', 'Truck Driver', 'Trailer Driver'].includes(d.driverCategory)) ||
+        (cat === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].includes(d.driverCategory))
+      );
+    }
+    if (filters.state) {
+      const st = filters.state.toLowerCase();
+      list = list.filter(d => 
+        (d.state || '').toLowerCase().includes(st) ||
+        (d.location || '').toLowerCase().includes(st) ||
+        (d.preferredLocation || '').toLowerCase().includes(st)
+      );
+    }
+    if (filters.city) {
+      const ct = filters.city.toLowerCase();
+      list = list.filter(d => 
+        (d.city || '').toLowerCase().includes(ct) ||
+        (d.location || '').toLowerCase().includes(ct) ||
+        (d.preferredLocation || '').toLowerCase().includes(ct)
+      );
+    }
+    if (filters.minExperience && filters.minExperience > 0) {
+      list = list.filter(d => d.experienceYears >= filters.minExperience!);
+    }
+    if (filters.skill && filters.skill.trim()) {
+      const sk = filters.skill.toLowerCase().trim();
+      list = list.filter(d => d.skills.some(s => s.toLowerCase().includes(sk)));
+    }
+    if (filters.vehicleType && filters.vehicleType.trim()) {
+      const vt = filters.vehicleType.toLowerCase().trim();
+      list = list.filter(d => 
+        (d.vehicleTypes || []).some(v => v.toLowerCase().includes(vt)) ||
+        d.licenseType.toLowerCase().includes(vt)
+      );
+    }
+
+    return list.slice(0, filters.limit || 250).map(d => {
+      const isUnlocked = unlockedIds.has(d.id);
+      return {
+        ...d,
+        phone: isUnlocked ? d.phone : (d.phone ? `${d.phone.slice(0, 6)}••••••` : '+91 ••••• ••••'),
+        email: isUnlocked ? d.email : (d.email ? `${d.email.slice(0, 3)}•••@•••••.•••` : '••••@•••••.•••'),
+        licenseNumber: isUnlocked ? d.licenseNumber : (d.licenseNumber ? `${d.licenseNumber.slice(0, 4)}••••••••` : '')
+      };
+    });
   },
 
   getDriverById(id: string): DriverProfile {

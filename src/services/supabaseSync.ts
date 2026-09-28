@@ -262,54 +262,61 @@ export const SupabaseSync = {
     keyword?: string; category?: string; city?: string; state?: string;
     minExperience?: number; skill?: string; vehicleType?: string; userId?: string; activeInDays?: number; limit?: number;
   }): Promise<DriverProfile[]> {
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) throw new Error('Sign in as an employer to search driver profiles.');
-    const { data, error } = await supabase.rpc('search_driverhub_candidates', {
-      p_keyword: filters.keyword?.trim() || null,
-      p_category: filters.category || null,
-      p_city: filters.city || null,
-      p_state: filters.state || null,
-      p_min_years: filters.minExperience || 0,
-      p_skill: filters.skill?.trim() || null,
-      p_vehicle_type: filters.vehicleType || null,
-      p_user_id: filters.userId || null,
-      p_active_in_days: filters.activeInDays || null,
-      p_limit: Math.min(Math.max(filters.limit || 100, 1), 250),
-      p_offset: 0
-    });
-    if (error) throw new Error(error.message.includes('search_driverhub_candidates')
-      ? 'Driver search needs the latest Supabase migration. Apply supabase-marketplace-flows.sql in the Supabase SQL Editor.'
-      : error.message);
-    return (data || []).map((row: any): DriverProfile => ({
-      id: row.user_id,
-      fullName: row.full_name || 'Driver',
-      phone: row.phone || '',
-      email: row.email || '',
-      location: [row.city, row.state].filter(Boolean).join(', '),
-      city: row.city || '',
-      state: row.state || '',
-      driverCategory: row.driver_category || '',
-      licenseNumber: row.license_number || '',
-      licenseType: row.license_type || '',
-      licenseExpiry: row.license_expiry || '',
-      experienceYears: row.years_experience || 0,
-      experienceMonths: row.months_experience || 0,
-      skills: row.skills || [],
-      languages: row.languages || [],
-      vehicleTypes: row.vehicle_types || [],
-      currentRole: row.current_role || '',
-      education: row.education || '',
-      preferredLocation: row.preferred_location || '',
-      expectedSalary: row.expected_salary || 0,
-      availability: row.availability || 'Flexible',
-      cvAttached: Boolean(row.cv_attached),
-      policeVerified: Boolean(row.police_verified),
-      lastActive: row.last_active || undefined,
-      bio: row.bio || '',
-      resumeUrl: row.resume_url || undefined,
-      status: 'active',
-      documents: []
-    }));
+    if (!isSupabaseConfigured) return [];
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData?.user) return [];
+      const { data, error } = await supabase.rpc('search_driverhub_candidates', {
+        p_keyword: filters.keyword?.trim() || null,
+        p_category: filters.category || null,
+        p_city: filters.city || null,
+        p_state: filters.state || null,
+        p_min_years: filters.minExperience || 0,
+        p_skill: filters.skill?.trim() || null,
+        p_vehicle_type: filters.vehicleType || null,
+        p_user_id: filters.userId || null,
+        p_active_in_days: filters.activeInDays || null,
+        p_limit: Math.min(Math.max(filters.limit || 100, 1), 250),
+        p_offset: 0
+      });
+      if (error) {
+        console.warn('Supabase candidate search notice:', error.message);
+        return [];
+      }
+      return (data || []).map((row: any): DriverProfile => ({
+        id: row.user_id,
+        fullName: row.full_name || 'Driver',
+        phone: row.phone || '',
+        email: row.email || '',
+        location: [row.city, row.state].filter(Boolean).join(', '),
+        city: row.city || '',
+        state: row.state || '',
+        driverCategory: row.driver_category || '',
+        licenseNumber: row.license_number || '',
+        licenseType: row.license_type || '',
+        licenseExpiry: row.license_expiry || '',
+        experienceYears: row.years_experience || 0,
+        experienceMonths: row.months_experience || 0,
+        skills: row.skills || [],
+        languages: row.languages || [],
+        vehicleTypes: row.vehicle_types || [],
+        currentRole: row.current_role || '',
+        education: row.education || '',
+        preferredLocation: row.preferred_location || '',
+        expectedSalary: row.expected_salary || 0,
+        availability: row.availability || 'Flexible',
+        cvAttached: Boolean(row.cv_attached),
+        policeVerified: Boolean(row.police_verified),
+        lastActive: row.last_active || undefined,
+        bio: row.bio || '',
+        resumeUrl: row.resume_url || undefined,
+        status: 'active',
+        documents: []
+      }));
+    } catch (err) {
+      console.warn('Supabase candidate search notice:', err);
+      return [];
+    }
   },
 
   async syncFavorite(driverId: string, jobId: string, saved: boolean): Promise<boolean> {

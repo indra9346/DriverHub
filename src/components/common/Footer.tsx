@@ -152,6 +152,25 @@ export const Footer: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Developer Attribution */}
+        <div className="mt-8 pt-6 border-t border-slate-800/60 flex items-center justify-center">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs text-slate-400">
+            <span className="font-semibold tracking-wider uppercase text-slate-400 text-[11px]">
+              DEVELOPED BY
+            </span>
+            <div className="inline-flex items-center bg-[#111110] px-2.5 py-1 rounded-md border border-slate-800 shadow-sm">
+              <img
+                src="/hosting-baba-logo.png"
+                alt="Hosting Baba"
+                className="h-6 w-auto object-contain"
+              />
+            </div>
+            <span className="font-bold text-slate-200 text-xs tracking-wide">
+              Hosting Baba
+            </span>
+          </div>
+        </div>
       </div>
     </footer>
   );

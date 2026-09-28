@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, MapPin, Truck, ShieldCheck, Briefcase, Users, Award, 
@@ -10,12 +10,46 @@ import { SupabaseSync } from '../../services/supabaseSync';
 import { Job } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
 import { useLanguage } from '../../services/i18n';
+import { ALL_INDIAN_STATES } from '../../data/indiaLocations';
+
+const POPULAR_SEARCH_ROLES = [
+  { title: 'Cab Driver', category: 'Cab Driver', subtitle: 'App-based Taxi & Airport Outstation' },
+  { title: 'Senior Heavy Truck Driver (HMV)', category: 'HMV', subtitle: 'Multi-Axle & Interstate Logistics' },
+  { title: 'Executive Personal Chauffeur', category: 'Personal Driver', subtitle: 'Automatic Luxury Sedans & SUVs' },
+  { title: 'LCV Tempo Delivery Pilot', category: 'Tempo Driver', subtitle: 'Tata Ace & Intra-City Cargo' },
+  { title: 'Hyperlocal E-Commerce Delivery Rider', category: 'Delivery Driver', subtitle: 'Last-Mile Parcels & EV Cargo' },
+  { title: 'School Bus & Student Van Driver', category: 'Bus Driver', subtitle: 'Passenger Transit & Campus Shuttle' },
+  { title: '40ft Container Trailer Driver', category: 'Trailer Driver', subtitle: 'Port & Container Haulage' },
+  { title: 'Commercial Taxi Chauffeur', category: 'Cab Driver', subtitle: 'Corporate Rental & Tourism' },
+];
+
+const POPULAR_INDIAN_LOCATIONS = [
+  { city: 'Anantapur', state: 'Andhra Pradesh', label: 'Anantapur, Andhra Pradesh' },
+  { city: 'Bengaluru', state: 'Karnataka', label: 'Bengaluru, Karnataka' },
+  { city: 'Chennai', state: 'Tamil Nadu', label: 'Chennai, Tamil Nadu' },
+  { city: 'Hyderabad', state: 'Telangana', label: 'Hyderabad, Telangana' },
+  { city: 'Mumbai', state: 'Maharashtra', label: 'Mumbai, Maharashtra' },
+  { city: 'Delhi NCR', state: 'Delhi NCR', label: 'Delhi NCR (Gurugram/Noida)' },
+  { city: 'Pune', state: 'Maharashtra', label: 'Pune, Maharashtra' },
+  { city: 'Mysuru', state: 'Karnataka', label: 'Mysuru, Karnataka' },
+  { city: 'Ahmedabad', state: 'Gujarat', label: 'Ahmedabad, Gujarat' },
+  { city: 'Kolkata', state: 'West Bengal', label: 'Kolkata, West Bengal' },
+  { city: 'Visakhapatnam', state: 'Andhra Pradesh', label: 'Visakhapatnam, Andhra Pradesh' },
+  { city: 'Vijayawada', state: 'Andhra Pradesh', label: 'Vijayawada, Andhra Pradesh' },
+  { city: 'Kochi', state: 'Kerala', label: 'Kochi, Kerala' },
+  { city: 'Coimbatore', state: 'Tamil Nadu', label: 'Coimbatore, Tamil Nadu' },
+  { city: 'Hubballi-Dharwad', state: 'Karnataka', label: 'Hubballi-Dharwad, Karnataka' },
+];
 
 export const HomePage: React.FC = () => {
   const { t, lang } = useLanguage();
   const [keyword, setKeyword] = useState('');
   const [category, setCategory] = useState<string>('');
   const [location, setLocation] = useState('');
+  const [showKeywordSuggestions, setShowKeywordSuggestions] = useState(false);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const keywordContainerRef = useRef<HTMLDivElement>(null);
+  const locationContainerRef = useRef<HTMLDivElement>(null);
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
   const [trustedEmployers, setTrustedEmployers] = useState<Awaited<ReturnType<typeof SupabaseSync.fetchPublicEmployerDirectory>>>([]);
   const [trustedEmployersLoading, setTrustedEmployersLoading] = useState(true);
@@ -116,12 +150,65 @@ export const HomePage: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (keywordContainerRef.current && !keywordContainerRef.current.contains(e.target as Node)) {
+        setShowKeywordSuggestions(false);
+      }
+      if (locationContainerRef.current && !locationContainerRef.current.contains(e.target as Node)) {
+        setShowLocationSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const keywordSuggestions = useMemo(() => {
+    if (!keyword.trim()) return POPULAR_SEARCH_ROLES.slice(0, 6);
+    const q = keyword.toLowerCase().trim();
+    return POPULAR_SEARCH_ROLES.filter(r => 
+      r.title.toLowerCase().includes(q) ||
+      r.category.toLowerCase().includes(q) ||
+      r.subtitle.toLowerCase().includes(q)
+    );
+  }, [keyword]);
+
+  const locationSuggestions = useMemo(() => {
+    if (!location.trim()) return POPULAR_INDIAN_LOCATIONS.slice(0, 6);
+    const q = location.toLowerCase().trim();
+    
+    const popularMatches = POPULAR_INDIAN_LOCATIONS.filter(l => 
+      l.city.toLowerCase().includes(q) ||
+      l.state.toLowerCase().includes(q) ||
+      l.label.toLowerCase().includes(q)
+    );
+
+    const otherMatches: { city: string; state: string; label: string }[] = [];
+    for (const st of ALL_INDIAN_STATES) {
+      if (st.state.toLowerCase().includes(q) && !popularMatches.some(p => p.state.toLowerCase() === st.state.toLowerCase())) {
+        const primaryCity = st.majorCities[0] || st.state;
+        otherMatches.push({ city: primaryCity, state: st.state, label: `${primaryCity}, ${st.state}` });
+      }
+      for (const city of st.majorCities) {
+        if (city.toLowerCase().includes(q) && !popularMatches.some(p => p.city.toLowerCase() === city.toLowerCase())) {
+          otherMatches.push({ city, state: st.state, label: `${city}, ${st.state}` });
+        }
+      }
+    }
+    return [...popularMatches, ...otherMatches].slice(0, 8);
+  }, [location]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setShowKeywordSuggestions(false);
+    setShowLocationSuggestions(false);
     const params = new URLSearchParams();
-    if (keyword) params.append('q', keyword);
+    if (keyword.trim()) params.append('q', keyword.trim());
     if (category) params.append('category', category);
-    if (location) params.append('location', location);
+    if (location.trim()) {
+      params.append('city', location.trim());
+      params.append('location', location.trim());
+    }
     navigate(`/jobs?${params.toString()}`);
   };
 
@@ -245,21 +332,74 @@ export const HomePage: React.FC = () => {
             </span>
           </div>
 
-          {/* DESKTOP SEARCH BAR */}
-          <div className="hidden lg:block max-w-4xl mx-auto bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-2xl border border-white/30 text-slate-800 text-left">
-            <form onSubmit={handleSearch} className="grid grid-cols-12 gap-2.5 items-center">
-              <div className="col-span-4 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200">
-                <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  placeholder={lang === 'kn' ? "ಹುದ್ದೆ, 'HMV', 'ಕ್ಯಾಬ್', 'ಡೆಲಿವರಿ'..." : "Job title, 'HMV', 'Cab', 'Delivery'..."}
-                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
-                />
+          {/* SEARCH BAR (Desktop & Mobile Responsive with Real-Time Auto-Suggestions - Pic 3 & 4) */}
+          <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-white/30 text-slate-800 text-left">
+            <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+              {/* Keyword / Job Title input with Real-Time Auto-Suggestions */}
+              <div ref={keywordContainerRef} className="relative sm:col-span-4">
+                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={keyword}
+                    onFocus={() => setShowKeywordSuggestions(true)}
+                    onChange={(e) => {
+                      setKeyword(e.target.value);
+                      setShowKeywordSuggestions(true);
+                    }}
+                    placeholder={lang === 'kn' ? "ಹುದ್ದೆ, 'HMV', 'ಕ್ಯಾಬ್', 'ಡೆಲಿವರಿ'..." : "Job title, 'HMV', 'Cab', 'Delivery'..."}
+                    className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
+                  />
+                  {keyword && (
+                    <button
+                      type="button"
+                      onClick={() => setKeyword('')}
+                      className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Real-time Keyword / Role Suggestions Popup (Pic 3 & 4) */}
+                {showKeywordSuggestions && keywordSuggestions.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-64 overflow-y-auto animate-in fade-in">
+                    <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                      <span>Suggested Roles & Categories</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowKeywordSuggestions(false)}
+                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {keywordSuggestions.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setKeyword(item.title);
+                          if (item.category) setCategory(item.category);
+                          setShowKeywordSuggestions(false);
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900 group-hover:text-emerald-900 block">{item.title}</span>
+                          <span className="text-[11px] text-slate-500">{item.subtitle}</span>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 group-hover:bg-emerald-200 text-slate-700 group-hover:text-emerald-900 px-2 py-0.5 rounded font-bold shrink-0 ml-2">
+                          Select ↵
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200">
+              {/* Driver Type dropdown */}
+              <div className="sm:col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
                 <Truck className="w-4 h-4 text-slate-400 shrink-0" />
                 <select
                   value={category}
@@ -273,24 +413,76 @@ export const HomePage: React.FC = () => {
                   <option value="Delivery Driver">{t('Delivery Driver')}</option>
                   <option value="Bus Driver">{t('School & Staff Bus Driver')}</option>
                   <option value="Trailer Driver">{t('40ft Container Trailer Driver')}</option>
+                  <option value="Personal Driver">{t('Personal Driver')}</option>
+                  <option value="Tempo Driver">{t('Tempo Driver')}</option>
                 </select>
               </div>
 
-              <div className="col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200">
-                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder={lang === 'kn' ? 'ನಗರ (ಬೆಂಗಳೂರು, ಮೈಸೂರು...)' : 'City (Bengaluru, Chennai...)'}
-                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
-                />
+              {/* Location input with Real-Time Auto-Suggestions */}
+              <div ref={locationContainerRef} className="relative sm:col-span-3">
+                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                  <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={location}
+                    onFocus={() => setShowLocationSuggestions(true)}
+                    onChange={(e) => {
+                      setLocation(e.target.value);
+                      setShowLocationSuggestions(true);
+                    }}
+                    placeholder={lang === 'kn' ? 'ನಗರ (ಬೆಂಗಳೂರು, ಮೈಸೂರು...)' : 'City (Bengaluru, Chennai...)'}
+                    className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
+                  />
+                  {location && (
+                    <button
+                      type="button"
+                      onClick={() => setLocation('')}
+                      className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Real-time Location Suggestions Popup (Pic 4) */}
+                {showLocationSuggestions && locationSuggestions.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-60 overflow-y-auto animate-in fade-in">
+                    <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                      <span>Suggested Cities & States</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowLocationSuggestions(false)}
+                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {locationSuggestions.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setLocation(item.city);
+                          setShowLocationSuggestions(false);
+                        }}
+                        className="w-full px-3.5 py-2 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                      >
+                        <span className="flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                          <span className="font-semibold text-slate-900 group-hover:text-emerald-900">{item.label}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 group-hover:text-emerald-700 shrink-0">Select ↵</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="col-span-2">
+              {/* Submit Search Button */}
+              <div className="sm:col-span-2">
                 <button
                   type="submit"
-                  className="w-full min-h-[44px] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow transition-all duration-150 hover:scale-[1.02] cursor-pointer text-xs sm:text-sm"
+                  className="w-full min-h-[44px] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow transition-all duration-150 hover:scale-[1.02] cursor-pointer text-xs sm:text-sm active:scale-95"
                 >
                   <Search className="w-4 h-4" />
                   <span>{t('Search')}</span>

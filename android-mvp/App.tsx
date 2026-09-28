@@ -1,8 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, Text, View, SafeAreaView, FlatList, TouchableOpacity, 
-  TextInput, ScrollView, Modal, Alert, StatusBar, Image 
-} from 'lucide-react-native' ? null : null; // Safe fallback
 
 // React Native Components
 import { 
@@ -109,9 +105,9 @@ export default function App() {
           {/* Job List */}
           <RNFlatList
             data={filteredJobs}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: JobItem) => item.id}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
+            renderItem={({ item }: { item: JobItem }) => {
               const isApplied = appliedJobIds.includes(item.id);
               return (
                 <RNTouchableOpacity

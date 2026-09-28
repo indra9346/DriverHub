@@ -742,6 +742,33 @@ export const initialJobs: Job[] = [
     status: 'active',
     postedDate: '2026-09-18',
     applicationsCount: 1
+  },
+  {
+    id: 'job-11',
+    employerId: 'usr-employer-2',
+    companyName: 'QuickRide Mobility Solutions',
+    companyLogo: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=150&auto=format&fit=crop&q=80',
+    title: 'Cab Driver (Airport Transfer & Outstation Rental)',
+    category: 'Cab Driver',
+    location: 'Clock Tower & NH-44 Corridor, Anantapur',
+    city: 'Anantapur',
+    state: 'Andhra Pradesh',
+    experienceRequired: '1-3 Years',
+    experienceMinYears: 1,
+    salaryMin: 20000,
+    salaryMax: 26000,
+    salaryType: 'monthly',
+    workingHours: 'Day / Outstation Shifts',
+    employmentType: 'Full-time',
+    description: 'Hiring verified cab and tourist taxi drivers for regional transit, Bengaluru Airport transfers, and NH-44 intercity passenger trips from Anantapur hub. Company-provided yellow-plate Innova and Dzire sedans.',
+    requiredSkills: ['Valid Commercial Driving License', 'GPS Route Navigation', 'Polite Passenger Etiquette', 'Clean Track Record'],
+    requiredDocs: ['Commercial Driving License', 'Aadhaar Card', 'Police Verification Certificate'],
+    drivingLicenseRequired: true,
+    licenseTypeRequired: 'Commercial / Transport License',
+    vacancies: 4,
+    status: 'active',
+    postedDate: '2026-09-20',
+    applicationsCount: 2
   }
 ];
 

@@ -239,11 +239,13 @@ export const EmployerPostJob: React.FC = () => {
   const [selectedPerks, setSelectedPerks] = useState<string[]>([]);
   const [joiningFeeRequired, setJoiningFeeRequired] = useState<boolean>(false);
 
-  // Step 2 & 3: Experience, Vehicle, Docs, Screening
+  // Step 2 & 3: Experience, Vehicle, License, Docs, Screening
   const [experienceRequired, setExperienceRequired] = useState('');
   const [experienceMinYears, setExperienceMinYears] = useState(0);
   const [vehicleType, setVehicleType] = useState('');
   const [skillsText, setSkillsText] = useState('');
+  const [drivingLicenseRequired, setDrivingLicenseRequired] = useState<boolean>(true);
+  const [licenseTypeRequired, setLicenseTypeRequired] = useState<string>('Commercial / Transport License');
   const [description, setDescription] = useState('');
   const [docsSelected, setDocsSelected] = useState<string[]>([
     'Commercial Driving License',
@@ -449,6 +451,8 @@ export const EmployerPostJob: React.FC = () => {
       description,
       requiredSkills: skillsText.split(',').map(s => s.trim()).filter(Boolean),
       requiredDocs: docsSelected,
+      drivingLicenseRequired,
+      licenseTypeRequired: drivingLicenseRequired ? licenseTypeRequired : undefined,
       vacancies,
       status: targetStatus,
       postedDate: new Date().toISOString().slice(0, 10),
@@ -1195,35 +1199,128 @@ export const EmployerPostJob: React.FC = () => {
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-800">Mandatory Verification Documents</label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                'Commercial Driving License', 'Aadhaar Card', 'PAN Card',
-                'Police Verification Certificate', 'RTO Badge Certificate',
-                'Medical Fitness Certificate', 'Previous Employer Experience Letter'
-              ].map(doc => (
+            {/* Driving License Requirement Selection (Pic 1) */}
+            <div className="p-4 sm:p-5 rounded-2xl border border-slate-200 bg-slate-50/80 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <label className="block text-xs font-extrabold text-slate-900">
+                    Driving License Requirement <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Select whether the candidate must possess an active driving license before applying
+                  </p>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold self-start sm:self-center ${
+                  drivingLicenseRequired 
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}>
+                  {drivingLicenseRequired ? '✓ Driving License Required' : '✕ License Not Required'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <button
-                  key={doc}
                   type="button"
                   onClick={() => {
-                    if (docsSelected.includes(doc)) {
-                      setDocsSelected(docsSelected.filter(d => d !== doc));
-                    } else {
-                      setDocsSelected([...docsSelected, doc]);
+                    setDrivingLicenseRequired(true);
+                    if (!docsSelected.includes('Commercial Driving License')) {
+                      setDocsSelected(['Commercial Driving License', ...docsSelected]);
                     }
                   }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
-                    docsSelected.includes(doc)
-                      ? 'bg-blue-50 text-blue-800 border-blue-500 font-bold'
-                      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                    drivingLicenseRequired
+                      ? 'bg-white border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  {docsSelected.includes(doc) ? '✓ ' : '+ '} {doc}
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${
+                    drivingLicenseRequired ? 'bg-emerald-600 text-white' : 'border border-slate-300'
+                  }`}>
+                    {drivingLicenseRequired && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">Yes — Driving License is Required</span>
+                    <span className="text-[11px] text-slate-500 leading-relaxed block mt-0.5">
+                      Driver must possess a valid RTO commercial/transport or personal driving license.
+                    </span>
+                  </div>
                 </button>
-              ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDrivingLicenseRequired(false);
+                    setDocsSelected(docsSelected.filter(d => d !== 'Commercial Driving License'));
+                  }}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                    !drivingLicenseRequired
+                      ? 'bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${
+                    !drivingLicenseRequired ? 'bg-amber-600 text-white' : 'border border-slate-300'
+                  }`}>
+                    {!drivingLicenseRequired && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">No — Driving License Not Required</span>
+                    <span className="text-[11px] text-slate-500 leading-relaxed block mt-0.5">
+                      Open to helper, cleaner, loader, yard attendant, trainee or non-driving staff.
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {drivingLicenseRequired && (
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+                  <span className="font-semibold text-slate-700 shrink-0">Required License Category:</span>
+                  <select
+                    value={licenseTypeRequired}
+                    onChange={e => setLicenseTypeRequired(e.target.value)}
+                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                  >
+                    <option value="Commercial / Transport License">Commercial / Transport License (HMV / LMV)</option>
+                    <option value="Heavy Motor Vehicle (HMV)">Heavy Motor Vehicle (HMV / Multi-Axle)</option>
+                    <option value="Light Motor Vehicle (LMV)">Light Motor Vehicle (LMV-TR / LMV-NT)</option>
+                    <option value="Heavy Passenger Vehicle (HPV / Bus)">Heavy Passenger Vehicle (HPV / Bus Badge)</option>
+                    <option value="Hazardous Goods Endorsement">Hazardous Goods / Fuel Tanker Endorsement</option>
+                    <option value="Motorcycle / 2-Wheeler (MCWG)">Two Wheeler (MCWG / Delivery)</option>
+                  </select>
+                </div>
+              )}
             </div>
-          </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-800">Mandatory Verification Documents</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'Commercial Driving License', 'Aadhaar Card', 'PAN Card',
+                  'Police Verification Certificate', 'RTO Badge Certificate',
+                  'Medical Fitness Certificate', 'Previous Employer Experience Letter'
+                ].map(doc => (
+                  <button
+                    key={doc}
+                    type="button"
+                    onClick={() => {
+                      if (docsSelected.includes(doc)) {
+                        setDocsSelected(docsSelected.filter(d => d !== doc));
+                      } else {
+                        setDocsSelected([...docsSelected, doc]);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                      docsSelected.includes(doc)
+                        ? 'bg-blue-50 text-blue-800 border-blue-500 font-bold'
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {docsSelected.includes(doc) ? '✓ ' : '+ '} {doc}
+                  </button>
+                ))}
+              </div>
+            </div>
 
           <div className="flex justify-between pt-4 border-t border-slate-100">
             <button
@@ -1419,6 +1516,13 @@ export const EmployerPostJob: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                drivingLicenseRequired 
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+              }`}>
+                {drivingLicenseRequired ? `✓ Driving License Required: ${licenseTypeRequired}` : '✕ Driving License: Not Required'}
+              </span>
               {selectedPerks.map(p => (
                 <span key={p} className="px-2.5 py-0.5 bg-white border border-slate-200 rounded-full text-[11px] font-semibold text-slate-700">
                   ✓ {p}

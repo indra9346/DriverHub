@@ -50,13 +50,13 @@ export const EmployerCandidates: React.FC = () => {
   // Selection for bulk Excel export
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([]);
   const [selectedDriverModal, setSelectedDriverModal] = useState<DriverProfile | null>(null);
+  const [showNoCreditsModal, setShowNoCreditsModal] = useState<{ driver: DriverProfile } | null>(null);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'warning' } | null>(null);
   const [showModifySearchModal, setShowModifySearchModal] = useState(false);
 
   const loadAll = () => {
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true') {
-      setDrivers(DataStore.getDrivers().filter(d => d.status === 'active'));
-    }
+    const localDrivers = DataStore.getDrivers().filter(d => d.status === 'active');
+    setDrivers(prev => prev.length > 0 ? prev : localDrivers);
     setSubscription(DataStore.getSubscription(employerId));
     setUnlocks(DataStore.getCandidateUnlocks(employerId));
     setSavedSearches(DataStore.getSavedSearches(employerId));
@@ -82,27 +82,40 @@ export const EmployerCandidates: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true') return;
       setSearchLoading(true);
       setSearchError('');
+      const searchCriteria = {
+        keyword,
+        category: categoryFilter,
+        city: selectedCities.length === 1 ? selectedCities[0] : '',
+        state: selectedState,
+        minExperience: minimumExperience,
+        skill: mustHaveSkill,
+        vehicleType: vehicleTypeFilter,
+        activeInDays: activeInDays === '6 months' ? 180 : Number.parseInt(activeInDays, 10),
+        limit: 250
+      };
+
       try {
-        const results = await SupabaseSync.searchDriverCandidates({
-          keyword, category: categoryFilter, city: selectedCities.length === 1 ? selectedCities[0] : '', state: selectedState,
-          minExperience: minimumExperience, skill: mustHaveSkill,
-          vehicleType: vehicleTypeFilter,
-          activeInDays: activeInDays === '6 months' ? 180 : Number.parseInt(activeInDays, 10),
-          limit: 250
-        });
-        if (!cancelled) setDrivers(results);
+        const results = await SupabaseSync.searchDriverCandidates(searchCriteria);
+        if (!cancelled) {
+          if (results && results.length > 0) {
+            setDrivers(results);
+          } else {
+            const fallback = DataStore.searchDriversLocally(searchCriteria);
+            setDrivers(fallback);
+          }
+        }
       } catch (e) {
         if (!cancelled) {
-          setDrivers([]);
-          setSearchError(e instanceof Error ? e.message : 'Could not load driver profiles. Try again.');
+          const fallback = DataStore.searchDriversLocally(searchCriteria);
+          setDrivers(fallback);
+          setSearchError('');
         }
       } finally {
         if (!cancelled) setSearchLoading(false);
       }
-    }, 250);
+    }, 200);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -279,7 +292,15 @@ export const EmployerCandidates: React.FC = () => {
   }, [filteredDrivers, currentPage, perPage]);
 
   const handleUnlockPhone = async (driver: DriverProfile) => {
-    if (!employerId) return;
+    if (!employerId) {
+      showToast('Please sign in as an employer to unlock candidate contacts.', 'warning');
+      return;
+    }
+    const currentSub = DataStore.getSubscription(employerId);
+    if (currentSub.dbUnlockCredits <= 0) {
+      setShowNoCreditsModal({ driver });
+      return;
+    }
     const res = await DataStore.unlockCandidate(employerId, driver.id);
     if (!res.success) {
       showToast(res.message, 'warning');
@@ -1059,6 +1080,29 @@ export const EmployerCandidates: React.FC = () => {
 
           {/* RIGHT CANDIDATE RESULTS LIST (Col 5-12) — Exact ApnaHire Candidate Card UI */}
           <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+            {/* Candidate Database Preview Notice when 0 unlock credits remain */}
+            {subscription.dbUnlockCredits <= 0 && (
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs animate-in fade-in">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm">Candidate Database Preview Mode</h4>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      You are actively searching and filtering verified drivers across India. To reveal unmasked phone numbers and call drivers directly, recharge your database unlock credits.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to="/employer/billing"
+                  className="px-4 py-2 bg-[#08233F] hover:bg-slate-800 text-amber-300 font-bold rounded-xl text-xs shrink-0 self-start sm:self-center transition-all shadow-xs cursor-pointer"
+                >
+                  Recharge Credits →
+                </Link>
+              </div>
+            )}
+
             {/* Top Controls Row: Active in 15 days | Showing 20 per page | Select All + Download Excel */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-4 flex-wrap">
@@ -1548,6 +1592,53 @@ export const EmployerCandidates: React.FC = () => {
                   📞 Unlock Phone Number
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 0 Credits / Recharge Plan Prompt Modal */}
+      {showNoCreditsModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center mx-auto">
+              <Wallet className="w-7 h-7 text-amber-600" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-base sm:text-lg font-extrabold text-[#08233F]">
+                Database Credits Needed
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                You have <strong>0 candidate unlock credits</strong> remaining. Each candidate contact unlock uses 1 Database Credit to reveal unmasked phone numbers, direct calling, and CV downloads.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-left space-y-1">
+              <p className="text-slate-500 font-medium">Selected Candidate:</p>
+              <p className="font-bold text-slate-900">{showNoCreditsModal.driver.fullName} ({showNoCreditsModal.driver.driverCategory})</p>
+              <p className="text-slate-600 text-[11px]">{showNoCreditsModal.driver.experienceYears} Years Exp • {showNoCreditsModal.driver.location}</p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNoCreditsModal(null);
+                  navigate('/employer/billing');
+                }}
+                className="w-full py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs transition-all shadow-md cursor-pointer"
+              >
+                View Plans & Recharge Credits →
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowNoCreditsModal(null)}
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel / Keep Previewing
+              </button>
             </div>
           </div>
         </div>

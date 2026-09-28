@@ -208,6 +208,8 @@ export interface Job {
   description: string;
   requiredSkills: string[];
   requiredDocs: string[];
+  drivingLicenseRequired?: boolean;
+  licenseTypeRequired?: string;
   vacancies: number;
   status: JobStatus;
   postedDate: string;

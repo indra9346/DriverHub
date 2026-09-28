@@ -125,6 +125,15 @@ export const JobCard: React.FC<JobCardProps> = ({
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700">
               {t(job.employmentType)}
             </span>
+            {job.drivingLicenseRequired === false ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                ✓ No License Needed
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-800 border border-blue-200">
+                🪪 License Required
+              </span>
+            )}
             {job.vacancies > 1 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                 <Users className="w-3 h-3 text-emerald-600" /> {t('{count} Vacancies', { count: job.vacancies })}

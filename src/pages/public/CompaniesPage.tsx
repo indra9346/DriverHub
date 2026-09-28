@@ -57,6 +57,59 @@ export const CompaniesPage: React.FC = () => {
     };
   }, [loadDirectory]);
 
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const companySuggestions = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const suggestions: { title: string; subtitle: string; type: 'company' | 'industry' | 'city' }[] = [];
+    const seen = new Set<string>();
+
+    for (const { employer: e } of directory) {
+      if (!q || e.companyName.toLowerCase().includes(q)) {
+        if (!seen.has(e.companyName.toLowerCase())) {
+          seen.add(e.companyName.toLowerCase());
+          suggestions.push({
+            title: e.companyName,
+            subtitle: e.industry || 'Logistics & Transport Fleet',
+            type: 'company'
+          });
+        }
+      }
+      if (e.industry && (!q || e.industry.toLowerCase().includes(q))) {
+        if (!seen.has(e.industry.toLowerCase())) {
+          seen.add(e.industry.toLowerCase());
+          suggestions.push({
+            title: e.industry,
+            subtitle: 'Industry Category',
+            type: 'industry'
+          });
+        }
+      }
+      if (e.city && (!q || e.city.toLowerCase().includes(q))) {
+        if (!seen.has(e.city.toLowerCase())) {
+          seen.add(e.city.toLowerCase());
+          suggestions.push({
+            title: e.city,
+            subtitle: `${e.state || 'India'} Fleet Hub`,
+            type: 'city'
+          });
+        }
+      }
+    }
+    return suggestions.slice(0, 7);
+  }, [directory, search]);
+
   const filtered = directory.filter(({ employer: e }) =>
     e.companyName.toLowerCase().includes(search.toLowerCase()) ||
     (e.industry || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -81,19 +134,70 @@ export const CompaniesPage: React.FC = () => {
         </div>
 
         {/* Search & Verified filter */}
-        <div className="relative z-10 w-full md:w-80 space-y-2">
+        <div ref={searchRef} className="relative z-20 w-full md:w-80 space-y-2">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setShowSuggestions(true);
+              }}
               placeholder={lang === 'kn' ? 'ಕಂಪನಿ, ಉದ್ಯಮದ ಹೆಸರು ಹುಡುಕಿ...' : 'Search company, industry...'}
-              className="w-full pl-10 pr-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 backdrop-blur-sm"
+              className="w-full pl-10 pr-8 py-2.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 backdrop-blur-sm"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
           </div>
+
+          {/* Real-Time Auto-Suggestions Popup */}
+          {showSuggestions && companySuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-12 mt-1 bg-white text-slate-900 rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-60 overflow-y-auto animate-in fade-in z-50">
+              <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <span>Matching Employers & Fleets</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSuggestions(false)}
+                  className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              {companySuggestions.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setSearch(item.title);
+                    setShowSuggestions(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs hover:bg-amber-50 hover:text-amber-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                >
+                  <div className="min-w-0 pr-2">
+                    <span className="font-bold text-slate-900 group-hover:text-amber-900 truncate block">
+                      {item.title}
+                    </span>
+                    <span className="text-[10px] text-slate-500 truncate block">{item.subtitle}</span>
+                  </div>
+                  <span className="text-[10px] bg-slate-100 group-hover:bg-amber-200 text-slate-700 group-hover:text-amber-900 px-2 py-0.5 rounded font-bold shrink-0">
+                    Select ↵
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between px-1">
-            <button onClick={() => void loadDirectory()} className="inline-flex items-center gap-1.5 text-xs text-white/80 hover:text-white" disabled={loading}>
+            <button onClick={() => void loadDirectory()} className="inline-flex items-center gap-1.5 text-xs text-white/80 hover:text-white cursor-pointer" disabled={loading}>
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> {lang === 'kn' ? 'ಪಟ್ಟಿಯನ್ನು ನವೀಕರಿಸಿ' : 'Refresh directory'}
             </button>
             <span className="text-[11px] text-amber-300 font-bold">

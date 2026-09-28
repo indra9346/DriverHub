@@ -53,6 +53,28 @@ export const AdminCandidates: React.FC = () => {
     d.location.toLowerCase().includes(search.toLowerCase())
   );
 
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const suggestions = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return drivers.filter(d =>
+      d.fullName.toLowerCase().includes(q) ||
+      d.driverCategory.toLowerCase().includes(q)
+    ).slice(0, 5);
+  }, [drivers, search]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -61,17 +83,52 @@ export const AdminCandidates: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1">{t('candidateModerationSubtitle')}</p>
         </div>
 
-        <div className="w-full sm:w-64">
+        <div ref={searchRef} className="relative w-full sm:w-64">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setShowSuggestions(true);
+              }}
               placeholder={t('searchCandidatesPlaceholder')}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-amber"
+              className="w-full pl-9 pr-7 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-amber"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
           </div>
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 max-h-52 overflow-y-auto animate-in fade-in">
+              {suggestions.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => {
+                    setSearch(d.fullName);
+                    setShowSuggestions(false);
+                  }}
+                  className="w-full px-3 py-1.5 text-left text-xs hover:bg-slate-50 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                >
+                  <div>
+                    <span className="font-bold text-slate-800 block">{d.fullName}</span>
+                    <span className="text-[10px] text-slate-500">{d.driverCategory} • {d.city || d.location}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 group-hover:text-amber-600">Select ↵</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Search, MapPin, Filter, IndianRupee, Briefcase, Truck, 
@@ -13,7 +13,11 @@ import {
   ALL_INDIAN_STATES, 
   CITY_AREAS_MAP, 
   getCitiesForState, 
-  POPULAR_INDIAN_SKILLS 
+  POPULAR_INDIAN_SKILLS,
+  getSearchRoleSuggestions,
+  getSearchLocationSuggestions,
+  POPULAR_SEARCH_ROLES,
+  POPULAR_INDIAN_LOCATIONS
 } from '../../data/indiaLocations';
 
 export const JobsPage: React.FC = () => {
@@ -36,6 +40,17 @@ export const JobsPage: React.FC = () => {
   const [isSalaryAdjusting, setIsSalaryAdjusting] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState(() => searchParams.get('skill') || '');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  // Auto-suggestions states & refs
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const [citySearchInput, setCitySearchInput] = useState('');
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const cityContainerRef = useRef<HTMLDivElement>(null);
+  const mobileSearchContainerRef = useRef<HTMLDivElement>(null);
+  const mobileCityContainerRef = useRef<HTMLDivElement>(null);
+  const [showMobileSearchSuggestions, setShowMobileSearchSuggestions] = useState(false);
+  const [showMobileCitySuggestions, setShowMobileCitySuggestions] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -85,6 +100,36 @@ export const JobsPage: React.FC = () => {
     setIsSalaryAdjusting(false);
     setSelectedSkill(sk);
   }, [searchParams]);
+
+  // Click-outside listener to dismiss auto-suggestions
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
+        setShowSearchSuggestions(false);
+      }
+      if (cityContainerRef.current && !cityContainerRef.current.contains(target)) {
+        setShowCitySuggestions(false);
+      }
+      if (mobileSearchContainerRef.current && !mobileSearchContainerRef.current.contains(target)) {
+        setShowMobileSearchSuggestions(false);
+      }
+      if (mobileCityContainerRef.current && !mobileCityContainerRef.current.contains(target)) {
+        setShowMobileCitySuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const searchRoleSuggestions = useMemo(() => {
+    const liveJobs = jobs.map(j => ({ title: j.title, category: j.category, company: j.companyName }));
+    return getSearchRoleSuggestions(searchQuery, liveJobs);
+  }, [searchQuery, jobs]);
+
+  const citySuggestions = useMemo(() => {
+    return getSearchLocationSuggestions(citySearchInput);
+  }, [citySearchInput]);
 
   // Sync state changes back to URL params
   const updateUrlParams = (updates: {
@@ -367,22 +412,100 @@ export const JobsPage: React.FC = () => {
             )}
           </div>
 
-          {/* 1. Search Keyword */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Search Keywords / Roles')}</label>
+          {/* 1. Search Keyword with Real-Time Auto-Suggestions */}
+          <div ref={searchContainerRef} className="relative">
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-700">{t('Search Keywords / Roles')}</label>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    updateUrlParams({ q: '' });
+                  }}
+                  className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
+                >
+                  {t('Clear')}
+                </button>
+              )}
+            </div>
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
+                onFocus={() => setShowSearchSuggestions(true)}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   updateUrlParams({ q: e.target.value });
+                  setShowSearchSuggestions(true);
                 }}
                 placeholder={lang === 'kn' ? "ಹುದ್ದೆಯ ಹೆಸರು, ಫ್ಲೀಟ್, ಕೌಶಲ್ಯ..." : "Job title, transport fleet, skill..."}
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
+                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    updateUrlParams({ q: '' });
+                  }}
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
             </div>
+
+            {/* Real-time Role & Vacancy Auto-Suggestions Popup */}
+            {showSearchSuggestions && searchRoleSuggestions.length > 0 && (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-72 overflow-y-auto animate-in fade-in">
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <span>Suggested Vacancies & Roles</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSearchSuggestions(false)}
+                    className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {searchRoleSuggestions.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery(item.title);
+                      const updates: Record<string, string> = { q: item.title };
+                      if (item.category) {
+                        setSelectedCategory(item.category);
+                        updates.category = item.category;
+                      }
+                      updateUrlParams(updates);
+                      setShowSearchSuggestions(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-xs hover:bg-amber-50 hover:text-amber-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                  >
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-slate-900 group-hover:text-amber-900 truncate block">
+                          {item.title}
+                        </span>
+                        {item.source === 'job' && (
+                          <span className="text-[9px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-bold shrink-0">
+                            Vacancy
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-500 truncate block">{item.subtitle}</span>
+                    </div>
+                    <span className="text-[10px] bg-slate-100 group-hover:bg-amber-200 text-slate-700 group-hover:text-amber-900 px-2 py-0.5 rounded font-bold shrink-0">
+                      Select ↵
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 2. State Filter (All 36 Indian States & UTs) */}
@@ -395,6 +518,7 @@ export const JobsPage: React.FC = () => {
                     setSelectedState('');
                     setSelectedCity('');
                     setSelectedArea('');
+                    setCitySearchInput('');
                     updateUrlParams({ state: '', city: '', area: '' });
                   }}
                   className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
@@ -409,6 +533,7 @@ export const JobsPage: React.FC = () => {
                 setSelectedState(e.target.value);
                 setSelectedCity('');
                 setSelectedArea('');
+                setCitySearchInput('');
                 updateUrlParams({ state: e.target.value, city: '', area: '' });
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer font-medium"
@@ -422,8 +547,8 @@ export const JobsPage: React.FC = () => {
             </select>
           </div>
 
-          {/* 3. City / Major District Filter */}
-          <div>
+          {/* 3. City / Major District Filter with Real-Time Auto-Suggestions */}
+          <div ref={cityContainerRef} className="relative">
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-slate-700">
                 {t('City / Operating District')} {selectedState ? `(${selectedState})` : ''}
@@ -433,6 +558,7 @@ export const JobsPage: React.FC = () => {
                   onClick={() => {
                     setSelectedCity('');
                     setSelectedArea('');
+                    setCitySearchInput('');
                     updateUrlParams({ city: '', area: '' });
                   }}
                   className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
@@ -441,11 +567,75 @@ export const JobsPage: React.FC = () => {
                 </button>
               )}
             </div>
+
+            {/* Quick City Search Input with Real-Time Auto-Suggestions */}
+            <div className="relative mb-2">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+              <input
+                type="text"
+                value={citySearchInput}
+                onFocus={() => setShowCitySuggestions(true)}
+                onChange={(e) => {
+                  setCitySearchInput(e.target.value);
+                  setShowCitySuggestions(true);
+                }}
+                placeholder={selectedCity ? `Current: ${selectedCity}` : (lang === 'kn' ? 'ನಗರವನ್ನು ಹುಡುಕಿ (ಬೆಂಗಳೂರು, ಅನಂತಪುರ...)' : 'Type city (Bengaluru, Anantapur...)')}
+                className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
+              />
+              {citySearchInput && (
+                <button
+                  type="button"
+                  onClick={() => setCitySearchInput('')}
+                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* City Auto-Suggestions Popup */}
+            {showCitySuggestions && citySuggestions.length > 0 && (
+              <div className="absolute z-50 left-0 right-0 top-16 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-60 overflow-y-auto animate-in fade-in">
+                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                  <span>Suggested Cities & States</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowCitySuggestions(false)}
+                    className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {citySuggestions.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCity(item.city);
+                      setSelectedState(item.state);
+                      setSelectedArea('');
+                      setCitySearchInput(item.city);
+                      updateUrlParams({ city: item.city, state: item.state, area: '' });
+                      setShowCitySuggestions(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-xs hover:bg-amber-50 hover:text-amber-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                  >
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 shrink-0" />
+                      <span className="font-semibold text-slate-900 group-hover:text-amber-950">{item.label}</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-amber-800 shrink-0">Select ↵</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <select
               value={selectedCity}
               onChange={(e) => {
                 setSelectedCity(e.target.value);
                 setSelectedArea('');
+                setCitySearchInput(e.target.value);
                 updateUrlParams({ city: e.target.value, area: '' });
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
@@ -728,6 +918,81 @@ export const JobsPage: React.FC = () => {
                 >
                   <X className="w-5 h-5" />
                 </button>
+              </div>
+
+              {/* Mobile Search Keyword */}
+              <div ref={mobileSearchContainerRef} className="relative">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Search Keywords / Roles')}</label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onFocus={() => setShowMobileSearchSuggestions(true)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      updateUrlParams({ q: e.target.value });
+                      setShowMobileSearchSuggestions(true);
+                    }}
+                    placeholder={lang === 'kn' ? "ಹುದ್ದೆಯ ಹೆಸರು, ಫ್ಲೀಟ್, ಕೌಶಲ್ಯ..." : "Job title, transport fleet, skill..."}
+                    className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        updateUrlParams({ q: '' });
+                      }}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile Suggestions Popup */}
+                {showMobileSearchSuggestions && searchRoleSuggestions.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-60 overflow-y-auto animate-in fade-in">
+                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                      <span>Suggested Roles & Vacancies</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowMobileSearchSuggestions(false)}
+                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {searchRoleSuggestions.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery(item.title);
+                          const updates: Record<string, string> = { q: item.title };
+                          if (item.category) {
+                            setSelectedCategory(item.category);
+                            updates.category = item.category;
+                          }
+                          updateUrlParams(updates);
+                          setShowMobileSearchSuggestions(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-amber-50 hover:text-amber-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <span className="font-bold text-slate-900 group-hover:text-amber-900 truncate block">
+                            {item.title}
+                          </span>
+                          <span className="text-[10px] text-slate-500 truncate block">{item.subtitle}</span>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 group-hover:bg-amber-200 text-slate-700 group-hover:text-amber-900 px-2 py-0.5 rounded font-bold shrink-0">
+                          Select ↵
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* State */}

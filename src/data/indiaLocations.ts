@@ -421,3 +421,137 @@ export function getAreasForCity(cityName: string): string[] {
     `${cityName} Ring Road`
   ];
 }
+
+export interface SearchRoleItem {
+  title: string;
+  category: string;
+  subtitle: string;
+  aliases?: string[];
+}
+
+export const POPULAR_SEARCH_ROLES: SearchRoleItem[] = [
+  { title: 'Heavy Truck (HMV) Driver', category: 'HMV', subtitle: 'Multi-axle, interstate & container transport', aliases: ['hmv', 'truck', 'heavy', 'lorry', 'multi-axle', 'trailer'] },
+  { title: 'Personal & LMV Chauffeur', category: 'LMV', subtitle: 'Corporate sedans, luxury cars & private family', aliases: ['lmv', 'chauffeur', 'car', 'personal driver', 'innova'] },
+  { title: 'Cab & Taxi Driver', category: 'Cab Driver', subtitle: 'App-based ride hailing, airport & local taxi', aliases: ['cab', 'taxi', 'ola', 'uber', 'commercial cab'] },
+  { title: 'Hyperlocal E-Commerce Delivery Rider', category: 'Delivery Driver', subtitle: 'Last-mile parcels, food & 2/3-wheeler cargo', aliases: ['delivery', 'courier', 'parcel', 'amazon', 'flipkart', 'swiggy', 'zomato'] },
+  { title: 'School Bus & Student Van Driver', category: 'Bus Driver', subtitle: 'Passenger transit, institutional & campus shuttle', aliases: ['bus', 'school bus', 'van', 'staff bus', 'passenger'] },
+  { title: '40ft Container Trailer Driver', category: 'Trailer Driver', subtitle: 'Port clearing, heavy haulage & container logistics', aliases: ['trailer', 'container', '40ft', 'port', 'haulage'] },
+  { title: 'Cement & Bulk Goods Bulker Driver', category: 'HMV', subtitle: 'Flyash, cement & pneumatic dry bulk transport', aliases: ['bulker', 'bulk', 'cement bulker', 'flyash'] },
+  { title: 'Tata Ace & Intra-City Tempo Driver', category: 'Tempo Driver', subtitle: 'Intra-city distribution, FMCG & local cargo', aliases: ['tempo', 'tata ace', 'chota hathi', 'dost', 'pickup', 'lcv'] },
+  { title: 'Petroleum & Gas Tanker Driver', category: 'HMV', subtitle: 'Hazardous cargo, fuel & chemical bulk tanker', aliases: ['tanker', 'petrol tanker', 'chemical tanker', 'hazardous'] },
+  { title: 'Mining Dumper & Tipper Driver', category: 'HMV', subtitle: 'Aggregate, earthmoving, quarry & civil projects', aliases: ['tipper', 'dumper', 'mining', 'construction'] },
+  { title: 'Airport Shuttle & Chauffeur Pilot', category: 'LMV', subtitle: 'VIP transport, hotel luxury fleet & transfers', aliases: ['airport', 'vip', 'hotel', 'shuttle'] },
+  { title: 'Electric Vehicle (EV) Fleet Pilot', category: 'Delivery Driver', subtitle: 'Green logistics, EV vans & smart battery transport', aliases: ['ev', 'electric', 'ev cargo'] },
+];
+
+export const POPULAR_INDIAN_LOCATIONS = [
+  { city: 'Anantapur', state: 'Andhra Pradesh', label: 'Anantapur, Andhra Pradesh' },
+  { city: 'Bengaluru', state: 'Karnataka', label: 'Bengaluru, Karnataka' },
+  { city: 'Chennai', state: 'Tamil Nadu', label: 'Chennai, Tamil Nadu' },
+  { city: 'Hyderabad', state: 'Telangana', label: 'Hyderabad, Telangana' },
+  { city: 'Mumbai', state: 'Maharashtra', label: 'Mumbai, Maharashtra' },
+  { city: 'Delhi NCR', state: 'Delhi NCR', label: 'Delhi NCR (Gurugram/Noida)' },
+  { city: 'Pune', state: 'Maharashtra', label: 'Pune, Maharashtra' },
+  { city: 'Mysuru', state: 'Karnataka', label: 'Mysuru, Karnataka' },
+  { city: 'Ahmedabad', state: 'Gujarat', label: 'Ahmedabad, Gujarat' },
+  { city: 'Kolkata', state: 'West Bengal', label: 'Kolkata, West Bengal' },
+  { city: 'Visakhapatnam', state: 'Andhra Pradesh', label: 'Visakhapatnam, Andhra Pradesh' },
+  { city: 'Vijayawada', state: 'Andhra Pradesh', label: 'Vijayawada, Andhra Pradesh' },
+  { city: 'Kochi', state: 'Kerala', label: 'Kochi, Kerala' },
+  { city: 'Coimbatore', state: 'Tamil Nadu', label: 'Coimbatore, Tamil Nadu' },
+  { city: 'Hubballi-Dharwad', state: 'Karnataka', label: 'Hubballi-Dharwad, Karnataka' },
+  { city: 'Jaipur', state: 'Rajasthan', label: 'Jaipur, Rajasthan' },
+  { city: 'Chandigarh', state: 'Punjab', label: 'Chandigarh / Mohali' },
+  { city: 'Lucknow', state: 'Uttar Pradesh', label: 'Lucknow, Uttar Pradesh' },
+  { city: 'Surat', state: 'Gujarat', label: 'Surat, Gujarat' },
+  { city: 'Indore', state: 'Madhya Pradesh', label: 'Indore, Madhya Pradesh' },
+];
+
+export function getSearchRoleSuggestions(
+  query: string, 
+  extraJobTitles: { title: string; category?: string; company?: string }[] = []
+): { title: string; category?: string; subtitle: string; source?: 'job' | 'role' }[] {
+  const q = query.trim().toLowerCase();
+  
+  if (!q) {
+    return POPULAR_SEARCH_ROLES.slice(0, 6).map(r => ({
+      title: r.title,
+      category: r.category,
+      subtitle: r.subtitle,
+      source: 'role'
+    }));
+  }
+
+  const results: { title: string; category?: string; subtitle: string; source?: 'job' | 'role' }[] = [];
+  const seen = new Set<string>();
+
+  // 1. Check live job titles first
+  for (const job of extraJobTitles) {
+    if (
+      job.title.toLowerCase().includes(q) ||
+      (job.category && job.category.toLowerCase().includes(q)) ||
+      (job.company && job.company.toLowerCase().includes(q))
+    ) {
+      const key = job.title.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push({
+          title: job.title,
+          category: job.category,
+          subtitle: job.company ? `Active Vacancy • ${job.company}` : 'Active Vacancy',
+          source: 'job'
+        });
+      }
+    }
+  }
+
+  // 2. Check popular standardized roles
+  for (const r of POPULAR_SEARCH_ROLES) {
+    const key = r.title.toLowerCase();
+    if (seen.has(key)) continue;
+
+    const matchesTitle = r.title.toLowerCase().includes(q);
+    const matchesCategory = r.category.toLowerCase().includes(q);
+    const matchesSubtitle = r.subtitle.toLowerCase().includes(q);
+    const matchesAlias = r.aliases?.some(a => a.toLowerCase().includes(q) || q.includes(a.toLowerCase()));
+
+    if (matchesTitle || matchesCategory || matchesSubtitle || matchesAlias) {
+      seen.add(key);
+      results.push({
+        title: r.title,
+        category: r.category,
+        subtitle: r.subtitle,
+        source: 'role'
+      });
+    }
+  }
+
+  return results.slice(0, 8);
+}
+
+export function getSearchLocationSuggestions(query: string): { city: string; state: string; label: string }[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return POPULAR_INDIAN_LOCATIONS.slice(0, 6);
+
+  const popularMatches = POPULAR_INDIAN_LOCATIONS.filter(l =>
+    l.city.toLowerCase().includes(q) ||
+    l.state.toLowerCase().includes(q) ||
+    l.label.toLowerCase().includes(q)
+  );
+
+  const otherMatches: { city: string; state: string; label: string }[] = [];
+  for (const st of ALL_INDIAN_STATES) {
+    if (st.state.toLowerCase().includes(q) && !popularMatches.some(p => p.state.toLowerCase() === st.state.toLowerCase())) {
+      const primaryCity = st.majorCities[0] || st.state;
+      otherMatches.push({ city: primaryCity, state: st.state, label: `${primaryCity}, ${st.state}` });
+    }
+    for (const city of st.majorCities) {
+      if (city.toLowerCase().includes(q) && !popularMatches.some(p => p.city.toLowerCase() === city.toLowerCase())) {
+        otherMatches.push({ city, state: st.state, label: `${city}, ${st.state}` });
+      }
+    }
+  }
+
+  return [...popularMatches, ...otherMatches].slice(0, 8);
+}
+

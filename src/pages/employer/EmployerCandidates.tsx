@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Users, Search, MapPin, ShieldCheck, Phone, Mail, Briefcase, 
@@ -9,7 +9,13 @@ import {
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, EmployerSubscription, SavedSearch, CandidateUnlock } from '../../types';
-import { ALL_INDIAN_STATES, getCitiesForState, POPULAR_INDIAN_SKILLS } from '../../data/indiaLocations';
+import { 
+  ALL_INDIAN_STATES, 
+  getCitiesForState, 
+  POPULAR_INDIAN_SKILLS,
+  getSearchRoleSuggestions,
+  POPULAR_SEARCH_ROLES
+} from '../../data/indiaLocations';
 import { useLanguage } from '../../services/i18n';
 
 export const EmployerCandidates: React.FC = () => {
@@ -27,6 +33,12 @@ export const EmployerCandidates: React.FC = () => {
   const [subscription, setSubscription] = useState<EmployerSubscription>(DataStore.getSubscription(employerId));
   const [unlocks, setUnlocks] = useState<CandidateUnlock[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+
+  // Auto-suggestions states & refs
+  const [showCandidateSearchSuggestions, setShowCandidateSearchSuggestions] = useState(false);
+  const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
+  const candidateSearchContainerRef = useRef<HTMLDivElement>(null);
+  const skillContainerRef = useRef<HTMLDivElement>(null);
 
   // Filters matching ApnaHire Screenshot 1 (media_1790252022828.jpg)
   const [keyword, setKeyword] = useState(searchParams.get('q') || '');
@@ -53,6 +65,31 @@ export const EmployerCandidates: React.FC = () => {
   const [showNoCreditsModal, setShowNoCreditsModal] = useState<{ driver: DriverProfile } | null>(null);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'warning' } | null>(null);
   const [showModifySearchModal, setShowModifySearchModal] = useState(false);
+
+  // Click-outside listener
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (candidateSearchContainerRef.current && !candidateSearchContainerRef.current.contains(target)) {
+        setShowCandidateSearchSuggestions(false);
+      }
+      if (skillContainerRef.current && !skillContainerRef.current.contains(target)) {
+        setShowSkillSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const candidateSuggestions = useMemo(() => {
+    return getSearchRoleSuggestions(keyword);
+  }, [keyword]);
+
+  const skillSuggestions = useMemo(() => {
+    const q = mustHaveSkill.trim().toLowerCase();
+    if (!q) return POPULAR_INDIAN_SKILLS.slice(0, 6);
+    return POPULAR_INDIAN_SKILLS.filter(s => s.toLowerCase().includes(q)).slice(0, 6);
+  }, [mustHaveSkill]);
 
   const loadAll = () => {
     const localDrivers = DataStore.getDrivers().filter(d => d.status === 'active');
@@ -908,8 +945,8 @@ export const EmployerCandidates: React.FC = () => {
               </div>
             </div>
 
-            {/* Section 4: Must-Have Keywords / Skills */}
-            <div className="p-4 border-b border-slate-200 space-y-3">
+            {/* Section 4: Must-Have Keywords / Skills with Auto-Suggestions */}
+            <div ref={skillContainerRef} className="relative p-4 border-b border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800">Must-Have Keywords / Skills</span>
                 {mustHaveSkill && (
@@ -922,15 +959,58 @@ export const EmployerCandidates: React.FC = () => {
                 )}
               </div>
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   value={mustHaveSkill}
-                  onChange={e => setMustHaveSkill(e.target.value)}
+                  onFocus={() => setShowSkillSuggestions(true)}
+                  onChange={e => {
+                    setMustHaveSkill(e.target.value);
+                    setShowSkillSuggestions(true);
+                  }}
                   placeholder="Search skill (e.g. Night Driving, FASTag)..."
-                  className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:bg-white focus:outline-none"
+                  className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:bg-white focus:outline-none"
                 />
+                {mustHaveSkill && (
+                  <button
+                    type="button"
+                    onClick={() => setMustHaveSkill('')}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
+
+              {/* Skill Auto-Suggestions Popup */}
+              {showSkillSuggestions && skillSuggestions.length > 0 && (
+                <div className="absolute z-50 left-4 right-4 top-20 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 max-h-52 overflow-y-auto animate-in fade-in">
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <span>Suggested Skills</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSkillSuggestions(false)}
+                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {skillSuggestions.map((skill, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setMustHaveSkill(skill);
+                        setShowSkillSuggestions(false);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                    >
+                      <span className="font-semibold text-slate-800 group-hover:text-emerald-900">{skill}</span>
+                      <span className="text-[10px] text-slate-400 group-hover:text-emerald-800">Select ↵</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Clickable Popular Skill Tag Chips */}
               <div className="space-y-1.5 pt-1">
@@ -1080,6 +1160,71 @@ export const EmployerCandidates: React.FC = () => {
 
           {/* RIGHT CANDIDATE RESULTS LIST (Col 5-12) — Exact ApnaHire Candidate Card UI */}
           <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+            {/* Top Interactive Candidate Search Bar with Auto-Suggestions */}
+            <div ref={candidateSearchContainerRef} className="relative bg-white rounded-2xl border border-slate-200 shadow-subtle p-3.5">
+              <div className="relative flex items-center">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={keyword}
+                  onFocus={() => setShowCandidateSearchSuggestions(true)}
+                  onChange={e => {
+                    setKeyword(e.target.value);
+                    setShowCandidateSearchSuggestions(true);
+                  }}
+                  placeholder="Search candidate profiles by role, license, vehicle (e.g. 'HMV Heavy Truck', 'LMV Chauffeur', 'Bus Driver', 'Trailer')..."
+                  className="w-full pl-10 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white font-medium"
+                />
+                {keyword && (
+                  <button
+                    type="button"
+                    onClick={() => setKeyword('')}
+                    className="absolute right-3 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Suggestions Popup */}
+              {showCandidateSearchSuggestions && candidateSuggestions.length > 0 && (
+                <div className="absolute z-50 left-3.5 right-3.5 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-64 overflow-y-auto animate-in fade-in">
+                  <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <span>Suggested Roles & Vehicle Categories</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCandidateSearchSuggestions(false)}
+                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {candidateSuggestions.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setKeyword(item.title);
+                        if (item.category) setCategoryFilter(item.category);
+                        setShowCandidateSearchSuggestions(false);
+                      }}
+                      className="w-full px-3.5 py-2 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <span className="font-bold text-slate-900 group-hover:text-emerald-900 truncate block">
+                          {item.title}
+                        </span>
+                        <span className="text-[11px] text-slate-500 truncate block">{item.subtitle}</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-100 group-hover:bg-emerald-200 text-slate-700 group-hover:text-emerald-900 px-2 py-0.5 rounded font-bold shrink-0">
+                        Filter ↵
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Candidate Database Preview Notice when 0 unlock credits remain */}
             {subscription.dbUnlockCredits <= 0 && (
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs animate-in fade-in">

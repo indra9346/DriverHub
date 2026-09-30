@@ -27,7 +27,10 @@ import {
   reverseGeocodeCoordinates,
   isDistrictInState,
   findStateForDistrict,
-  getBaselineTownsForDistrict
+  getBaselineTownsForDistrict,
+  sanitizeLocalityName,
+  CANONICAL_DISTRICT_PIN_OVERRIDES,
+  CANONICAL_TOWN_DISTRICT_OVERRIDES
 } from '../../services/indiaLocationService';
 import { Navigation, LocateFixed } from 'lucide-react';
 
@@ -128,22 +131,6 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
     setQuery(value || '');
   }, [value]);
 
-  // Close menu on outside click
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setActiveIndex(-1);
-        // If free text is not allowed, revert to the committed value if user typed a non-matching query without selecting
-        if (!allowFreeText) {
-          setQuery(value || '');
-        }
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [allowFreeText, value]);
-
   const filteredOptions = useMemo(() => {
     const clean = query.trim().toLowerCase();
     // If query exactly matches current committed value and user just opened dropdown, show all options for easy scanning
@@ -161,6 +148,20 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
       )
       .slice(0, 80);
   }, [options, query, value, allowFreeText]);
+
+  // Close menu on outside click. Never silently commit a fuzzy match: location
+  // selection must be explicit so a nearby place cannot overwrite the driver’s choice.
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setActiveIndex(-1);
+        if (!allowFreeText) setQuery(value || '');
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [allowFreeText, value, query, filteredOptions, onSelect]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nextText = e.target.value;
@@ -213,15 +214,17 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
       return;
     }
 
-    if (e.key === 'Enter' && isOpen) {
-      if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
-        e.preventDefault();
-        handleOptionClick(filteredOptions[activeIndex]);
-      } else if (filteredOptions.length === 1) {
-        e.preventDefault();
-        handleOptionClick(filteredOptions[0]);
-      } else if (allowFreeText) {
-        setIsOpen(false);
+    if (e.key === 'Enter') {
+      if (isOpen) {
+        if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
+          e.preventDefault();
+          handleOptionClick(filteredOptions[activeIndex]);
+        } else if (filteredOptions.length > 0) {
+          e.preventDefault();
+          handleOptionClick(filteredOptions[0]);
+        } else if (allowFreeText) {
+          setIsOpen(false);
+        }
       }
     }
   };
@@ -876,22 +879,26 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
       const res = await verifyPinCodeLive(digitsOnly);
       if (version !== pinRequestVersionRef.current) return;
       if (res.valid) {
+        const pinOverride = CANONICAL_DISTRICT_PIN_OVERRIDES[digitsOnly];
         const matchedState =
+          pinOverride?.state ||
           statesList.find(s => s.toLowerCase() === (res.state || '').toLowerCase()) ||
           value.state ||
           res.state ||
           '';
         const stateDistricts = matchedState ? getDistrictsForState(matchedState) : [];
-        const matchedDistrict =
-          stateDistricts.find(
-            d =>
-              d.toLowerCase().includes((res.district || '').toLowerCase()) ||
-              (res.district || '').toLowerCase().includes(d.split('(')[0].trim().toLowerCase())
-          ) ||
-          value.district ||
-          res.district ||
-          '';
-        const matchedCity = value.city || res.towns[0] || '';
+        let matchedDistrict = pinOverride?.district || value.district || '';
+        if (!matchedDistrict) {
+          matchedDistrict =
+            stateDistricts.find(
+              d =>
+                d.toLowerCase().includes((res.district || '').toLowerCase()) ||
+                (res.district || '').toLowerCase().includes(d.split('(')[0].trim().toLowerCase())
+            ) ||
+            res.district ||
+            '';
+        }
+        const matchedCity = sanitizeLocalityName(value.city || (pinOverride?.town) || res.towns[0] || '');
 
         if (res.offices.length > 0) {
           setExtraPins(res.offices);
@@ -1066,7 +1073,8 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             const nextState = opt.meta?.state || value.state || (nextDistrict ? findStateForDistrict(nextDistrict) : '') || '';
             const parenMatch = nextDistrict.match(/\(([^)]+)\)/);
             const baseline = getBaselineTownsForDistrict(nextState, nextDistrict);
-            const firstTown = baseline.length > 0 ? baseline[0] : null;
+            const hqTown = baseline.find(t => t.name.toLowerCase() === nextDistrict.toLowerCase() || nextDistrict.toLowerCase().includes(t.name.toLowerCase()));
+            const firstTown = hqTown || (baseline.length > 0 ? baseline[0] : null);
             const primaryTown = firstTown ? firstTown.name : (parenMatch ? parenMatch[1].split('/')[0].trim() : nextDistrict.split('(')[0].trim());
             const primaryPin = firstTown && firstTown.pins.length > 0 ? firstTown.pins[0].code : '';
 
@@ -1117,9 +1125,13 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           required={required && mode === 'form'}
           onSelect={opt => {
             const meta = opt.meta || {};
-            const nextState = meta.state || value.state;
-            const nextDistrict = meta.district || value.district || '';
-            const nextCity = meta.city || opt.value;
+            const cleanTownName = sanitizeLocalityName(meta.city || opt.value);
+            const pinOverride = meta.pincode ? CANONICAL_DISTRICT_PIN_OVERRIDES[meta.pincode] : undefined;
+            const townOverride = CANONICAL_TOWN_DISTRICT_OVERRIDES[cleanTownName.toLowerCase()];
+
+            const nextState = pinOverride?.state || townOverride?.state || meta.state || value.state;
+            const nextDistrict = pinOverride?.district || townOverride?.district || meta.district || value.district || '';
+            const nextCity = pinOverride?.town || cleanTownName;
             const pins: PinOption[] = Array.isArray(meta.pins) ? meta.pins : [];
             const nextPin = pins.length === 1 ? pins[0].code : meta.pincode || value.pincode || '';
 

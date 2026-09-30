@@ -385,6 +385,14 @@ export const SupabaseSync = {
         let lng = typeof row.longitude === 'number' ? row.longitude : (row.longitude ? parseFloat(row.longitude) : undefined);
         let dist = typeof row.distance_km === 'number' ? row.distance_km : (row.distance_km ? parseFloat(row.distance_km) : undefined);
 
+        const rawLoc = row.location || [row.city, row.district, row.state].filter(Boolean).join(', ');
+        const parsed = parseStructuredLocation(rawLoc, row.state, row.district, row.city, row.pincode, lat, lng);
+
+        const resolvedCity = parsed.city || row.city || '';
+        const resolvedDistrict = parsed.district || row.district || undefined;
+        const resolvedState = parsed.state || row.state || '';
+        const resolvedPin = parsed.pincode || row.pincode || undefined;
+
         if (dist === undefined && typeof filters.latitude === 'number' && typeof filters.longitude === 'number' && lat !== undefined && lng !== undefined) {
           dist = calculateHaversineDistanceKm(filters.latitude, filters.longitude, lat, lng);
         }
@@ -394,13 +402,13 @@ export const SupabaseSync = {
           fullName: row.full_name || 'Driver',
           phone: row.phone || '',
           email: row.email || '',
-          location: [row.city, row.district, row.state].filter(Boolean).join(', ') || [row.city, row.state].filter(Boolean).join(', '),
-          city: row.city || '',
-          district: row.district || undefined,
-          state: row.state || '',
-          pincode: row.pincode || undefined,
-          latitude: lat,
-          longitude: lng,
+          location: parsed.formattedLocation || rawLoc,
+          city: resolvedCity,
+          district: resolvedDistrict,
+          state: resolvedState,
+          pincode: resolvedPin,
+          latitude: lat ?? parsed.latitude,
+          longitude: lng ?? parsed.longitude,
           distanceKm: dist,
           driverCategory: row.driver_category || '',
           licenseNumber: row.license_number || '',
@@ -413,7 +421,9 @@ export const SupabaseSync = {
           vehicleTypes: row.vehicle_types || [],
           currentRole: row.current_role || '',
           education: row.education || '',
-          preferredLocation: row.preferred_location || '',
+          preferredLocation: row.preferred_location
+            ? (parseStructuredLocation(row.preferred_location).formattedLocation || row.preferred_location)
+            : parsed.formattedLocation,
           expectedSalary: row.expected_salary || 0,
           availability: row.availability || 'Flexible',
           cvAttached: Boolean(row.cv_attached),
@@ -682,21 +692,37 @@ export const SupabaseSync = {
       const fullName = (profileData as DriverProfile)?.fullName || (profileData as EmployerProfile)?.contactPerson || user.email.split('@')[0];
       const phone = user.phone || (profileData as DriverProfile)?.phone || (profileData as EmployerProfile)?.phone || null;
       const city = (profileData as DriverProfile)?.city || (profileData as EmployerProfile)?.city || (profileData as DriverProfile)?.location || null;
+      const district = (profileData as DriverProfile)?.district || (profileData as EmployerProfile)?.district || null;
+      const pincode = (profileData as DriverProfile)?.pincode || (profileData as EmployerProfile)?.pincode || null;
       const state = (profileData as DriverProfile)?.state || (profileData as EmployerProfile)?.state || null;
       const location = (profileData as DriverProfile)?.location || (city && state ? `${city}, ${state}` : city) || null;
+      const latitude = typeof (profileData as DriverProfile)?.latitude === 'number' ? (profileData as DriverProfile).latitude : null;
+      const longitude = typeof (profileData as DriverProfile)?.longitude === 'number' ? (profileData as DriverProfile).longitude : null;
       
       // Upsert into profiles so newly registered users are guaranteed a row even if trigger didn't run
-      const { error: profileError } = await supabase.from('profiles').upsert({
+      const profilePayload: any = {
         id: userUUID,
         role: user.role,
         full_name: fullName,
         email: user.email.trim().toLowerCase(),
         phone: phone,
         city: city,
+        district: district,
+        pincode: pincode,
         state: state,
         location: location,
+        latitude: latitude,
+        longitude: longitude,
         status: 'active',
-      }, { onConflict: 'id' });
+      };
+      let locationSchemaAvailable = true;
+      let { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+      if (profileError && (profileError.message?.includes('district') || profileError.message?.includes('pincode') || profileError.message?.includes('latitude') || profileError.message?.includes('longitude'))) {
+        locationSchemaAvailable = false;
+        const { district: _d, pincode: _p, latitude: _lat, longitude: _lng, ...legacyPayload } = profilePayload;
+        const retry = await supabase.from('profiles').upsert(legacyPayload, { onConflict: 'id' });
+        profileError = retry.error;
+      }
 
       if (profileError) {
         console.warn('Supabase profiles upsert notice:', profileError.message);
@@ -740,6 +766,7 @@ export const SupabaseSync = {
 
         // If table doesn't have spatial columns yet (migration pending), retry with legacy schema
         if (drvError && (drvError.message?.includes('latitude') || drvError.message?.includes('district') || drvError.message?.includes('pincode') || (drvError as any).code === 'PGRST204' || (drvError as any).code === '42703')) {
+          locationSchemaAvailable = false;
           console.warn('Supabase driver_profiles missing spatial columns; retrying with legacy schema:', drvError.message);
           const { latitude, longitude, district, pincode, ...legacyPayload } = driverPayload;
           const retry = await supabase.from('driver_profiles').upsert(legacyPayload, { onConflict: 'user_id' });
@@ -748,7 +775,12 @@ export const SupabaseSync = {
 
         if (drvError) {
           console.warn('Supabase driver_profiles upsert notice:', drvError.message);
-          return true; // Profiles row already created successfully
+          return false;
+        }
+        if (!locationSchemaAvailable) {
+          // Core profile data was written, but the structured location/coordinates
+          // were not. Report incomplete sync so the UI does not claim success.
+          return false;
         }
 
         const experienceRows = (dp.experiences || []).map((experience: DriverExperience) => ({
@@ -790,7 +822,7 @@ export const SupabaseSync = {
 
         if (compError) {
           console.warn('Supabase companies upsert notice:', compError.message);
-          return true;
+          return false;
         }
 
       }
@@ -798,7 +830,7 @@ export const SupabaseSync = {
       return true;
     } catch (e) {
       console.warn('Supabase registerUser notice:', e);
-      return true;
+      return false;
     }
   },
 
@@ -1069,13 +1101,17 @@ export const SupabaseSync = {
             supabase.from('favorite_jobs').select('*').eq('driver_id', authUser.id)
           ]);
           if (driverRow) {
+            const rawLoc = profile?.location || profile?.city || '';
+            const parsed = parseStructuredLocation(rawLoc, profile?.state, profile?.district || driverRow.district, profile?.city, profile?.pincode || driverRow.pincode, driverRow.latitude, driverRow.longitude);
             const driver: DriverProfile = {
               id: authUser.id,
               fullName: profile?.full_name || authUser.user_metadata?.full_name || '',
               phone: profile?.phone || '', email: profile?.email || authUser.email || '',
-              location: profile?.location || profile?.city || '', city: profile?.city || '', state: profile?.state || '',
-              district: profile?.district || driverRow.district || undefined,
-              pincode: profile?.pincode || driverRow.pincode || undefined,
+              location: parsed.formattedLocation || rawLoc,
+              city: parsed.city || profile?.city || '',
+              state: parsed.state || profile?.state || '',
+              district: parsed.district || profile?.district || driverRow.district || undefined,
+              pincode: parsed.pincode || profile?.pincode || driverRow.pincode || undefined,
               latitude: typeof driverRow.latitude === 'number' ? driverRow.latitude : typeof profile?.latitude === 'number' ? profile.latitude : (driverRow.latitude ? parseFloat(driverRow.latitude) : profile?.latitude ? parseFloat(profile.latitude) : undefined),
               longitude: typeof driverRow.longitude === 'number' ? driverRow.longitude : typeof profile?.longitude === 'number' ? profile.longitude : (driverRow.longitude ? parseFloat(driverRow.longitude) : profile?.longitude ? parseFloat(profile.longitude) : undefined),
               driverCategory: driverRow.driver_category || '', licenseNumber: driverRow.license_number || '',
@@ -1083,7 +1119,10 @@ export const SupabaseSync = {
               experienceYears: driverRow.years_experience || 0, experienceMonths: driverRow.months_experience || 0,
               skills: driverRow.skills || [], languages: driverRow.languages || [], vehicleTypes: driverRow.vehicle_types || [],
               currentRole: driverRow.current_role || '', previousRole: driverRow.previous_role || '',
-              education: driverRow.education || '', preferredLocation: driverRow.preferred_location || '',
+              education: driverRow.education || '',
+              preferredLocation: driverRow.preferred_location
+                ? (parseStructuredLocation(driverRow.preferred_location).formattedLocation || driverRow.preferred_location)
+                : parsed.formattedLocation,
               expectedSalary: driverRow.expected_salary || 0,
               availability: driverRow.availability || 'Flexible',
               nightShiftWilling: Boolean(driverRow.night_shift_willing), outstationWilling: Boolean(driverRow.outstation_willing),
@@ -1151,15 +1190,19 @@ export const SupabaseSync = {
           const adminDrivers: DriverProfile[] = (driverAccounts || []).map((account: any) => {
             const row = driverByUserId.get(account.id) as any;
             const status = account.status === 'suspended' ? 'blocked' : account.status || 'active';
+            const rawLoc = account.location || account.city || '';
+            const parsed = parseStructuredLocation(rawLoc, account.state, account.district || row?.district, account.city, account.pincode || row?.pincode, row?.latitude, row?.longitude);
             dataStore.addUser({
               id: account.id, email: account.email || '', role: 'driver', status,
               phone: account.phone || '', createdAt: account.created_at?.slice(0, 10) || ''
             });
             return {
               id: account.id, fullName: account.full_name || '', phone: account.phone || '', email: account.email || '',
-              location: account.location || account.city || '', city: account.city || '', state: account.state || '',
-              district: account.district || row?.district || undefined,
-              pincode: account.pincode || row?.pincode || undefined,
+              location: parsed.formattedLocation || rawLoc,
+              city: parsed.city || account.city || '',
+              state: parsed.state || account.state || '',
+              district: parsed.district || account.district || row?.district || undefined,
+              pincode: parsed.pincode || account.pincode || row?.pincode || undefined,
               latitude: typeof row?.latitude === 'number' ? row.latitude : typeof account.latitude === 'number' ? account.latitude : (row?.latitude ? parseFloat(row.latitude) : account.latitude ? parseFloat(account.latitude) : undefined),
               longitude: typeof row?.longitude === 'number' ? row.longitude : typeof account.longitude === 'number' ? account.longitude : (row?.longitude ? parseFloat(row.longitude) : account.longitude ? parseFloat(account.longitude) : undefined),
               driverCategory: row?.driver_category || '', licenseNumber: row?.license_number || '',
@@ -1167,7 +1210,10 @@ export const SupabaseSync = {
               experienceYears: row?.years_experience || 0, experienceMonths: row?.months_experience || 0,
               skills: row?.skills || [], languages: row?.languages || [], vehicleTypes: row?.vehicle_types || [],
               currentRole: row?.current_role || '', previousRole: row?.previous_role || '', education: row?.education || '',
-              preferredLocation: row?.preferred_location || '', expectedSalary: row?.expected_salary || 0,
+              preferredLocation: row?.preferred_location
+                ? (parseStructuredLocation(row.preferred_location).formattedLocation || row.preferred_location)
+                : parsed.formattedLocation,
+              expectedSalary: row?.expected_salary || 0,
               availability: row?.availability || 'Flexible', nightShiftWilling: Boolean(row?.night_shift_willing),
               outstationWilling: Boolean(row?.outstation_willing), cvAttached: Boolean(row?.cv_attached),
               policeVerified: Boolean(row?.police_verified), lastActive: row?.updated_at || account.updated_at,

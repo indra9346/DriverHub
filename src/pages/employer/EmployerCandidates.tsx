@@ -18,7 +18,7 @@ import {
 } from '../../data/indiaLocations';
 import { useLanguage } from '../../services/i18n';
 import { PanIndiaLocationSelector, RADIUS_OPTIONS, PanIndiaLocationValue } from '../../components/common/PanIndiaLocationSelector';
-import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, resolveLocationCoordinates, isDistrictInState } from '../../services/indiaLocationService';
+import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, resolveLocationCoordinates, isDistrictInState, sanitizeLocalityName } from '../../services/indiaLocationService';
 
 export const EmployerCandidates: React.FC = () => {
   const { t } = useLanguage();
@@ -282,10 +282,14 @@ export const EmployerCandidates: React.FC = () => {
         if (selectedCities.length > 1) {
           list = list.filter(d =>
             selectedCities.some(
-              c =>
-                d.city?.toLowerCase().includes(c.toLowerCase()) ||
-                d.location?.toLowerCase().includes(c.toLowerCase()) ||
-                d.preferredLocation?.toLowerCase().includes(c.toLowerCase())
+              c => {
+                const cleanC = sanitizeLocalityName(c).toLowerCase();
+                return (
+                  d.city?.toLowerCase().includes(cleanC) ||
+                  d.location?.toLowerCase().includes(cleanC) ||
+                  d.preferredLocation?.toLowerCase().includes(cleanC)
+                );
+              }
             )
           );
         } else {
@@ -301,7 +305,7 @@ export const EmployerCandidates: React.FC = () => {
               {
                 state: selectedState,
                 district: selectedDistrict,
-                city: selectedCities.length === 1 ? selectedCities[0] : '',
+                city: selectedCities.length === 1 ? sanitizeLocalityName(selectedCities[0]) : '',
                 pincode: selectedPincode
               }
             )
@@ -321,10 +325,14 @@ export const EmployerCandidates: React.FC = () => {
       if (selectedCities.length > 1) {
         list = list.filter(d =>
           selectedCities.some(
-            c =>
-              d.city?.toLowerCase().includes(c.toLowerCase()) ||
-              d.location?.toLowerCase().includes(c.toLowerCase()) ||
-              d.preferredLocation?.toLowerCase().includes(c.toLowerCase())
+            c => {
+              const cleanC = sanitizeLocalityName(c).toLowerCase();
+              return (
+                d.city?.toLowerCase().includes(cleanC) ||
+                d.location?.toLowerCase().includes(cleanC) ||
+                d.preferredLocation?.toLowerCase().includes(cleanC)
+              );
+            }
           )
         );
       } else {
@@ -340,7 +348,7 @@ export const EmployerCandidates: React.FC = () => {
             {
               state: selectedState,
               district: selectedDistrict,
-              city: selectedCities.length === 1 ? selectedCities[0] : '',
+              city: selectedCities.length === 1 ? sanitizeLocalityName(selectedCities[0]) : '',
               pincode: selectedPincode
             }
           )
@@ -607,6 +615,8 @@ export const EmployerCandidates: React.FC = () => {
     setSelectedDistrict('');
     setSelectedCities([]);
     setSelectedPincode('');
+    setSelectedRadiusKm(0);
+    setSearchCoords({});
     setCitySearch('');
     setMinimumExperience(0);
     setVehicleTypeFilter('');
@@ -659,9 +669,9 @@ export const EmployerCandidates: React.FC = () => {
                 <span className="underline decoration-amber-400 decoration-2 underline-offset-4">
                   {categoryFilter || 'Commercial & Personal Drivers'}
                   {selectedRadiusKm > 0 && (selectedCities[0] || selectedDistrict || selectedState)
-                    ? ` within ${selectedRadiusKm} km of ${[selectedCities[0], selectedDistrict, selectedState].filter(Boolean).join(', ')} (Nearest first)`
+                    ? ` within ${selectedRadiusKm} km of ${[sanitizeLocalityName(selectedCities[0] || ''), selectedDistrict, selectedState].filter(Boolean).join(', ')} (Nearest first)`
                     : selectedCities.length > 0
-                    ? ` in ${selectedCities.join(', ')}`
+                    ? ` in ${selectedCities.map(c => sanitizeLocalityName(c)).join(', ')}`
                     : selectedDistrict
                     ? ` in ${selectedDistrict}, ${selectedState}`
                     : selectedState
@@ -911,6 +921,62 @@ export const EmployerCandidates: React.FC = () => {
                       <button onClick={() => setCategoryFilter('')} className="hover:text-blue-950 ml-0.5 cursor-pointer">✕</button>
                     </span>
                   )}
+                  {selectedState && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      State: {selectedState}
+                      <button onClick={() => { setSelectedState(''); setSelectedDistrict(''); setSelectedCities([]); setSelectedPincode(''); }} className="hover:text-emerald-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
+                  {selectedDistrict && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      District: {selectedDistrict}
+                      <button onClick={() => { setSelectedDistrict(''); setSelectedCities([]); setSelectedPincode(''); }} className="hover:text-emerald-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
+                  {selectedCities.map(city => (
+                    <span
+                      key={city}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200"
+                    >
+                      {sanitizeLocalityName(city)}
+                      <button
+                        onClick={() => setSelectedCities(selectedCities.filter(c => c !== city))}
+                        className="hover:text-blue-950 ml-0.5 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  {selectedPincode && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                      PIN: {selectedPincode}
+                      <button onClick={() => setSelectedPincode('')} className="hover:text-blue-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
+                  {selectedRadiusKm > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                      Within {selectedRadiusKm} km
+                      <button onClick={() => setSelectedRadiusKm(0)} className="hover:text-purple-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
+                  {mustHaveSkill && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+                      Skill: {mustHaveSkill}
+                      <button onClick={() => setMustHaveSkill('')} className="hover:text-slate-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
+                  {minimumExperience > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+                      Min {minimumExperience}+ yrs
+                      <button onClick={() => setMinimumExperience(0)} className="hover:text-slate-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
+                  {vehicleTypeFilter && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+                      Vehicle: {vehicleTypeFilter}
+                      <button onClick={() => setVehicleTypeFilter('')} className="hover:text-slate-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
                   {hideUnlocked && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
                       Hide: Already unlocked
@@ -923,20 +989,18 @@ export const EmployerCandidates: React.FC = () => {
                       <button onClick={() => setHideDownloaded(false)} className="hover:text-blue-950 ml-0.5 cursor-pointer">✕</button>
                     </span>
                   )}
-                  {selectedCities.map(city => (
-                    <span
-                      key={city}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200"
-                    >
-                      {city}/Region
-                      <button
-                        onClick={() => setSelectedCities(selectedCities.filter(c => c !== city))}
-                        className="hover:text-blue-950 ml-0.5 cursor-pointer"
-                      >
-                        ✕
-                      </button>
+                  {onlyCvAttached && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                      CV Attached
+                      <button onClick={() => setOnlyCvAttached(false)} className="hover:text-amber-950 ml-0.5 cursor-pointer">✕</button>
                     </span>
-                  ))}
+                  )}
+                  {onlyPoliceVerified && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      Police Verified
+                      <button onClick={() => setOnlyPoliceVerified(false)} className="hover:text-emerald-950 ml-0.5 cursor-pointer">✕</button>
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -1646,7 +1710,7 @@ export const EmployerCandidates: React.FC = () => {
                                   </span>
                                   <span className="inline-flex items-center gap-1 font-medium">
                                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                    {[driver.city, driver.district, driver.state].filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || driver.location || 'Location not provided'}
+                                    {[sanitizeLocalityName(driver.city || ''), driver.district, driver.state].filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || driver.location || 'Location not provided'}
                                   </span>
                                   {typeof driver.distanceKm === 'number' && (
                                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
@@ -1718,7 +1782,7 @@ export const EmployerCandidates: React.FC = () => {
                                   <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" /> Pref. Location
                                 </span>
                                 <span className="sm:col-span-9 text-slate-700">
-                                  {driver.preferredLocation || [driver.city, driver.state].filter(Boolean).join(', ') || 'Not provided'}
+                                  {sanitizeLocalityName(driver.preferredLocation || '') || [sanitizeLocalityName(driver.city || ''), driver.state].filter(Boolean).join(', ') || 'Not provided'}
                                 </span>
                               </div>
 

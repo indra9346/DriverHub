@@ -1,14 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  User, Phone, Mail, MapPin, Award, Briefcase, IndianRupee, 
+import {
+  User, Phone, Mail, MapPin, Award, Briefcase, IndianRupee,
   CheckCircle2, Plus, Trash2, Save, Sparkles, ShieldCheck, Calendar
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
+import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { DriverProfile, DriverCategory, DriverExperience } from '../../types';
 import { useLanguage } from '../../services/i18n';
 import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
-import { parseStructuredLocation, formatStructuredLocation, StructuredPanIndiaLocation, resolveLocationCoordinates } from '../../services/indiaLocationService';
+import {
+  parseStructuredLocation,
+  formatStructuredLocation,
+  StructuredPanIndiaLocation,
+  resolveLocationCoordinates,
+  sanitizeLocalityName,
+  CANONICAL_TOWN_DISTRICT_OVERRIDES,
+  CANONICAL_DISTRICT_PIN_OVERRIDES
+} from '../../services/indiaLocationService';
 
 export const DriverProfilePage: React.FC = () => {
   const { t } = useLanguage();
@@ -36,6 +45,7 @@ export const DriverProfilePage: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
+  const locationEditedRef = useRef(false);
 
   // New experience record modal
   const [showExpModal, setShowExpModal] = useState(false);
@@ -52,22 +62,81 @@ export const DriverProfilePage: React.FC = () => {
   useEffect(() => {
     if (!currentUser?.id) return;
     if (loadedIdRef.current !== currentUser.id) {
+      locationEditedRef.current = false;
       loadedIdRef.current = currentUser.id;
       const p = DataStore.getDriverById(currentUser.id);
       if (p) {
+        const parsed = parseStructuredLocation(p.location, p.state, p.district, p.city, p.pincode);
         setProfile({
           ...p,
+          state: parsed.state || p.state,
+          district: parsed.district || p.district,
+          city: parsed.city || p.city,
+          pincode: parsed.pincode || p.pincode,
+          location: parsed.formattedLocation || p.location,
           licenseNumber: p.licenseNumber || '',
           licenseExpiry: p.licenseExpiry ? p.licenseExpiry.slice(0, 10) : '',
           latitude: p.latitude,
           longitude: p.longitude
         });
         setLocationSelection({
-          ...parseStructuredLocation(p.location, p.state, p.district, p.city, p.pincode),
+          ...parsed,
           latitude: p.latitude,
           longitude: p.longitude
         });
         setSkillsText(p.skills?.join(', ') || '');
+      }
+
+      // Live Supabase fetch to ensure fresh cloud profile
+      if (isSupabaseConfigured) {
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*, driver_profiles(*)')
+              .eq('id', currentUser.id)
+              .maybeSingle();
+            if (data && !error) {
+              const dp = Array.isArray(data.driver_profiles) ? data.driver_profiles[0] : data.driver_profiles;
+              const remoteLoc = data.location || data.city || '';
+              const parsed = parseStructuredLocation(
+                remoteLoc,
+                data.state,
+                data.district || dp?.district,
+                data.city,
+                data.pincode || dp?.pincode,
+                dp?.latitude ?? data.latitude,
+                dp?.longitude ?? data.longitude
+              );
+              setProfile(prev => ({
+                ...prev,
+                fullName: data.full_name || prev.fullName,
+                phone: data.phone || prev.phone,
+                location: locationEditedRef.current ? prev.location : (parsed.formattedLocation || prev.location),
+                state: locationEditedRef.current ? prev.state : (parsed.state || prev.state),
+                district: locationEditedRef.current ? prev.district : (parsed.district || prev.district),
+                city: locationEditedRef.current ? prev.city : (parsed.city || prev.city),
+                pincode: locationEditedRef.current ? prev.pincode : (parsed.pincode || prev.pincode),
+                latitude: locationEditedRef.current ? prev.latitude : (parsed.latitude ?? prev.latitude),
+                longitude: locationEditedRef.current ? prev.longitude : (parsed.longitude ?? prev.longitude),
+                preferredLocation: dp?.preferred_location || prev.preferredLocation,
+                experienceYears: dp?.years_experience ?? prev.experienceYears,
+                licenseNumber: dp?.license_number || prev.licenseNumber,
+                licenseType: dp?.license_type || prev.licenseType,
+                licenseExpiry: dp?.license_expiry ? dp.license_expiry.slice(0, 10) : prev.licenseExpiry,
+                skills: dp?.skills || prev.skills,
+                expectedSalary: dp?.expected_salary ?? prev.expectedSalary,
+                availability: dp?.availability || prev.availability
+              }));
+              if (!locationEditedRef.current) setLocationSelection(parsed);
+              if (dp?.skills) {
+                setSkillsText(dp.skills.join(', '));
+              }
+            }
+          } catch (err) {
+            console.warn('Live remote profile load notice:', err);
+          }
+        })();
       }
     }
   }, [currentUser?.id]);
@@ -76,17 +145,38 @@ export const DriverProfilePage: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     setSaveError('');
+    locationEditedRef.current = true;
 
     // Ensure fallback town/city if somehow left blank
-    const resolvedDistrict = locationSelection.district || profile.district || '';
-    const resolvedCity =
+    let resolvedDistrict = sanitizeLocalityName(locationSelection.district || profile.district || '');
+    let resolvedCity = sanitizeLocalityName(
       locationSelection.city ||
       (resolvedDistrict ? resolvedDistrict.split('(')[0].trim() : '') ||
       profile.city ||
-      '';
+      ''
+    );
+    let resolvedState = locationSelection.state || profile.state || '';
+
+    // Check canonical town overrides (e.g. Gudibanda -> Chikkaballapur, not Kolar)
+    if (resolvedCity && CANONICAL_TOWN_DISTRICT_OVERRIDES[resolvedCity.toLowerCase()]) {
+      const override = CANONICAL_TOWN_DISTRICT_OVERRIDES[resolvedCity.toLowerCase()];
+      resolvedDistrict = override.district;
+      resolvedState = override.state;
+    }
+
+    // Check canonical PIN overrides (e.g. 561209 -> Chikkaballapur)
+    if (locationSelection.pincode && CANONICAL_DISTRICT_PIN_OVERRIDES[locationSelection.pincode.trim()]) {
+      const pinOverride = CANONICAL_DISTRICT_PIN_OVERRIDES[locationSelection.pincode.trim()];
+      resolvedDistrict = pinOverride.district;
+      resolvedState = pinOverride.state;
+      if (!resolvedCity || resolvedCity.toLowerCase().includes(pinOverride.town?.toLowerCase() || '')) {
+        resolvedCity = pinOverride.town || resolvedCity;
+      }
+    }
 
     const resolvedLocationSelection = {
       ...locationSelection,
+      state: resolvedState,
       district: resolvedDistrict,
       city: resolvedCity
     };
@@ -94,11 +184,11 @@ export const DriverProfilePage: React.FC = () => {
     let resolvedLat = locationSelection.latitude;
     let resolvedLng = locationSelection.longitude;
 
-    const locationChanged = 
-      (Boolean(locationSelection.state) && locationSelection.state !== profile.state) ||
-      (Boolean(locationSelection.district) && locationSelection.district !== profile.district) ||
-      (Boolean(locationSelection.city) && locationSelection.city !== profile.city) ||
-      (Boolean(locationSelection.pincode) && locationSelection.pincode !== profile.pincode);
+    const locationChanged =
+      (Boolean(resolvedLocationSelection.state) && resolvedLocationSelection.state !== profile.state) ||
+      (Boolean(resolvedLocationSelection.district) && resolvedLocationSelection.district !== profile.district) ||
+      (Boolean(resolvedLocationSelection.city) && resolvedLocationSelection.city !== profile.city) ||
+      (Boolean(resolvedLocationSelection.pincode) && resolvedLocationSelection.pincode !== profile.pincode);
 
     if (locationChanged || resolvedLat === undefined || resolvedLng === undefined) {
       try {
@@ -119,8 +209,8 @@ export const DriverProfilePage: React.FC = () => {
 
     const skills = skillsText.split(',').map(s => s.trim()).filter(Boolean);
     const formattedLoc = formatStructuredLocation(resolvedLocationSelection) || profile.location || resolvedCity || '';
-    const updated: DriverProfile = { 
-      ...profile, 
+    const updated: DriverProfile = {
+      ...profile,
       state: resolvedLocationSelection.state || profile.state,
       district: resolvedDistrict,
       city: resolvedCity,
@@ -128,6 +218,7 @@ export const DriverProfilePage: React.FC = () => {
       latitude: resolvedLat !== undefined ? resolvedLat : (locationChanged ? undefined : profile.latitude),
       longitude: resolvedLng !== undefined ? resolvedLng : (locationChanged ? undefined : profile.longitude),
       location: formattedLoc,
+      preferredLocation: formattedLoc,
       skills,
       licenseNumber: (profile.licenseNumber || '').trim().toUpperCase(),
       licenseExpiry: profile.licenseExpiry ? profile.licenseExpiry.slice(0, 10) : ''
@@ -135,6 +226,7 @@ export const DriverProfilePage: React.FC = () => {
 
     setLocationSelection(prev => ({
       ...prev,
+      state: resolvedLocationSelection.state,
       district: resolvedDistrict,
       city: resolvedCity,
       latitude: resolvedLat,
@@ -145,17 +237,23 @@ export const DriverProfilePage: React.FC = () => {
     DataStore.setDriverProfileLocal(updated);
     setProfile(updated);
 
+    let cloudSaved = true;
     if (currentUser) {
       try {
-        await SupabaseSync.registerUser(currentUser, updated);
+        cloudSaved = await SupabaseSync.registerUser(currentUser, updated);
       } catch (err) {
         console.warn('Supabase remote sync notice:', err);
+        cloudSaved = false;
       }
     }
 
     setSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3500);
+    setSaveSuccess(cloudSaved);
+    if (!cloudSaved) {
+      setSaveError(t('Your changes are saved on this device, but could not be synced to the server. Check your connection and try saving again.'));
+    } else {
+      setTimeout(() => setSaveSuccess(false), 3500);
+    }
   };
 
   const handleAddExperience = async (e: React.FormEvent) => {
@@ -267,6 +365,7 @@ export const DriverProfilePage: React.FC = () => {
                 }));
               }}
               onChange={(next) => {
+                locationEditedRef.current = true;
                 setLocationSelection(next);
                 setProfile(prev => ({
                   ...prev,

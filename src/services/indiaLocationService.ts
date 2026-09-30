@@ -436,7 +436,7 @@ export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; alias
   'Karnataka|Chikkaballapur': [
     {
       town: 'Gowribidanur',
-      aliases: ['gowaribid', 'gowribidanur', 'gauribidanur', 'gowaribidnur', 'gauribidnur', 'gowribidnur', 'vidurashwatha'],
+      aliases: ['gowaribid', 'gowribidanur', 'gauribidanur', 'gowaribidnur', 'gauribidnur', 'gowribidnur', 'vidurashwatha', 'gauribidanur (kolar)'],
       pins: [
         { code: '561208', officeName: 'Gauribidanur H.O' },
         { code: '561208', officeName: 'Gauribidanur Bzr S.O' },
@@ -445,7 +445,7 @@ export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; alias
     },
     {
       town: 'Chikkaballapur',
-      aliases: ['chickballapur', 'chikkaballapura', 'chikballapur', 'nandi hills', 'muddenahalli'],
+      aliases: ['chikkaballapu', 'chickballapur', 'chikkaballapura', 'chikballapur', 'chickballapu', 'chikballapu', 'chikkaballapur taluk', 'nandi hills', 'muddenahalli'],
       pins: [
         { code: '562101', officeName: 'Chickballapur H.O' },
         { code: '562101', officeName: 'Nandi Hills S.O' },
@@ -454,7 +454,7 @@ export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; alias
     },
     {
       town: 'Chintamani',
-      aliases: ['chintamani'],
+      aliases: ['chintamani', 'chintamani (kolar)'],
       pins: [
         { code: '563125', officeName: 'Chintamani H.O' },
         { code: '563125', officeName: 'Chintamani Town S.O' }
@@ -469,14 +469,14 @@ export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; alias
     },
     {
       town: 'Bagepalli',
-      aliases: ['bagepally'],
+      aliases: ['bagepally', 'bagepalli (kolar)'],
       pins: [
         { code: '561207', officeName: 'Bagepalli S.O' }
       ]
     },
     {
       town: 'Gudibanda',
-      aliases: ['gudibande'],
+      aliases: ['gudibande', 'gudibanda (kolar)', 'gudibanda taluk'],
       pins: [
         { code: '561209', officeName: 'Gudibanda S.O' }
       ]
@@ -882,6 +882,82 @@ export function findStateForDistrict(districtName: string): string | null {
 }
 
 /**
+ * Strips legacy parenthetical district suffixes returned by older postal databases
+ * (e.g. "Gudibanda (Kolar)" -> "Gudibanda", "Chintamani (Kolar)" -> "Chintamani",
+ * "Hindupur (Anantapur)" -> "Hindupur", "Hosapete (Bellary)" -> "Hosapete").
+ */
+export function sanitizeLocalityName(rawName: string): string {
+  if (!rawName) return '';
+  return rawName
+    .replace(/\s*\((?:Kolar|Anantapur|Bellary|Ballari|Krishna|Cuddapah|Kadapa|Gulbarga|Bangalore Rural|Belgaum|Mysore)\)/gi, '')
+    .trim();
+}
+
+/**
+ * Authoritative overrides mapping PIN codes of bifurcated/new districts to their
+ * official revenue district, ensuring legacy India Post records don't misattribute them.
+ */
+export const CANONICAL_DISTRICT_PIN_OVERRIDES: Record<string, { state: string; district: string; town?: string }> = {
+  // Chikkaballapur District (bifurcated from Kolar in 2007)
+  '561209': { state: 'Karnataka', district: 'Chikkaballapur', town: 'Gudibanda' },
+  '561208': { state: 'Karnataka', district: 'Chikkaballapur', town: 'Gowribidanur' },
+  '561207': { state: 'Karnataka', district: 'Chikkaballapur', town: 'Bagepalli' },
+  '562101': { state: 'Karnataka', district: 'Chikkaballapur', town: 'Chikkaballapur' },
+  '562105': { state: 'Karnataka', district: 'Chikkaballapur', town: 'Sidlaghatta' },
+  '563125': { state: 'Karnataka', district: 'Chikkaballapur', town: 'Chintamani' },
+  // Vijayanagara District (bifurcated from Ballari in 2021)
+  '583201': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)', town: 'Hosapete' },
+  '583225': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)', town: 'Hagaribommanahalli' },
+  '583131': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)', town: 'Harapanahalli' },
+  '583219': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)', town: 'Hoovina Hadagali' },
+  '583135': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)', town: 'Kudligi' },
+  '583134': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)', town: 'Kotturu' },
+  // Ramanagara District (bifurcated from Bengaluru Rural in 2007)
+  '562159': { state: 'Karnataka', district: 'Ramanagara', town: 'Ramanagara' },
+  '562160': { state: 'Karnataka', district: 'Ramanagara', town: 'Channapatna' },
+  '562117': { state: 'Karnataka', district: 'Ramanagara', town: 'Kanakapura' },
+  '562120': { state: 'Karnataka', district: 'Ramanagara', town: 'Magadi' },
+  // Sri Sathya Sai District (bifurcated from Ananthapuramu in 2022)
+  '515134': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai', town: 'Puttaparthi' },
+  '515201': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai', town: 'Hindupur' },
+  '515202': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai', town: 'Hindupur' },
+  '515671': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai', town: 'Dharmavaram' },
+  '515591': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai', town: 'Kadiri' },
+  '515301': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai', town: 'Madakasira' },
+  '515110': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai', town: 'Penukonda' }
+};
+
+/**
+ * Authoritative overrides mapping taluk/town names to their official district.
+ */
+export const CANONICAL_TOWN_DISTRICT_OVERRIDES: Record<string, { state: string; district: string }> = {
+  'gudibanda': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'gudibande': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'gudibanda (kolar)': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'gowribidanur': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'gauribidanur': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'gowaribid': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'bagepalli': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'chintamani': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'sidlaghatta': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'shidlaghatta': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'chikkaballapur': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'chikkaballapu': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'chickballapur': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'chickballapu': { state: 'Karnataka', district: 'Chikkaballapur' },
+  'puttaparthi': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai' },
+  'hindupur': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai' },
+  'dharmavaram': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai' },
+  'kadiri': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai' },
+  'madakasira': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai' },
+  'penukonda': { state: 'Andhra Pradesh', district: 'Sri Sathya Sai' },
+  'hosapete': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)' },
+  'hospet': { state: 'Karnataka', district: 'Vijayanagara (Hosapete)' },
+  'channapatna': { state: 'Karnataka', district: 'Ramanagara' },
+  'kanakapura': { state: 'Karnataka', district: 'Ramanagara' }
+};
+
+/**
  * Returns immediate baseline towns/cities for a given State + District from our verified directory.
  */
 export function getBaselineTownsForDistrict(stateName: string, districtName: string): TownLocalityOption[] {
@@ -1027,8 +1103,8 @@ export async function fetchDistrictTownsAndPinsLive(
           const pin = String(po.Pincode || '').trim();
           if (!/^\d{6}$/.test(pin)) continue;
 
-          const officeName = String(po.Name || '').trim();
-          const blockOrTaluk = String(po.Block && po.Block !== 'NA' ? po.Block : po.Name || primaryQuery).trim();
+          const officeName = sanitizeLocalityName(String(po.Name || '').trim());
+          const blockOrTaluk = sanitizeLocalityName(String(po.Block && po.Block !== 'NA' ? po.Block : po.Name || primaryQuery).trim());
 
           // Register both under the Block/Town name and the specific Post Office locality name
           for (const localityName of [blockOrTaluk, officeName]) {
@@ -1159,7 +1235,24 @@ export async function verifyPinCodeLive(
     return { valid: false, towns: [], offices: [], error: 'Enter a valid 6-digit Indian PIN code.' };
   }
 
-  // Check verified local directory first for instant match
+  // 1. Check canonical overrides for bifurcated/new districts first
+  if (CANONICAL_DISTRICT_PIN_OVERRIDES[cleanPin]) {
+    const override = CANONICAL_DISTRICT_PIN_OVERRIDES[cleanPin];
+    const town = override.town || cleanPin;
+    return {
+      valid: true,
+      state: override.state,
+      district: override.district,
+      towns: [town],
+      offices: [{
+        code: cleanPin,
+        officeName: `${town} S.O`,
+        source: 'verified-directory' as const
+      }]
+    };
+  }
+
+  // 2. Check verified local directory for instant match
   for (const [key, towns] of Object.entries(VERIFIED_DISTRICT_TOWNS)) {
     const [st, dist] = key.split('|');
     for (const t of towns) {
@@ -1169,8 +1262,8 @@ export async function verifyPinCodeLive(
           valid: true,
           state: st,
           district: dist,
-          towns: [t.town, ...matchingPins.map(p => p.officeName)],
-          offices: matchingPins.map(p => ({ ...p, source: 'verified-directory' as const }))
+          towns: [t.town, ...matchingPins.map(p => sanitizeLocalityName(p.officeName))],
+          offices: matchingPins.map(p => ({ ...p, officeName: sanitizeLocalityName(p.officeName), source: 'verified-directory' as const }))
         };
       }
     }
@@ -1188,19 +1281,26 @@ export async function verifyPinCodeLive(
     }
 
     const firstPO = first.PostOffice[0];
-    const resolvedState = String(firstPO.State || '').trim();
-    const resolvedDistrict = String(firstPO.District || '').trim();
+    let resolvedState = String(firstPO.State || '').trim();
+    let resolvedDistrict = String(firstPO.District || '').trim();
+
+    // Check canonical overrides
+    if (CANONICAL_DISTRICT_PIN_OVERRIDES[cleanPin]) {
+      resolvedState = CANONICAL_DISTRICT_PIN_OVERRIDES[cleanPin].state;
+      resolvedDistrict = CANONICAL_DISTRICT_PIN_OVERRIDES[cleanPin].district;
+    }
+
     const offices: PinOption[] = first.PostOffice.map((po: any) => ({
       code: cleanPin,
-      officeName: String(po.Name || '').trim(),
+      officeName: sanitizeLocalityName(String(po.Name || '').trim()),
       deliveryStatus: po.DeliveryStatus,
       source: 'india-post-live' as const
     }));
     const towns: string[] = Array.from(
       new Set<string>(
         first.PostOffice.flatMap((po: any): string[] => [
-          po.Block && po.Block !== 'NA' ? String(po.Block).trim() : '',
-          String(po.Name || '').trim()
+          po.Block && po.Block !== 'NA' ? sanitizeLocalityName(String(po.Block).trim()) : '',
+          sanitizeLocalityName(String(po.Name || '').trim())
         ]).filter((item: string): item is string => Boolean(item))
       )
     );
@@ -1376,48 +1476,67 @@ export async function searchPanIndiaPlacesLive(
             const poNameRaw = String(po.Name || '').trim();
             const poBlockRaw = String(po.Block && po.Block !== 'NA' ? po.Block : '').trim();
             const poPin = String(po.Pincode || '').trim();
-
             if (!poNameRaw || !/^\d{6}$/.test(poPin)) continue;
 
-            // Match against canonical State name in STATE_DISTRICTS_DIRECTORY
-            const matchedState =
-              getAllStatesAndUTs().find(
-                s =>
-                  normalizeName(s) === normalizeName(poStateRaw) ||
-                  normalizeName(s).includes(normalizeName(poStateRaw)) ||
-                  normalizeName(poStateRaw).includes(normalizeName(s))
-              ) || poStateRaw;
+            const cleanLocality = sanitizeLocalityName(poNameRaw);
+            const cleanBlock = poBlockRaw && poBlockRaw !== 'NA' ? sanitizeLocalityName(poBlockRaw) : '';
+
+            // Check canonical PIN override first (e.g. 561209 -> Chikkaballapur)
+            let matchedState = poStateRaw;
+            let matchedDist = poDistRaw;
+            let localityName = cleanLocality;
+
+            const pinOverride = CANONICAL_DISTRICT_PIN_OVERRIDES[poPin];
+            const townOverride =
+              CANONICAL_TOWN_DISTRICT_OVERRIDES[cleanLocality.toLowerCase()] ||
+              (cleanBlock ? CANONICAL_TOWN_DISTRICT_OVERRIDES[cleanBlock.toLowerCase()] : undefined);
+
+            if (pinOverride) {
+              matchedState = pinOverride.state;
+              matchedDist = pinOverride.district;
+              if (pinOverride.town) localityName = pinOverride.town;
+            } else if (townOverride) {
+              matchedState = townOverride.state;
+              matchedDist = townOverride.district;
+            } else {
+              matchedState =
+                getAllStatesAndUTs().find(
+                  s =>
+                    normalizeName(s) === normalizeName(poStateRaw) ||
+                    normalizeName(s).includes(normalizeName(poStateRaw)) ||
+                    normalizeName(poStateRaw).includes(normalizeName(s))
+                ) || poStateRaw;
+
+              const stateDists = getDistrictsForState(matchedState);
+              matchedDist =
+                stateDists.find(
+                  d =>
+                    normalizeName(d) === normalizeName(poDistRaw) ||
+                    normalizeName(extractPrimaryName(d)) === normalizeName(poDistRaw) ||
+                    d.toLowerCase().includes(poDistRaw.toLowerCase())
+                ) || poDistRaw;
+            }
 
             if (normState && normalizeName(matchedState) !== normState) continue;
 
-            const stateDists = getDistrictsForState(matchedState);
-            const matchedDist =
-              stateDists.find(
-                d =>
-                  normalizeName(d) === normalizeName(poDistRaw) ||
-                  normalizeName(extractPrimaryName(d)) === normalizeName(poDistRaw) ||
-                  d.toLowerCase().includes(poDistRaw.toLowerCase())
-              ) || poDistRaw;
-
             if (normDist) {
               const matchedPrimary = normalizeName(extractPrimaryName(matchedDist));
-              if (matchedDist !== normDist && matchedPrimary !== normDist) {
+              if (matchedDist.toLowerCase() !== normDist && matchedPrimary !== normDist) {
                 continue;
               }
             }
 
-            const localityName = poNameRaw;
             const mapKey = `${localityName.toLowerCase()}|${matchedDist.toLowerCase()}|${matchedState.toLowerCase()}`;
             const pinOption: PinOption = {
               code: poPin,
-              officeName: poNameRaw,
+              officeName: cleanLocality,
               deliveryStatus: po.DeliveryStatus,
               source: 'india-post-live'
             };
 
             const existing = resultsMap.get(mapKey);
             if (existing) {
-              if (!existing.pins.some(p => p.code === poPin && p.officeName === poNameRaw)) {
+              if (!existing.pins.some(p => p.code === poPin && p.officeName === cleanLocality)) {
                 existing.pins.push(pinOption);
               }
               if (!existing.pincode) existing.pincode = poPin;
@@ -1429,8 +1548,8 @@ export async function searchPanIndiaPlacesLive(
                 state: matchedState,
                 pincode: poPin,
                 pins: [pinOption],
-                label: poBlockRaw && poBlockRaw.toLowerCase() !== localityName.toLowerCase()
-                  ? `${localityName} (${poBlockRaw})`
+                label: cleanBlock && cleanBlock.toLowerCase() !== localityName.toLowerCase()
+                  ? `${localityName} (${cleanBlock})`
                   : localityName,
                 sublabel: `${matchedDist}, ${matchedState} • PIN ${poPin}`,
                 source: 'india-post-live'
@@ -1580,9 +1699,40 @@ export function parseStructuredLocation(
     if (exactDist) resolvedDistrict = exactDist;
   }
 
-  let resolvedCity = (record.city || '').trim();
+  let resolvedCity = sanitizeLocalityName((record.city || '').trim());
   if (!resolvedCity && segments.length > 0) {
-    resolvedCity = segments[0];
+    resolvedCity = sanitizeLocalityName(segments[0]);
+  }
+
+  // Canonical PIN overrides for bifurcated/new districts (e.g. 561209 -> Chikkaballapur, not Kolar)
+  if (extractedPin && CANONICAL_DISTRICT_PIN_OVERRIDES[extractedPin]) {
+    const pinOverride = CANONICAL_DISTRICT_PIN_OVERRIDES[extractedPin];
+    resolvedState = pinOverride.state;
+    resolvedDistrict = pinOverride.district;
+    if (!resolvedCity || resolvedCity.toLowerCase().includes(pinOverride.town?.toLowerCase() || '')) {
+      resolvedCity = pinOverride.town || resolvedCity;
+    }
+  }
+
+  // Canonical town overrides (e.g. Gudibanda -> Chikkaballapur, not Kolar)
+  if (resolvedCity) {
+    const normCity = resolvedCity.toLowerCase();
+    if (CANONICAL_TOWN_DISTRICT_OVERRIDES[normCity]) {
+      const townOverride = CANONICAL_TOWN_DISTRICT_OVERRIDES[normCity];
+      resolvedDistrict = townOverride.district;
+      resolvedState = townOverride.state;
+    }
+  }
+
+  // Legacy Kolar -> Chikkaballapur auto-correction for all 6 Chikkaballapur taluks
+  const chikkaballapurTalukKeywords = ['gudibanda', 'gowribidanur', 'gauribidanur', 'gowaribid', 'bagepalli', 'chintamani', 'sidlaghatta', 'chikkaballapu', 'chickballapur'];
+  if (
+    resolvedDistrict.toLowerCase() === 'kolar' &&
+    (chikkaballapurTalukKeywords.some(kw => resolvedCity.toLowerCase().includes(kw)) ||
+     ['561209', '561208', '561207', '562101', '562105', '563125'].includes(extractedPin))
+  ) {
+    resolvedDistrict = 'Chikkaballapur';
+    resolvedState = 'Karnataka';
   }
 
   // If district is still empty but city matches a known district in that state, infer the district
@@ -1678,8 +1828,19 @@ export function matchesPanIndiaLocationFilter(
     const altNames = parenMatch ? parenMatch[1].split('/').map(s => s.trim().toLowerCase()) : [];
     const candidateTerms = [filter.district.toLowerCase(), primaryDist, ...altNames].filter(Boolean);
 
-    const matchesDist = candidateTerms.some(term => fullText.includes(term));
-    if (!matchesDist) return false;
+    // Special awareness for Chikkaballapur district and its 6 taluks
+    const isChikkaballapurFilter = primaryDist.includes('chikkaballapu') || primaryDist.includes('chikballapur');
+    const isCandidateInChikkaballapur =
+      parsed.district.toLowerCase().includes('chikkaballapu') ||
+      ['gudibanda', 'gowribidanur', 'gauribidanur', 'bagepalli', 'chintamani', 'sidlaghatta'].some(t => fullText.includes(t)) ||
+      ['561209', '561208', '561207', '562101', '562105', '563125'].some(p => fullText.includes(p));
+
+    if (isChikkaballapurFilter && isCandidateInChikkaballapur) {
+      // Matches Chikkaballapur taluk candidate
+    } else {
+      const matchesDist = candidateTerms.some(term => fullText.includes(term));
+      if (!matchesDist) return false;
+    }
   }
 
   if (filter.city && filter.city.trim()) {

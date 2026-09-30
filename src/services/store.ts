@@ -1,13 +1,13 @@
-import { 
+import {
   Job, DriverProfile, EmployerProfile, Application, Notification, User, FavoriteJob, DriverDocument, DriverExperience, UserRole,
   EmployerSubscription, BillingTransaction, SavedSearch, CandidateUnlock, DirectMessage
 } from '../types';
-import { 
+import {
   initialJobs, initialDrivers, additionalDrivers, initialEmployers, initialApplications, initialNotifications, initialUsers,
   initialEmployerSubscriptions, initialBillingTransactions, initialSavedSearches, initialCandidateUnlocks, initialDirectMessages
 } from '../data/mockData';
 import { SupabaseSync } from './supabaseSync';
-import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm } from './indiaLocationService';
+import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, parseStructuredLocation } from './indiaLocationService';
 
 const allDefaultDrivers: DriverProfile[] = [...initialDrivers, ...additionalDrivers];
 const DEMO_DATA_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
@@ -57,7 +57,7 @@ export const DataStore = {
   getCurrentUser(): User | null {
     const user = getStorage<User | null>(STORAGE_KEYS.CURRENT_USER, null);
     if (!user) return null;
-    
+
     // Always cross-reference with latest user list to reflect real-time blocked/active status
     const users = this.getUsers();
     const freshUser = users.find(u => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
@@ -132,7 +132,7 @@ export const DataStore = {
 
     const users = this.getUsers().map(u => u.id === userId ? { ...u, status } : u);
     setStorage(STORAGE_KEYS.USERS, users);
-    
+
     // If currently logged in user is being modified, update current user session as well
     const currentUser = getStorage<User | null>(STORAGE_KEYS.CURRENT_USER, null);
     if (currentUser && currentUser.id === userId) {
@@ -152,7 +152,27 @@ export const DataStore = {
   // Drivers
   getDrivers(): DriverProfile[] {
     const list = getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers);
-    return list && list.length > 0 ? list : allDefaultDrivers;
+    const raw = list && list.length > 0 ? list : allDefaultDrivers;
+    return raw.map(d => {
+      const parsed = parseStructuredLocation(d);
+      const isOutdated =
+        (parsed.city && parsed.city !== d.city) ||
+        (parsed.district && parsed.district !== d.district) ||
+        (d.city && d.city.includes('(Kolar)')) ||
+        (d.location && d.location.includes('(Kolar)'));
+      if (isOutdated) {
+        return {
+          ...d,
+          city: parsed.city || d.city,
+          district: parsed.district || d.district,
+          state: parsed.state || d.state,
+          pincode: parsed.pincode || d.pincode,
+          location: parsed.formattedLocation || d.location,
+          preferredLocation: d.preferredLocation ? (parseStructuredLocation(d.preferredLocation).formattedLocation || d.preferredLocation) : parsed.formattedLocation
+        };
+      }
+      return d;
+    });
   },
 
   searchDriversLocally(filters: {
@@ -171,7 +191,7 @@ export const DataStore = {
     }
     if (filters.keyword && filters.keyword.trim()) {
       const q = filters.keyword.toLowerCase().trim();
-      list = list.filter(d => 
+      list = list.filter(d =>
         d.fullName.toLowerCase().includes(q) ||
         d.driverCategory.toLowerCase().includes(q) ||
         d.location.toLowerCase().includes(q) ||
@@ -182,7 +202,7 @@ export const DataStore = {
     }
     if (filters.category) {
       const cat = filters.category;
-      list = list.filter(d => 
+      list = list.filter(d =>
         d.driverCategory === cat ||
         (cat === 'HMV' && ['HMV', 'HMV-Transport', 'Truck Driver', 'Trailer Driver'].includes(d.driverCategory)) ||
         (cat === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].includes(d.driverCategory))
@@ -250,7 +270,7 @@ export const DataStore = {
     }
     if (filters.vehicleType && filters.vehicleType.trim()) {
       const vt = filters.vehicleType.toLowerCase().trim();
-      list = list.filter(d => 
+      list = list.filter(d =>
         (d.vehicleTypes || []).some(v => v.toLowerCase().includes(vt)) ||
         d.licenseType.toLowerCase().includes(vt)
       );
@@ -273,7 +293,7 @@ export const DataStore = {
     if (existing) return existing;
     const user = this.getUsers().find(u => u.id === id);
     if (user) {
-      const match = drivers.find(d => 
+      const match = drivers.find(d =>
         (d.email && user.email && d.email.toLowerCase() === user.email.toLowerCase()) ||
         (d.phone && user.phone && d.phone.replace(/[^0-9]/g, '') === user.phone.replace(/[^0-9]/g, ''))
       );
@@ -298,15 +318,26 @@ export const DataStore = {
   },
 
   setDriverProfileLocal(profile: DriverProfile): void {
+    const parsed = parseStructuredLocation(profile);
+    const sanitized: DriverProfile = {
+      ...profile,
+      city: parsed.city || profile.city,
+      district: parsed.district || profile.district,
+      state: parsed.state || profile.state,
+      pincode: parsed.pincode || profile.pincode,
+      location: parsed.formattedLocation || profile.location,
+      preferredLocation: profile.preferredLocation
+        ? (parseStructuredLocation(profile.preferredLocation).formattedLocation || profile.preferredLocation)
+        : (parsed.formattedLocation || profile.location)
+    };
     const drivers = this.getDrivers();
-    const index = drivers.findIndex(d => d.id === profile.id);
+    const index = drivers.findIndex(d => d.id === sanitized.id);
     if (index >= 0) {
-      drivers[index] = profile;
+      drivers[index] = sanitized;
       setStorage(STORAGE_KEYS.DRIVERS, [...drivers]);
     } else {
-      setStorage(STORAGE_KEYS.DRIVERS, [...drivers, profile]);
+      setStorage(STORAGE_KEYS.DRIVERS, [...drivers, sanitized]);
     }
-
   },
 
   updateDriverProfile(profile: DriverProfile): void {
@@ -325,7 +356,22 @@ export const DataStore = {
   mergeRemoteDrivers(remoteDrivers: DriverProfile[]): void {
     const existing = getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers);
     const remoteIds = new Set(remoteDrivers.map(driver => driver.id));
-    setStorage(STORAGE_KEYS.DRIVERS, [...remoteDrivers, ...existing.filter(driver => !remoteIds.has(driver.id))]);
+    const combined = [...remoteDrivers, ...existing.filter(driver => !remoteIds.has(driver.id))];
+    const sanitized = combined.map(d => {
+      const parsed = parseStructuredLocation(d);
+      return {
+        ...d,
+        city: parsed.city || d.city,
+        district: parsed.district || d.district,
+        state: parsed.state || d.state,
+        pincode: parsed.pincode || d.pincode,
+        location: parsed.formattedLocation || d.location,
+        preferredLocation: d.preferredLocation
+          ? (parseStructuredLocation(d.preferredLocation).formattedLocation || d.preferredLocation)
+          : (parsed.formattedLocation || d.location)
+      };
+    });
+    setStorage(STORAGE_KEYS.DRIVERS, sanitized);
   },
 
   addDriverDocument(driverId: string, doc: DriverDocument): void {
@@ -536,7 +582,7 @@ export const DataStore = {
         ? { ...existing, applicationsCount: (existing.applicationsCount || 0) + 1 }
         : existing);
       setStorage(STORAGE_KEYS.JOBS, jobs);
-      
+
       // Notify Employer in real-time
       this.addNotification({
         id: 'notif-' + Date.now(),
@@ -560,8 +606,8 @@ export const DataStore = {
   },
 
   async updateApplicationStatus(
-    appId: string, 
-    status: Application['status'], 
+    appId: string,
+    status: Application['status'],
     options?: { employerNotes?: string; interviewDate?: string; interviewMode?: Application['interviewMode']; interviewLocation?: string }
   ): Promise<boolean> {
     const actor = this.getCurrentUser();
@@ -693,7 +739,7 @@ export const DataStore = {
 
   async markNotificationAsRead(id: string): Promise<boolean> {
     if (!DEMO_DATA_ENABLED && !(await SupabaseSync.markNotificationRead(id))) return false;
-    const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications).map(n => 
+    const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications).map(n =>
       n.id === id ? { ...n, read: true } : n
     );
     setStorage(STORAGE_KEYS.NOTIFICATIONS, notifs);
@@ -706,7 +752,7 @@ export const DataStore = {
       const results = await Promise.all(pending.map(notification => SupabaseSync.markNotificationRead(notification.id)));
       if (results.some(result => !result)) return false;
     }
-    const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications).map(n => 
+    const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications).map(n =>
       n.userId === userId ? { ...n, read: true } : n
     );
     setStorage(STORAGE_KEYS.NOTIFICATIONS, notifs);

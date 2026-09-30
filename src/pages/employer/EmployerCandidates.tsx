@@ -265,6 +265,7 @@ export const EmployerCandidates: React.FC = () => {
     }
 
     const hasSearchCoords = typeof searchCoords.lat === 'number' && typeof searchCoords.lng === 'number' && !isNaN(searchCoords.lat) && !isNaN(searchCoords.lng);
+    const hasLocationFilter = Boolean(selectedState || selectedDistrict || selectedPincode || selectedCities.length > 0);
 
     if (hasSearchCoords) {
       list = list.map(d => {
@@ -277,6 +278,35 @@ export const EmployerCandidates: React.FC = () => {
 
       if (selectedRadiusKm > 0) {
         list = list.filter(d => typeof d.distanceKm === 'number' && d.distanceKm <= selectedRadiusKm);
+      } else if (hasLocationFilter) {
+        if (selectedCities.length > 1) {
+          list = list.filter(d =>
+            selectedCities.some(
+              c =>
+                d.city?.toLowerCase().includes(c.toLowerCase()) ||
+                d.location?.toLowerCase().includes(c.toLowerCase()) ||
+                d.preferredLocation?.toLowerCase().includes(c.toLowerCase())
+            )
+          );
+        } else {
+          list = list.filter(d =>
+            matchesPanIndiaLocationFilter(
+              {
+                state: d.state,
+                district: d.district,
+                city: d.city,
+                pincode: d.pincode,
+                location: `${d.location || ''} ${d.preferredLocation || ''}`
+              },
+              {
+                state: selectedState,
+                district: selectedDistrict,
+                city: selectedCities.length === 1 ? selectedCities[0] : '',
+                pincode: selectedPincode
+              }
+            )
+          );
+        }
       }
 
       list.sort((a, b) => {
@@ -287,35 +317,35 @@ export const EmployerCandidates: React.FC = () => {
         if (typeof b.distanceKm === 'number') return 1;
         return 0;
       });
-    } else if (selectedState || selectedDistrict || selectedPincode || selectedCities.length === 1) {
-      list = list.filter(d =>
-        matchesPanIndiaLocationFilter(
-          {
-            state: d.state,
-            district: d.district,
-            city: d.city,
-            pincode: d.pincode,
-            location: `${d.location || ''} ${d.preferredLocation || ''}`
-          },
-          {
-            state: selectedState,
-            district: selectedDistrict,
-            city: selectedCities.length === 1 ? selectedCities[0] : '',
-            pincode: selectedPincode
-          }
-        )
-      );
-    }
-
-    if (selectedCities.length > 1) {
-      list = list.filter(d =>
-        selectedCities.some(
-          c =>
-            d.city.toLowerCase().includes(c.toLowerCase()) ||
-            d.location.toLowerCase().includes(c.toLowerCase()) ||
-            d.preferredLocation?.toLowerCase().includes(c.toLowerCase())
-        )
-      );
+    } else if (hasLocationFilter) {
+      if (selectedCities.length > 1) {
+        list = list.filter(d =>
+          selectedCities.some(
+            c =>
+              d.city?.toLowerCase().includes(c.toLowerCase()) ||
+              d.location?.toLowerCase().includes(c.toLowerCase()) ||
+              d.preferredLocation?.toLowerCase().includes(c.toLowerCase())
+          )
+        );
+      } else {
+        list = list.filter(d =>
+          matchesPanIndiaLocationFilter(
+            {
+              state: d.state,
+              district: d.district,
+              city: d.city,
+              pincode: d.pincode,
+              location: `${d.location || ''} ${d.preferredLocation || ''}`
+            },
+            {
+              state: selectedState,
+              district: selectedDistrict,
+              city: selectedCities.length === 1 ? selectedCities[0] : '',
+              pincode: selectedPincode
+            }
+          )
+        );
+      }
     }
 
     if (hideUnlocked) {

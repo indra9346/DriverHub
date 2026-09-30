@@ -8,7 +8,7 @@ import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, DriverCategory, DriverExperience } from '../../types';
 import { useLanguage } from '../../services/i18n';
 import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
-import { parseStructuredLocation, formatStructuredLocation, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
+import { parseStructuredLocation, formatStructuredLocation, StructuredPanIndiaLocation, resolveLocationCoordinates } from '../../services/indiaLocationService';
 
 export const DriverProfilePage: React.FC = () => {
   const { t } = useLanguage();
@@ -91,6 +91,32 @@ export const DriverProfilePage: React.FC = () => {
       city: resolvedCity
     };
 
+    let resolvedLat = locationSelection.latitude;
+    let resolvedLng = locationSelection.longitude;
+
+    const locationChanged = 
+      (Boolean(locationSelection.state) && locationSelection.state !== profile.state) ||
+      (Boolean(locationSelection.district) && locationSelection.district !== profile.district) ||
+      (Boolean(locationSelection.city) && locationSelection.city !== profile.city) ||
+      (Boolean(locationSelection.pincode) && locationSelection.pincode !== profile.pincode);
+
+    if (locationChanged || resolvedLat === undefined || resolvedLng === undefined) {
+      try {
+        const resolvedCoords = await resolveLocationCoordinates({
+          city: resolvedCity,
+          district: resolvedDistrict,
+          state: resolvedLocationSelection.state,
+          pincode: resolvedLocationSelection.pincode
+        });
+        if (resolvedCoords) {
+          resolvedLat = resolvedCoords.lat;
+          resolvedLng = resolvedCoords.lng;
+        }
+      } catch (err) {
+        console.warn('Coordinate resolution notice:', err);
+      }
+    }
+
     const skills = skillsText.split(',').map(s => s.trim()).filter(Boolean);
     const formattedLoc = formatStructuredLocation(resolvedLocationSelection) || profile.location || resolvedCity || '';
     const updated: DriverProfile = { 
@@ -99,13 +125,21 @@ export const DriverProfilePage: React.FC = () => {
       district: resolvedDistrict,
       city: resolvedCity,
       pincode: resolvedLocationSelection.pincode || profile.pincode,
-      latitude: resolvedLocationSelection.latitude !== undefined ? resolvedLocationSelection.latitude : profile.latitude,
-      longitude: resolvedLocationSelection.longitude !== undefined ? resolvedLocationSelection.longitude : profile.longitude,
+      latitude: resolvedLat !== undefined ? resolvedLat : (locationChanged ? undefined : profile.latitude),
+      longitude: resolvedLng !== undefined ? resolvedLng : (locationChanged ? undefined : profile.longitude),
       location: formattedLoc,
       skills,
       licenseNumber: (profile.licenseNumber || '').trim().toUpperCase(),
       licenseExpiry: profile.licenseExpiry ? profile.licenseExpiry.slice(0, 10) : ''
     };
+
+    setLocationSelection(prev => ({
+      ...prev,
+      district: resolvedDistrict,
+      city: resolvedCity,
+      latitude: resolvedLat,
+      longitude: resolvedLng
+    }));
 
     // Always persist to local DataStore immediately so user changes are never lost
     DataStore.setDriverProfileLocal(updated);

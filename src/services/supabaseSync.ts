@@ -1,6 +1,6 @@
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 import { Job, Application, DriverProfile, EmployerProfile, User, Notification, DriverDocument, DirectMessage, SavedSearch, FavoriteJob, DriverExperience } from '../types';
-import { parseStructuredLocation, calculateHaversineDistanceKm } from './indiaLocationService';
+import { parseStructuredLocation, calculateHaversineDistanceKm, matchesPanIndiaLocationFilter } from './indiaLocationService';
 
 // Helper to convert any string ID to a valid deterministic UUID
 export function toUUID(id: string): string {
@@ -428,6 +428,15 @@ export const SupabaseSync = {
 
       if (typeof filters.radiusKm === 'number' && filters.radiusKm > 0) {
         list = list.filter(d => typeof d.distanceKm === 'number' && d.distanceKm <= filters.radiusKm!);
+      } else if (filters.state || filters.district || filters.city || filters.pincode) {
+        list = list.filter(d =>
+          matchesPanIndiaLocationFilter(d, {
+            state: filters.state,
+            district: filters.district,
+            city: filters.city,
+            pincode: filters.pincode
+          })
+        );
       }
 
       if (typeof filters.latitude === 'number' && typeof filters.longitude === 'number') {

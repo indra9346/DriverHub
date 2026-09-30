@@ -192,6 +192,7 @@ export const DataStore = {
     // Geographic Coordinates & Radius Search
     const hasSearchCoords = typeof filters.latitude === 'number' && typeof filters.longitude === 'number' && !isNaN(filters.latitude) && !isNaN(filters.longitude);
     const effectiveRadius = typeof filters.radiusKm === 'number' && filters.radiusKm > 0 ? filters.radiusKm : 0;
+    const hasLocationFilter = Boolean(filters.state || filters.district || filters.city || filters.pincode);
 
     if (hasSearchCoords) {
       const searchLat = filters.latitude!;
@@ -208,6 +209,16 @@ export const DataStore = {
       if (effectiveRadius > 0) {
         // Strict radius filter: return candidates within radius distance
         list = list.filter(d => typeof d.distanceKm === 'number' && d.distanceKm <= effectiveRadius);
+      } else if (hasLocationFilter) {
+        // When radius is "Any distance" (0) but a location is chosen, strictly filter by that location
+        list = list.filter(d =>
+          matchesPanIndiaLocationFilter(d, {
+            state: filters.state,
+            district: filters.district,
+            city: filters.city,
+            pincode: filters.pincode
+          })
+        );
       }
 
       // Sort nearest first by default when coordinates are active
@@ -219,7 +230,7 @@ export const DataStore = {
         if (typeof b.distanceKm === 'number') return 1;
         return 0;
       });
-    } else if (filters.state || filters.district || filters.city || filters.pincode) {
+    } else if (hasLocationFilter) {
       list = list.filter(d =>
         matchesPanIndiaLocationFilter(d, {
           state: filters.state,

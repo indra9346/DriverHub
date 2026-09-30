@@ -445,6 +445,46 @@ export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; pins:
     { town: 'Tadipatri', pins: [{ code: '515411', officeName: 'Tadipatri S.O' }] },
     { town: 'Rayadurg', pins: [{ code: '515865', officeName: 'Rayadurg S.O' }] }
   ],
+  'Andhra Pradesh|Sri Sathya Sai': [
+    {
+      town: 'Puttaparthi',
+      pins: [
+        { code: '515134', officeName: 'Puttaparthi S.O' },
+        { code: '515133', officeName: 'Prasanthi Nilayam S.O' }
+      ]
+    },
+    {
+      town: 'Hindupur',
+      pins: [
+        { code: '515201', officeName: 'Hindupur H.O' },
+        { code: '515202', officeName: 'Hindupur R.S. S.O' }
+      ]
+    },
+    {
+      town: 'Dharmavaram',
+      pins: [
+        { code: '515671', officeName: 'Dharmavaram H.O' }
+      ]
+    },
+    {
+      town: 'Kadiri',
+      pins: [
+        { code: '515591', officeName: 'Kadiri H.O' }
+      ]
+    },
+    {
+      town: 'Madakasira',
+      pins: [
+        { code: '515301', officeName: 'Madakasira S.O' }
+      ]
+    },
+    {
+      town: 'Penukonda',
+      pins: [
+        { code: '515110', officeName: 'Penukonda S.O' }
+      ]
+    }
+  ],
   'Andhra Pradesh|Visakhapatnam': [
     {
       town: 'Visakhapatnam',
@@ -1614,6 +1654,12 @@ export const INDIA_COORDINATES_DIRECTORY: Record<string, { lat: number; lng: num
   'vizianagaram': { lat: 18.1067, lng: 83.3956, name: 'Vizianagaram' },
   'nandyal': { lat: 15.4886, lng: 78.4836, name: 'Nandyal' },
   'hindupur': { lat: 13.8290, lng: 77.4929, name: 'Sri Sathya Sai (Hindupur)' },
+  'sri sathya sai': { lat: 14.1673, lng: 77.8105, name: 'Sri Sathya Sai (Puttaparthi)' },
+  'puttaparthi': { lat: 14.1673, lng: 77.8105, name: 'Puttaparthi' },
+  'dharmavaram': { lat: 14.4140, lng: 77.7210, name: 'Dharmavaram' },
+  'kadiri': { lat: 14.1130, lng: 78.1590, name: 'Kadiri' },
+  'penukonda': { lat: 14.0833, lng: 77.5972, name: 'Penukonda' },
+  'madakasira': { lat: 13.9392, lng: 77.2689, name: 'Madakasira' },
 
   // --- Tamil Nadu Districts & Hubs ---
   'chennai': { lat: 13.0827, lng: 80.2707, name: 'Chennai' },

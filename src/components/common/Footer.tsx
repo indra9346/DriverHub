@@ -166,7 +166,7 @@ export const Footer: React.FC = () => {
               role="img"
             >
               <Heart
-                className="w-4 h-4 shrink-0 inline-block animate-cardiac-heartbeat"
+                className="w-4 h-4 shrink-0 inline-block text-red-600 animate-cardiac-heartbeat"
                 fill="currentColor"
                 strokeWidth={1.5}
                 aria-hidden="true"

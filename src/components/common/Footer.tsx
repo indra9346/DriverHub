@@ -160,12 +160,84 @@ export const Footer: React.FC = () => {
             <span className="font-medium tracking-wide text-slate-300">
               Designed &amp; Developed with
             </span>
-            <span className="inline-flex items-center justify-center px-0.5">
+            <span
+              className="relative inline-flex items-center justify-center px-0.5 align-middle select-none"
+              aria-label="love"
+              role="img"
+            >
               <Heart
-                className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0 inline-block animate-heart-gentle"
-                aria-label="love"
-                role="img"
+                className="w-4 h-4 shrink-0 inline-block animate-cardiac-heartbeat"
+                fill="currentColor"
+                strokeWidth={1.5}
+                aria-hidden="true"
               />
+              {/* Sequential Falling Blood Drops (Releases after DUB-DUB) */}
+              <span
+                className="absolute left-1/2 top-[12px] -translate-x-1/2 pointer-events-none animate-blood-drop-1"
+                aria-hidden="true"
+              >
+                <svg
+                  width="7"
+                  height="10"
+                  viewBox="0 0 10 14"
+                  fill="none"
+                  className="drop-shadow-[0_1px_2px_rgba(153,27,27,0.6)]"
+                >
+                  <defs>
+                    <linearGradient id="blood-drop-grad-1" x1="50%" y1="0%" x2="50%" y2="100%">
+                      <stop offset="0%" stopColor="#ef4444" />
+                      <stop offset="65%" stopColor="#b91c1c" />
+                      <stop offset="100%" stopColor="#7f1d1d" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M5,0 C5,0 0.5,6.5 0.5,9.5 C0.5,12 2.5,13.8 5,13.8 C7.5,13.8 9.5,12 9.5,9.5 C9.5,6.5 5,0 5,0 Z"
+                    fill="url(#blood-drop-grad-1)"
+                  />
+                  <ellipse
+                    cx="3.5"
+                    cy="7.5"
+                    rx="1.1"
+                    ry="2.2"
+                    fill="#ffffff"
+                    opacity="0.65"
+                    transform="rotate(-15 3.5 7.5)"
+                  />
+                </svg>
+              </span>
+              <span
+                className="absolute left-1/2 top-[12px] -translate-x-1/2 pointer-events-none animate-blood-drop-2"
+                aria-hidden="true"
+              >
+                <svg
+                  width="6"
+                  height="9"
+                  viewBox="0 0 10 14"
+                  fill="none"
+                  className="drop-shadow-[0_1px_2px_rgba(153,27,27,0.6)]"
+                >
+                  <defs>
+                    <linearGradient id="blood-drop-grad-2" x1="50%" y1="0%" x2="50%" y2="100%">
+                      <stop offset="0%" stopColor="#f43f5e" />
+                      <stop offset="65%" stopColor="#be123c" />
+                      <stop offset="100%" stopColor="#881337" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M5,0 C5,0 0.5,6.5 0.5,9.5 C0.5,12 2.5,13.8 5,13.8 C7.5,13.8 9.5,12 9.5,9.5 C9.5,6.5 5,0 5,0 Z"
+                    fill="url(#blood-drop-grad-2)"
+                  />
+                  <ellipse
+                    cx="3.5"
+                    cy="7.5"
+                    rx="1.1"
+                    ry="2.2"
+                    fill="#ffffff"
+                    opacity="0.65"
+                    transform="rotate(-15 3.5 7.5)"
+                  />
+                </svg>
+              </span>
             </span>
             <span className="font-medium tracking-wide text-slate-300">
               by

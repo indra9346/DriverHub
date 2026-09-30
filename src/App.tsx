@@ -15,6 +15,7 @@ const ContactPage = React.lazy(() => import('./pages/public/ContactPage').then(m
 const LoginPage = React.lazy(() => import('./pages/public/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = React.lazy(() => import('./pages/public/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const ForgotPasswordPage = React.lazy(() => import('./pages/public/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
+const NotFoundPage = React.lazy(() => import('./pages/public/NotFoundPage').then(module => ({ default: module.NotFoundPage })));
 const DriverDashboard = React.lazy(() => import('./pages/driver/DriverDashboard').then(module => ({ default: module.DriverDashboard })));
 const DriverApplications = React.lazy(() => import('./pages/driver/DriverApplications').then(module => ({ default: module.DriverApplications })));
 const DriverSavedJobs = React.lazy(() => import('./pages/driver/DriverSavedJobs').then(module => ({ default: module.DriverSavedJobs })));
@@ -142,8 +143,10 @@ export const App: React.FC = () => {
           <Route path="settings" element={<AdminSettings />} />
         </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Fallback: Render proper in-app 404 NotFoundPage inside PublicLayout */}
+        <Route element={<PublicLayout />}>
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
       </Routes>
       </React.Suspense>
     </LanguageProvider>

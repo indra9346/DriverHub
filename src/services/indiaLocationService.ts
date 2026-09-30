@@ -969,6 +969,244 @@ export async function verifyPinCodeLive(
   }
 }
 
+export interface PanIndiaAutocompleteSuggestion {
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+  pins: PinOption[];
+  label: string;
+  sublabel: string;
+  source: 'verified-directory' | 'india-post-live' | 'district-hq';
+}
+
+const liveQueryMemoryCache = new Map<string, PanIndiaAutocompleteSuggestion[]>();
+
+/**
+ * Returns all ~780 districts across all 36 States & Union Territories paired with their parent State/UT.
+ */
+export function getAllDistrictsWithState(): Array<{ district: string; state: string; prefix: string }> {
+  const results: Array<{ district: string; state: string; prefix: string }> = [];
+  for (const [state, meta] of Object.entries(STATE_DISTRICTS_DIRECTORY)) {
+    for (const district of meta.districts) {
+      results.push({ district, state, prefix: meta.prefix });
+    }
+  }
+  return results;
+}
+
+/**
+ * Searches across verified towns, district headquarters, and live India Post PostOffice API
+ * (`https://api.postalpincode.in/postoffice/{query}`) for type-and-select autocomplete.
+ */
+export async function searchPanIndiaPlacesLive(
+  query: string,
+  filterState?: string,
+  filterDistrict?: string,
+  signal?: AbortSignal
+): Promise<{
+  suggestions: PanIndiaAutocompleteSuggestion[];
+  error?: string;
+}> {
+  const cleanQuery = query.trim();
+  const normQuery = cleanQuery.toLowerCase();
+  const normState = filterState ? normalizeName(filterState) : '';
+  const normDist = filterDistrict ? normalizeName(extractPrimaryName(filterDistrict)) : '';
+
+  const resultsMap = new Map<string, PanIndiaAutocompleteSuggestion>();
+
+  // 1. Search local verified towns & multi-PIN hubs first (zero latency)
+  for (const [key, towns] of Object.entries(VERIFIED_DISTRICT_TOWNS)) {
+    const [st, dist] = key.split('|');
+    if (normState && normalizeName(st) !== normState) continue;
+    if (
+      normDist &&
+      !normalizeName(dist).includes(normDist) &&
+      !normDist.includes(normalizeName(extractPrimaryName(dist)))
+    ) {
+      continue;
+    }
+
+    for (const t of towns) {
+      const matchesTown =
+        !normQuery ||
+        t.town.toLowerCase().includes(normQuery) ||
+        dist.toLowerCase().includes(normQuery) ||
+        t.pins.some(p => p.code.includes(normQuery) || p.officeName.toLowerCase().includes(normQuery));
+
+      if (matchesTown) {
+        const primaryPin = t.pins[0]?.code || '';
+        const mapKey = `${t.town.toLowerCase()}|${dist.toLowerCase()}|${st.toLowerCase()}`;
+        resultsMap.set(mapKey, {
+          city: t.town,
+          district: dist,
+          state: st,
+          pincode: primaryPin,
+          pins: t.pins.map(p => ({ ...p, source: 'verified-directory' as const })),
+          label: t.town,
+          sublabel: `${dist}, ${st}${primaryPin ? ` • PIN ${primaryPin}${t.pins.length > 1 ? ` (+${t.pins.length - 1} more)` : ''}` : ''}`,
+          source: 'verified-directory'
+        });
+      }
+    }
+  }
+
+  // 2. Search all ~780 District Headquarters across all 36 States/UTs
+  for (const [st, meta] of Object.entries(STATE_DISTRICTS_DIRECTORY)) {
+    if (normState && normalizeName(st) !== normState) continue;
+    for (const dist of meta.districts) {
+      if (
+        normDist &&
+        !normalizeName(dist).includes(normDist) &&
+        !normDist.includes(normalizeName(extractPrimaryName(dist)))
+      ) {
+        continue;
+      }
+      const primaryCityName = extractPrimaryName(dist);
+      if (
+        !normQuery ||
+        dist.toLowerCase().includes(normQuery) ||
+        primaryCityName.toLowerCase().includes(normQuery)
+      ) {
+        const mapKey = `${primaryCityName.toLowerCase()}|${dist.toLowerCase()}|${st.toLowerCase()}`;
+        if (!resultsMap.has(mapKey)) {
+          resultsMap.set(mapKey, {
+            city: primaryCityName,
+            district: dist,
+            state: st,
+            pincode: '',
+            pins: [],
+            label: primaryCityName,
+            sublabel: `${dist} District, ${st} (PIN prefix ${meta.prefix})`,
+            source: 'district-hq'
+          });
+        }
+      }
+    }
+  }
+
+  // If query is shorter than 2 characters, return local matches immediately without hitting network
+  if (cleanQuery.length < 2) {
+    return {
+      suggestions: Array.from(resultsMap.values()).slice(0, 60)
+    };
+  }
+
+  const cacheKey = `${normQuery}|${normState}|${normDist}`;
+  if (liveQueryMemoryCache.has(cacheKey)) {
+    return { suggestions: liveQueryMemoryCache.get(cacheKey)! };
+  }
+
+  // 3. If user typed at least 2 characters, query India Post API (either by 6-digit PIN or PostOffice name)
+  try {
+    const isPinSearch = /^\d{3,6}$/.test(cleanQuery);
+    const endpoint =
+      /^\d{6}$/.test(cleanQuery)
+        ? `https://api.postalpincode.in/pincode/${encodeURIComponent(cleanQuery)}`
+        : !isPinSearch
+        ? `https://api.postalpincode.in/postoffice/${encodeURIComponent(cleanQuery)}`
+        : '';
+
+    if (endpoint) {
+      const response = await fetch(endpoint, { signal });
+      if (response.ok) {
+        const payload = await response.json();
+        const first = Array.isArray(payload) ? payload[0] : null;
+        if (first && first.Status === 'Success' && Array.isArray(first.PostOffice)) {
+          for (const po of first.PostOffice) {
+            const poStateRaw = String(po.State || '').trim();
+            const poDistRaw = String(po.District || '').trim();
+            const poNameRaw = String(po.Name || '').trim();
+            const poBlockRaw = String(po.Block && po.Block !== 'NA' ? po.Block : '').trim();
+            const poPin = String(po.Pincode || '').trim();
+
+            if (!poNameRaw || !/^\d{6}$/.test(poPin)) continue;
+
+            // Match against canonical State name in STATE_DISTRICTS_DIRECTORY
+            const matchedState =
+              getAllStatesAndUTs().find(
+                s =>
+                  normalizeName(s) === normalizeName(poStateRaw) ||
+                  normalizeName(s).includes(normalizeName(poStateRaw)) ||
+                  normalizeName(poStateRaw).includes(normalizeName(s))
+              ) || poStateRaw;
+
+            if (normState && normalizeName(matchedState) !== normState) continue;
+
+            const stateDists = getDistrictsForState(matchedState);
+            const matchedDist =
+              stateDists.find(
+                d =>
+                  normalizeName(d) === normalizeName(poDistRaw) ||
+                  normalizeName(extractPrimaryName(d)) === normalizeName(poDistRaw) ||
+                  d.toLowerCase().includes(poDistRaw.toLowerCase())
+              ) || poDistRaw;
+
+            if (
+              normDist &&
+              !normalizeName(matchedDist).includes(normDist) &&
+              !normDist.includes(normalizeName(extractPrimaryName(matchedDist)))
+            ) {
+              continue;
+            }
+
+            const localityName = poNameRaw;
+            const mapKey = `${localityName.toLowerCase()}|${matchedDist.toLowerCase()}|${matchedState.toLowerCase()}`;
+            const pinOption: PinOption = {
+              code: poPin,
+              officeName: poNameRaw,
+              deliveryStatus: po.DeliveryStatus,
+              source: 'india-post-live'
+            };
+
+            const existing = resultsMap.get(mapKey);
+            if (existing) {
+              if (!existing.pins.some(p => p.code === poPin && p.officeName === poNameRaw)) {
+                existing.pins.push(pinOption);
+              }
+              if (!existing.pincode) existing.pincode = poPin;
+              existing.sublabel = `${matchedDist}, ${matchedState} • PIN ${existing.pincode}${existing.pins.length > 1 ? ` (+${existing.pins.length - 1} more)` : ''}`;
+            } else {
+              resultsMap.set(mapKey, {
+                city: localityName,
+                district: matchedDist,
+                state: matchedState,
+                pincode: poPin,
+                pins: [pinOption],
+                label: poBlockRaw && poBlockRaw.toLowerCase() !== localityName.toLowerCase()
+                  ? `${localityName} (${poBlockRaw})`
+                  : localityName,
+                sublabel: `${matchedDist}, ${matchedState} • PIN ${poPin}`,
+                source: 'india-post-live'
+              });
+            }
+          }
+        }
+      }
+    }
+
+    const finalSuggestions = Array.from(resultsMap.values())
+      .sort((a, b) => {
+        const aStarts = a.city.toLowerCase().startsWith(normQuery) ? 0 : 1;
+        const bStarts = b.city.toLowerCase().startsWith(normQuery) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+        if (a.pins.length > 0 && b.pins.length === 0) return -1;
+        if (a.pins.length === 0 && b.pins.length > 0) return 1;
+        return a.city.localeCompare(b.city);
+      })
+      .slice(0, 60);
+
+    liveQueryMemoryCache.set(cacheKey, finalSuggestions);
+    return { suggestions: finalSuggestions };
+  } catch (err: any) {
+    if (err?.name === 'AbortError') throw err;
+    return {
+      suggestions: Array.from(resultsMap.values()).slice(0, 60),
+      error: 'Live India Post lookup temporarily unreachable; showing verified directory results.'
+    };
+  }
+}
+
 export interface StructuredPanIndiaLocation {
   state: string;
   district: string;

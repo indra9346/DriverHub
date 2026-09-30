@@ -160,11 +160,13 @@ export const Footer: React.FC = () => {
             <span className="font-medium tracking-wide text-slate-300">
               Designed &amp; Developed with
             </span>
-            <Heart
-              className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0 inline-block"
-              aria-label="love"
-              role="img"
-            />
+            <span className="inline-flex items-center justify-center px-0.5">
+              <Heart
+                className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0 inline-block animate-heart-gentle"
+                aria-label="love"
+                role="img"
+              />
+            </span>
             <span className="font-medium tracking-wide text-slate-300">
               by
             </span>

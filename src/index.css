@@ -82,13 +82,48 @@
   animation-play-state: paused;
 }
 
+/* Restrained, smooth zoom + gentle pulse animation for footer heart icon */
+@keyframes heart-gentle-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.86;
+    filter: drop-shadow(0 0 0px rgba(244, 63, 94, 0));
+  }
+  35% {
+    transform: scale(1.18);
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.48));
+  }
+  65% {
+    transform: scale(0.95);
+    opacity: 0.82;
+    filter: drop-shadow(0 0 2px rgba(244, 63, 94, 0.2));
+  }
+  82% {
+    transform: scale(1.1);
+    opacity: 0.98;
+    filter: drop-shadow(0 0 4px rgba(244, 63, 94, 0.36));
+  }
+}
+
+.animate-heart-gentle {
+  display: inline-flex;
+  transform-origin: center;
+  animation: heart-gentle-pulse 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform, opacity;
+}
+
 /* Accessibility: Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee-smooth,
+  .animate-heart-gentle,
   .animate-pulse,
   .animate-ping,
   .animate-bounce {
     animation: none !important;
+    transform: scale(1) !important;
+    opacity: 1 !important;
+    filter: none !important;
   }
   
   * {

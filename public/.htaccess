@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Preserve existing files, directories, and symbolic links (assets, images, logos, banners)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d [OR]
+  RewriteCond %{REQUEST_FILENAME} -l
+  RewriteRule ^ - [L]
+
+  # Rewrite all SPA routes (e.g. /jobs, /jobs?category=HMV, /employer/post-job) to /index.html
+  RewriteRule ^ index.html [QSA,L]
+</IfModule>
+
+# Fallback if mod_rewrite is disabled on the server
+ErrorDocument 404 /index.html

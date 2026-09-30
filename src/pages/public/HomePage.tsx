@@ -158,9 +158,74 @@ export const HomePage: React.FC = () => {
     );
   }, [keyword, allActiveJobs]);
 
-  const locationSuggestions = useMemo(() => {
-    return getSearchLocationSuggestions(location);
+  const [liveHeroLocations, setLiveHeroLocations] = useState<
+    Array<{ city: string; district?: string; state: string; pincode?: string; label: string }>
+  >([]);
+  const [loadingHeroLocations, setLoadingHeroLocations] = useState(false);
+  const [selectedHeroStructuredLoc, setSelectedHeroStructuredLoc] = useState<{
+    city?: string;
+    district?: string;
+    state?: string;
+    pincode?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const q = location.trim();
+    if (q.length < 2) {
+      setLiveHeroLocations([]);
+      setLoadingHeroLocations(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLoadingHeroLocations(true);
+      try {
+        const { searchPanIndiaPlacesLive } = await import('../../services/indiaLocationService');
+        const res = await searchPanIndiaPlacesLive(q, undefined, undefined, controller.signal);
+        setLiveHeroLocations(
+          res.suggestions.slice(0, 12).map(s => ({
+            city: s.city,
+            district: s.district,
+            state: s.state,
+            pincode: s.pincode,
+            label: `${s.city}, ${s.district}, ${s.state}${s.pincode ? ` (${s.pincode})` : ''}`
+          }))
+        );
+      } catch {
+        // Ignore abort
+      } finally {
+        setLoadingHeroLocations(false);
+      }
+    }, 240);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [location]);
+
+  const locationSuggestions = useMemo(() => {
+    const base: Array<{
+      city: string;
+      district?: string;
+      state: string;
+      pincode?: string;
+      label: string;
+    }> = getSearchLocationSuggestions(location).map(item => ({
+      city: item.city,
+      state: item.state,
+      label: item.label
+    }));
+    const seen = new Set(base.map(b => `${b.city.toLowerCase()}|${b.state.toLowerCase()}`));
+    for (const live of liveHeroLocations) {
+      const key = `${live.city.toLowerCase()}|${live.state.toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        base.push(live);
+      }
+    }
+    return base.slice(0, 14);
+  }, [location, liveHeroLocations]);
 
   const driverTypeOptions = useMemo(() => [
     { value: '', label: t('All Driver Types'), subtitle: 'Browse all commercial & personal roles', icon: '🚛' },
@@ -189,8 +254,15 @@ export const HomePage: React.FC = () => {
     if (keyword.trim()) params.append('q', keyword.trim());
     if (category) params.append('category', category);
     if (location.trim()) {
-      params.append('city', location.trim());
-      params.append('location', location.trim());
+      if (selectedHeroStructuredLoc && selectedHeroStructuredLoc.city?.toLowerCase() === location.trim().toLowerCase()) {
+        if (selectedHeroStructuredLoc.state) params.append('state', selectedHeroStructuredLoc.state);
+        if (selectedHeroStructuredLoc.district) params.append('district', selectedHeroStructuredLoc.district);
+        if (selectedHeroStructuredLoc.city) params.append('city', selectedHeroStructuredLoc.city);
+        if (selectedHeroStructuredLoc.pincode) params.append('pincode', selectedHeroStructuredLoc.pincode);
+      } else {
+        params.append('city', location.trim());
+        params.append('location', location.trim());
+      }
     }
     navigate(`/jobs?${params.toString()}`);
   };
@@ -726,7 +798,9 @@ export const HomePage: React.FC = () => {
                         );
                       } else if (e.key === 'Enter' && activeLocationIndex >= 0 && locationSuggestions[activeLocationIndex]) {
                         e.preventDefault();
-                        setLocation(locationSuggestions[activeLocationIndex].city);
+                        const chosen = locationSuggestions[activeLocationIndex];
+                        setLocation(chosen.city);
+                        setSelectedHeroStructuredLoc(chosen);
                         setShowLocationSuggestions(false);
                         setActiveLocationIndex(-1);
                       } else if (e.key === 'Escape') {
@@ -734,7 +808,7 @@ export const HomePage: React.FC = () => {
                         setActiveLocationIndex(-1);
                       }
                     }}
-                    placeholder={lang === 'kn' ? 'ನಗರ (ಬೆಂಗಳೂರು, ಮೈಸೂರು...)' : 'City (Bengaluru, Chennai...)'}
+                    placeholder={lang === 'kn' ? 'ನಗರ / ಪಿನ್ ಕೋಡ್ (ಬೆಂಗಳೂರು, 560001...)' : 'City, District or PIN (e.g. Bengaluru, 560001...)'}
                     className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
                   />
                   {location && (
@@ -743,6 +817,7 @@ export const HomePage: React.FC = () => {
                       aria-label="Clear city filter"
                       onClick={() => {
                         setLocation('');
+                        setSelectedHeroStructuredLoc(null);
                         setActiveLocationIndex(-1);
                       }}
                       className="text-slate-400 hover:text-slate-700 text-xs px-1 cursor-pointer"
@@ -753,15 +828,15 @@ export const HomePage: React.FC = () => {
                 </div>
 
                 {/* Accessible Location Suggestions Dropdown */}
-                {showLocationSuggestions && locationSuggestions.length > 0 && (
+                {showLocationSuggestions && (locationSuggestions.length > 0 || loadingHeroLocations) && (
                   <div
                     id="hero-location-listbox"
                     role="listbox"
-                    aria-label="Suggested Indian Cities and States"
-                    className="absolute z-50 left-0 right-0 sm:w-72 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/95 py-2 max-h-72 overflow-y-auto ring-1 ring-slate-900/5"
+                    aria-label="Suggested Indian Cities, Districts, States and PINs"
+                    className="absolute z-50 left-0 right-0 sm:w-80 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/95 py-2 max-h-72 overflow-y-auto ring-1 ring-slate-900/5"
                   >
                     <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
-                      <span>Suggested Cities &amp; States</span>
+                      <span>{loadingHeroLocations ? 'Searching India Post Directory…' : 'Pan-India Cities, Districts & PINs'}</span>
                       <button
                         type="button"
                         aria-label="Close location suggestions"
@@ -777,7 +852,7 @@ export const HomePage: React.FC = () => {
                         const isActive = activeLocationIndex === idx;
                         return (
                           <button
-                            key={idx}
+                            key={`${item.city}-${item.state}-${item.pincode || idx}`}
                             id={`hero-location-opt-${idx}`}
                             role="option"
                             aria-selected={isSelected || isActive}
@@ -785,6 +860,7 @@ export const HomePage: React.FC = () => {
                             onMouseEnter={() => setActiveLocationIndex(idx)}
                             onClick={() => {
                               setLocation(item.city);
+                              setSelectedHeroStructuredLoc(item);
                               setShowLocationSuggestions(false);
                               setActiveLocationIndex(-1);
                             }}

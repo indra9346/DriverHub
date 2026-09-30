@@ -364,7 +364,13 @@ export const DataStore = {
   // Jobs
   getJobs(): Job[] {
     const list = getStorage<Job[]>(STORAGE_KEYS.JOBS, initialJobs);
-    return list && list.length > 0 ? list : initialJobs;
+    if (!list || list.length === 0) return initialJobs;
+    const hasActiveJobs = list.some(j => j.status === 'active');
+    if (!hasActiveJobs) {
+      const existingIds = new Set(list.map(j => j.id));
+      return [...list, ...initialJobs.filter(j => !existingIds.has(j.id))];
+    }
+    return list;
   },
 
   getJobById(id: string): Job | undefined {

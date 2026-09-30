@@ -551,166 +551,33 @@ export const JobsPage: React.FC = () => {
             )}
           </div>
 
-          {/* 2. State Filter (All 36 Indian States & UTs) */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700">{t('Indian State / Union Territory')}</label>
-              {selectedState && (
-                <button
-                  onClick={() => {
-                    setSelectedState('');
-                    setSelectedCity('');
-                    setSelectedArea('');
-                    setCitySearchInput('');
-                    updateUrlParams({ state: '', city: '', area: '' });
-                  }}
-                  className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
-                >
-                  {t('All States')}
-                </button>
-              )}
-            </div>
-            <select
-              value={selectedState}
-              onChange={(e) => {
-                setSelectedState(e.target.value);
-                setSelectedCity('');
-                setSelectedArea('');
-                setCitySearchInput('');
-                updateUrlParams({ state: e.target.value, city: '', area: '' });
+          {/* 2. Pan-India Searchable Location Filter (State/UT -> District -> Town/City -> PIN Code) */}
+          <div className="pt-2 border-t border-slate-100">
+            <PanIndiaLocationSelector
+              idPrefix="jobs-sidebar-location"
+              mode="filter"
+              layout="vertical"
+              value={{
+                state: selectedState,
+                district: selectedDistrict,
+                city: selectedCity,
+                pincode: selectedPincode
               }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer font-medium"
-            >
-              <option value="">{t('All Indian States & UTs ({count} Jobs)', { count: jobs.length })}</option>
-              {ALL_INDIAN_STATES.map((st) => (
-                <option key={st.state} value={st.state}>
-                  {st.state} ({st.region}) {stateCounts[st.state] ? `• ${stateCounts[st.state]} active` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. City / Major District Filter with Real-Time Auto-Suggestions */}
-          <div ref={cityContainerRef} className="relative">
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700">
-                {t('City / Operating District')} {selectedState ? `(${selectedState})` : ''}
-              </label>
-              {selectedCity && (
-                <button
-                  onClick={() => {
-                    setSelectedCity('');
-                    setSelectedArea('');
-                    setCitySearchInput('');
-                    updateUrlParams({ city: '', area: '' });
-                  }}
-                  className="text-[10px] text-blue-700 hover:underline font-bold cursor-pointer"
-                >
-                  {t('All Cities')}
-                </button>
-              )}
-            </div>
-
-            {/* Quick City Search Input with Real-Time Auto-Suggestions */}
-            <div className="relative mb-2">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-              <input
-                type="text"
-                value={citySearchInput}
-                onFocus={() => setShowCitySuggestions(true)}
-                onChange={(e) => {
-                  setCitySearchInput(e.target.value);
-                  setShowCitySuggestions(true);
-                }}
-                placeholder={selectedCity ? `Current: ${selectedCity}` : (lang === 'kn' ? 'ನಗರವನ್ನು ಹುಡುಕಿ (ಬೆಂಗಳೂರು, ಅನಂತಪುರ...)' : 'Type city (Bengaluru, Anantapur...)')}
-                className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
-              />
-              {citySearchInput && (
-                <button
-                  type="button"
-                  onClick={() => setCitySearchInput('')}
-                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* City Auto-Suggestions Popup */}
-            {showCitySuggestions && citySuggestions.length > 0 && (
-              <div className="absolute z-50 left-0 right-0 top-16 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-60 overflow-y-auto animate-in fade-in">
-                <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                  <span>Suggested Cities & States</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowCitySuggestions(false)}
-                    className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </div>
-                {citySuggestions.map((item, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCity(item.city);
-                      setSelectedState(item.state);
-                      setSelectedArea('');
-                      setCitySearchInput(item.city);
-                      updateUrlParams({ city: item.city, state: item.state, area: '' });
-                      setShowCitySuggestions(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-xs hover:bg-amber-50 hover:text-amber-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
-                  >
-                    <span className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 shrink-0" />
-                      <span className="font-semibold text-slate-900 group-hover:text-amber-950">{item.label}</span>
-                    </span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-amber-800 shrink-0">Select ↵</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <select
-              value={selectedCity}
-              onChange={(e) => {
-                setSelectedCity(e.target.value);
-                setSelectedArea('');
-                setCitySearchInput(e.target.value);
-                updateUrlParams({ city: e.target.value, area: '' });
+              onChange={(loc) => {
+                setSelectedState(loc.state);
+                setSelectedDistrict(loc.district);
+                setSelectedCity(loc.city);
+                setSelectedPincode(loc.pincode);
+                setCitySearchInput(loc.city);
+                updateUrlParams({
+                  state: loc.state,
+                  district: loc.district,
+                  city: loc.city,
+                  pincode: loc.pincode
+                });
               }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
-            >
-              <option value="">{selectedState ? `-- ${t('City / Operating District')} in ${selectedState} --` : t('All Major Indian Cities')}</option>
-              {availableCities.map((city) => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </select>
+            />
           </div>
-
-          {/* 4. Industrial Corridor / Micro-Area Filter (If City Selected) */}
-          {selectedCity && availableAreas.length > 0 && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {t('Logistics Corridor / Area')} ({selectedCity})
-              </label>
-              <select
-                value={selectedArea}
-                onChange={(e) => {
-                  setSelectedArea(e.target.value);
-                  updateUrlParams({ area: e.target.value });
-                }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer"
-              >
-                <option value="">{lang === 'kn' ? `${selectedCity} ನ ಎಲ್ಲಾ ಪ್ರದೇಶಗಳು` : `All Areas & Corridors in ${selectedCity}`}</option>
-                {availableAreas.map((area) => (
-                  <option key={area} value={area}>{area}</option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* 5. Driver License / Category */}
           <div>

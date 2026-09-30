@@ -26,7 +26,8 @@ import {
   resolveLocationCoordinates,
   reverseGeocodeCoordinates,
   isDistrictInState,
-  findStateForDistrict
+  findStateForDistrict,
+  getBaselineTownsForDistrict
 } from '../../services/indiaLocationService';
 import { Navigation, LocateFixed } from 'lucide-react';
 
@@ -154,7 +155,9 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
         opt =>
           opt.label.toLowerCase().includes(clean) ||
           opt.value.toLowerCase().includes(clean) ||
-          (opt.sublabel && opt.sublabel.toLowerCase().includes(clean))
+          (opt.sublabel && opt.sublabel.toLowerCase().includes(clean)) ||
+          (opt.meta?.aliases && Array.isArray(opt.meta.aliases) && opt.meta.aliases.some((a: string) => a.toLowerCase().includes(clean) || clean.includes(a.toLowerCase()))) ||
+          (opt.meta?.pins && Array.isArray(opt.meta.pins) && opt.meta.pins.some((p: any) => p.code.includes(clean) || p.officeName.toLowerCase().includes(clean)))
       )
       .slice(0, 80);
   }, [options, query, value, allowFreeText]);
@@ -459,6 +462,12 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
       return;
     }
 
+    // Immediately load baseline towns synchronously so dropdown is populated with 0ms delay
+    const baseline = getBaselineTownsForDistrict(targetState, targetDistrict);
+    if (baseline.length > 0) {
+      setTownOptions(baseline);
+    }
+
     const currentVersion = ++requestVersionRef.current;
     const controller = new AbortController();
     setLoadingTowns(true);
@@ -467,7 +476,9 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
     try {
       const res = await fetchDistrictTownsAndPinsLive(targetState, targetDistrict, controller.signal);
       if (currentVersion !== requestVersionRef.current) return;
-      setTownOptions(res.towns);
+      if (res.towns && res.towns.length > 0) {
+        setTownOptions(res.towns);
+      }
       setIsLiveVerified(res.isLiveVerified);
       if (res.error && res.towns.every(t => t.pins.length === 0)) {
         setLookupError(res.error);
@@ -536,8 +547,26 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   // Resolve valid PINs for the currently selected Town/City
   const selectedTownOption = useMemo(() => {
     if (!value.city) return undefined;
-    return townOptions.find(t => t.name.toLowerCase() === value.city.trim().toLowerCase());
-  }, [townOptions, value.city]);
+    const cleanCity = value.city.trim().toLowerCase();
+    const sourceTowns =
+      townOptions.length > 0
+        ? townOptions
+        : value.state && value.district
+        ? getBaselineTownsForDistrict(value.state, value.district)
+        : [];
+
+    return sourceTowns.find(
+      t =>
+        t.name.toLowerCase() === cleanCity ||
+        (t.aliases &&
+          t.aliases.some(
+            a =>
+              a.toLowerCase() === cleanCity ||
+              cleanCity.includes(a.toLowerCase()) ||
+              a.toLowerCase().includes(cleanCity)
+          ))
+    );
+  }, [townOptions, value.city, value.state, value.district]);
 
   useEffect(() => {
     if (!value.state || !value.district || !value.city) {
@@ -592,7 +621,14 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
     }
     // Collect all known PINs across the selected District
     const districtPins: PinOption[] = [];
-    for (const t of townOptions) {
+    const sourceTowns =
+      townOptions.length > 0
+        ? townOptions
+        : value.state && value.district
+        ? getBaselineTownsForDistrict(value.state, value.district)
+        : [];
+
+    for (const t of sourceTowns) {
       for (const p of t.pins) {
         if (!districtPins.some(existing => existing.code === p.code)) {
           districtPins.push(p);
@@ -600,7 +636,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
       }
     }
     return districtPins;
-  }, [selectedTownOption, extraPins, townOptions]);
+  }, [selectedTownOption, extraPins, townOptions, value.state, value.district]);
 
   const emitChange = (next: {
     state: string;
@@ -747,8 +783,14 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   // Build combobox options for Field 3: Town / City / Locality
   const townComboboxOptions: ComboboxOption[] = useMemo(() => {
     const map = new Map<string, ComboboxOption>();
+    const sourceTowns =
+      townOptions.length > 0
+        ? townOptions
+        : value.state && value.district
+        ? getBaselineTownsForDistrict(value.state, value.district)
+        : [];
 
-    for (const t of townOptions) {
+    for (const t of sourceTowns) {
       const primaryPin = t.pins[0]?.code || '';
       const key = `${t.name.toLowerCase()}|${t.district.toLowerCase()}|${t.state.toLowerCase()}`;
       map.set(key, {
@@ -761,7 +803,8 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           district: t.district,
           state: t.state,
           pincode: primaryPin,
-          pins: t.pins
+          pins: t.pins,
+          aliases: t.aliases
         }
       });
     }
@@ -779,14 +822,15 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             district: s.district,
             state: s.state,
             pincode: s.pincode,
-            pins: s.pins
+            pins: s.pins,
+            aliases: s.aliases
           }
         });
       }
     }
 
     return Array.from(map.values());
-  }, [townOptions, livePlaceSuggestions]);
+  }, [townOptions, livePlaceSuggestions, value.state, value.district]);
 
   // Build combobox options for Field 4: PIN Code
   const pinComboboxOptions: ComboboxOption[] = useMemo(() => {
@@ -1021,13 +1065,24 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             const nextDistrict = opt.meta?.district || opt.value;
             const nextState = opt.meta?.state || value.state || (nextDistrict ? findStateForDistrict(nextDistrict) : '') || '';
             const parenMatch = nextDistrict.match(/\(([^)]+)\)/);
-            const primaryTown = parenMatch ? parenMatch[1].split('/')[0].trim() : nextDistrict.split('(')[0].trim();
-            setPinLookupStatus({ checking: false });
+            const baseline = getBaselineTownsForDistrict(nextState, nextDistrict);
+            const firstTown = baseline.length > 0 ? baseline[0] : null;
+            const primaryTown = firstTown ? firstTown.name : (parenMatch ? parenMatch[1].split('/')[0].trim() : nextDistrict.split('(')[0].trim());
+            const primaryPin = firstTown && firstTown.pins.length > 0 ? firstTown.pins[0].code : '';
+
+            if (firstTown && firstTown.pins.length > 0) {
+              setExtraPins(firstTown.pins);
+            }
+            setPinLookupStatus({
+              checking: false,
+              isValid: Boolean(primaryPin),
+              message: primaryPin ? `Verified PIN: ${primaryPin}` : undefined
+            });
             emitChange({
               state: nextState,
               district: nextDistrict,
               city: primaryTown,
-              pincode: '',
+              pincode: primaryPin,
               addressLine: value.addressLine
             });
           }}
@@ -1092,11 +1147,40 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             });
           }}
           onFreeTextChange={text => {
+            const clean = text.trim().toLowerCase();
+            let nextPin = value.pincode || '';
+            const sourceTowns =
+              townOptions.length > 0
+                ? townOptions
+                : value.state && value.district
+                ? getBaselineTownsForDistrict(value.state, value.district)
+                : [];
+
+            const matchedTown = sourceTowns.find(
+              t =>
+                t.name.toLowerCase() === clean ||
+                (t.aliases &&
+                  t.aliases.some(
+                    a =>
+                      a.toLowerCase() === clean ||
+                      clean.includes(a.toLowerCase()) ||
+                      a.toLowerCase().includes(clean)
+                  ))
+            );
+            if (matchedTown && matchedTown.pins.length > 0) {
+              nextPin = matchedTown.pins[0].code;
+              setExtraPins(matchedTown.pins);
+              setPinLookupStatus({
+                checking: false,
+                isValid: true,
+                message: `Verified PIN: ${nextPin}`
+              });
+            }
             emitChange({
               state: value.state,
               district: value.district || '',
               city: text,
-              pincode: value.pincode || '',
+              pincode: nextPin,
               addressLine: value.addressLine
             });
           }}

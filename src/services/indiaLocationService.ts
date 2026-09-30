@@ -25,6 +25,7 @@ export interface TownLocalityOption {
   name: string;
   district: string;
   state: string;
+  aliases?: string[];
   pins: PinOption[];
   source: 'india-post-live' | 'verified-directory';
 }
@@ -341,7 +342,7 @@ export const STATE_DISTRICTS_DIRECTORY: Record<string, { prefix: string; distric
 };
 
 // Verified multi-PIN towns, cities & post offices indexed by "State|District"
-export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; pins: Array<{ code: string; officeName: string }> }>> = {
+export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; aliases?: string[]; pins: Array<{ code: string; officeName: string }> }>> = {
   'Karnataka|Bengaluru Urban': [
     {
       town: 'Bengaluru',
@@ -431,6 +432,148 @@ export const VERIFIED_DISTRICT_TOWNS: Record<string, Array<{ town: string; pins:
     { town: 'Belagavi', pins: [{ code: '590001', officeName: 'Belagavi H.O' }, { code: '590008', officeName: 'Udyambag Industrial Area S.O' }] },
     { town: 'Gokak', pins: [{ code: '591307', officeName: 'Gokak H.O' }] },
     { town: 'Chikkodi', pins: [{ code: '591201', officeName: 'Chikkodi H.O' }] }
+  ],
+  'Karnataka|Chikkaballapur': [
+    {
+      town: 'Gowribidanur',
+      aliases: ['gowaribid', 'gowribidanur', 'gauribidanur', 'gowaribidnur', 'gauribidnur', 'gowribidnur', 'vidurashwatha'],
+      pins: [
+        { code: '561208', officeName: 'Gauribidanur H.O' },
+        { code: '561208', officeName: 'Gauribidanur Bzr S.O' },
+        { code: '561208', officeName: 'Vidurashwatha S.O' }
+      ]
+    },
+    {
+      town: 'Chikkaballapur',
+      aliases: ['chickballapur', 'chikkaballapura', 'chikballapur', 'nandi hills', 'muddenahalli'],
+      pins: [
+        { code: '562101', officeName: 'Chickballapur H.O' },
+        { code: '562101', officeName: 'Nandi Hills S.O' },
+        { code: '562101', officeName: 'Muddenahalli S.O' }
+      ]
+    },
+    {
+      town: 'Chintamani',
+      aliases: ['chintamani'],
+      pins: [
+        { code: '563125', officeName: 'Chintamani H.O' },
+        { code: '563125', officeName: 'Chintamani Town S.O' }
+      ]
+    },
+    {
+      town: 'Sidlaghatta',
+      aliases: ['shidlaghatta', 'shidlagatta', 'sidlagatta'],
+      pins: [
+        { code: '562105', officeName: 'Sidlaghatta H.O' }
+      ]
+    },
+    {
+      town: 'Bagepalli',
+      aliases: ['bagepally'],
+      pins: [
+        { code: '561207', officeName: 'Bagepalli S.O' }
+      ]
+    },
+    {
+      town: 'Gudibanda',
+      aliases: ['gudibande'],
+      pins: [
+        { code: '561209', officeName: 'Gudibanda S.O' }
+      ]
+    }
+  ],
+  'Karnataka|Kolar': [
+    {
+      town: 'Kolar',
+      pins: [
+        { code: '563101', officeName: 'Kolar H.O' },
+        { code: '563102', officeName: 'Gulpet S.O' }
+      ]
+    },
+    {
+      town: 'KGF (Robertsonpet)',
+      aliases: ['kgf', 'robertsonpet', 'beml nagar'],
+      pins: [
+        { code: '563122', officeName: 'Robertsonpet H.O' },
+        { code: '563115', officeName: 'BEML Nagar S.O' },
+        { code: '563120', officeName: 'Oorgaum S.O' }
+      ]
+    },
+    { town: 'Bangarapet', pins: [{ code: '563114', officeName: 'Bangarapet H.O' }] },
+    { town: 'Malur', pins: [{ code: '563130', officeName: 'Malur H.O' }] },
+    { town: 'Srinivaspur', pins: [{ code: '563135', officeName: 'Srinivaspur H.O' }] },
+    { town: 'Mulbagal', pins: [{ code: '563131', officeName: 'Mulbagal H.O' }] }
+  ],
+  'Karnataka|Tumakuru': [
+    {
+      town: 'Tumakuru',
+      aliases: ['tumkur'],
+      pins: [
+        { code: '572101', officeName: 'Tumkur H.O' },
+        { code: '572102', officeName: 'Siddaganga Math S.O' },
+        { code: '572103', officeName: 'Batawadi S.O' }
+      ]
+    },
+    { town: 'Tiptur', pins: [{ code: '572201', officeName: 'Tiptur H.O' }] },
+    { town: 'Kunigal', pins: [{ code: '572130', officeName: 'Kunigal H.O' }] },
+    { town: 'Sira', pins: [{ code: '572137', officeName: 'Sira H.O' }] },
+    { town: 'Madhugiri', pins: [{ code: '572132', officeName: 'Madhugiri H.O' }] },
+    { town: 'Gubbi', pins: [{ code: '572216', officeName: 'Gubbi S.O' }] },
+    { town: 'Pavagada', pins: [{ code: '561202', officeName: 'Pavagada H.O' }] }
+  ],
+  'Karnataka|Ramanagara': [
+    { town: 'Ramanagara', aliases: ['ramanagaram'], pins: [{ code: '562159', officeName: 'Ramanagaram H.O' }] },
+    { town: 'Bidadi', pins: [{ code: '562109', officeName: 'Bidadi Industrial Area S.O' }] },
+    { town: 'Channapatna', pins: [{ code: '562160', officeName: 'Channapatna H.O' }] },
+    { town: 'Kanakapura', pins: [{ code: '562117', officeName: 'Kanakapura H.O' }] },
+    { town: 'Harohalli', pins: [{ code: '562112', officeName: 'Harohalli Industrial Area S.O' }] },
+    { town: 'Magadi', pins: [{ code: '562120', officeName: 'Magadi S.O' }] }
+  ],
+  'Karnataka|Mandya': [
+    { town: 'Mandya', pins: [{ code: '571401', officeName: 'Mandya H.O' }, { code: '571402', officeName: 'Sugar Town S.O' }] },
+    { town: 'Maddur', pins: [{ code: '571428', officeName: 'Maddur H.O' }] },
+    { town: 'Srirangapatna', pins: [{ code: '571438', officeName: 'Srirangapatna H.O' }] },
+    { town: 'Pandavapura', pins: [{ code: '571434', officeName: 'Pandavapura H.O' }] },
+    { town: 'Malavalli', pins: [{ code: '571430', officeName: 'Malavalli H.O' }] },
+    { town: 'Nagamangala', pins: [{ code: '571432', officeName: 'Nagamangala H.O' }] },
+    { town: 'Krishnarajpet (K.R. Pet)', aliases: ['kr pet'], pins: [{ code: '571426', officeName: 'K.R. Pet H.O' }] }
+  ],
+  'Karnataka|Shivamogga': [
+    { town: 'Shivamogga', aliases: ['shimoga'], pins: [{ code: '577201', officeName: 'Shimoga H.O' }] },
+    { town: 'Bhadravati', pins: [{ code: '577301', officeName: 'Bhadravati H.O' }] },
+    { town: 'Sagara', pins: [{ code: '577401', officeName: 'Sagara H.O' }] },
+    { town: 'Shikaripura', pins: [{ code: '577427', officeName: 'Shikaripura H.O' }] },
+    { town: 'Thirthahalli', pins: [{ code: '577432', officeName: 'Thirthahalli H.O' }] }
+  ],
+  'Karnataka|Hassan': [
+    { town: 'Hassan', pins: [{ code: '573201', officeName: 'Hassan H.O' }] },
+    { town: 'Channarayapatna', pins: [{ code: '573116', officeName: 'Channarayapatna H.O' }] },
+    { town: 'Arsikere', pins: [{ code: '573103', officeName: 'Arsikere H.O' }] },
+    { town: 'Sakleshpur', pins: [{ code: '573134', officeName: 'Sakleshpur H.O' }] },
+    { town: 'Holenarasipura', pins: [{ code: '573211', officeName: 'Holenarasipura H.O' }] }
+  ],
+  'Karnataka|Davanagere': [
+    { town: 'Davanagere', pins: [{ code: '577001', officeName: 'Davanagere H.O' }, { code: '577002', officeName: 'Davanagere City S.O' }] },
+    { town: 'Harihar', pins: [{ code: '577601', officeName: 'Harihar H.O' }] },
+    { town: 'Honnali', pins: [{ code: '577217', officeName: 'Honnali S.O' }] }
+  ],
+  'Karnataka|Chitradurga': [
+    { town: 'Chitradurga', pins: [{ code: '577501', officeName: 'Chitradurga H.O' }] },
+    { town: 'Challakere', pins: [{ code: '577522', officeName: 'Challakere H.O' }] },
+    { town: 'Hiriyur', pins: [{ code: '577598', officeName: 'Hiriyur H.O' }] },
+    { town: 'Holalkere', pins: [{ code: '577526', officeName: 'Holalkere H.O' }] },
+    { town: 'Hosadurga', pins: [{ code: '577527', officeName: 'Hosadurga H.O' }] }
+  ],
+  'Karnataka|Udupi': [
+    { town: 'Udupi', pins: [{ code: '576101', officeName: 'Udupi H.O' }, { code: '576104', officeName: 'Manipal S.O' }] },
+    { town: 'Kundapura', pins: [{ code: '576201', officeName: 'Kundapura H.O' }] },
+    { town: 'Karkala', pins: [{ code: '574104', officeName: 'Karkala H.O' }] },
+    { town: 'Kaup', pins: [{ code: '574106', officeName: 'Kaup S.O' }] }
+  ],
+  'Karnataka|Ballari': [
+    { town: 'Ballari', aliases: ['bellary'], pins: [{ code: '583101', officeName: 'Bellary H.O' }] },
+    { town: 'Sandur', pins: [{ code: '583119', officeName: 'Sandur S.O' }] },
+    { town: 'Siruguppa', pins: [{ code: '583121', officeName: 'Siruguppa S.O' }] }
   ],
   'Andhra Pradesh|Anantapur': [
     {
@@ -743,13 +886,43 @@ export function findStateForDistrict(districtName: string): string | null {
  */
 export function getBaselineTownsForDistrict(stateName: string, districtName: string): TownLocalityOption[] {
   if (!stateName || !districtName) return [];
-  const key = `${stateName}|${districtName}`;
-  const verified = VERIFIED_DISTRICT_TOWNS[key];
+  const normState = normalizeName(stateName);
+  const normDist = normalizeName(extractPrimaryName(districtName));
+
+  let verified: Array<{ town: string; aliases?: string[]; pins: Array<{ code: string; officeName: string }> }> | undefined;
+
+  // 1. Direct key match
+  const directKey = `${stateName}|${districtName}`;
+  if (VERIFIED_DISTRICT_TOWNS[directKey]) {
+    verified = VERIFIED_DISTRICT_TOWNS[directKey];
+  } else {
+    // 2. Fuzzy match state and district
+    for (const [key, val] of Object.entries(VERIFIED_DISTRICT_TOWNS)) {
+      const [st, dist] = key.split('|');
+      const stNorm = normalizeName(st);
+      const distNorm = normalizeName(dist);
+      const distPrimary = normalizeName(extractPrimaryName(dist));
+
+      const stateMatches = stNorm === normState || stNorm.includes(normState) || normState.includes(stNorm);
+      const distMatches =
+        distNorm === normDist ||
+        distPrimary === normDist ||
+        distNorm.includes(normDist) ||
+        normDist.includes(distPrimary);
+
+      if (stateMatches && distMatches) {
+        verified = val;
+        break;
+      }
+    }
+  }
+
   if (verified && verified.length > 0) {
     return verified.map(item => ({
       name: item.town,
       district: districtName,
       state: stateName,
+      aliases: item.aliases,
       pins: item.pins.map(p => ({
         code: p.code,
         officeName: p.officeName,
@@ -1056,6 +1229,7 @@ export interface PanIndiaAutocompleteSuggestion {
   state: string;
   pincode: string;
   pins: PinOption[];
+  aliases?: string[];
   label: string;
   sublabel: string;
   source: 'verified-directory' | 'india-post-live' | 'district-hq';
@@ -1113,6 +1287,7 @@ export async function searchPanIndiaPlacesLive(
         !normQuery ||
         t.town.toLowerCase().includes(normQuery) ||
         dist.toLowerCase().includes(normQuery) ||
+        (t.aliases && t.aliases.some(a => a.toLowerCase().includes(normQuery) || normQuery.includes(a.toLowerCase()))) ||
         t.pins.some(p => p.code.includes(normQuery) || p.officeName.toLowerCase().includes(normQuery));
 
       if (matchesTown) {
@@ -1124,6 +1299,7 @@ export async function searchPanIndiaPlacesLive(
           state: st,
           pincode: primaryPin,
           pins: t.pins.map(p => ({ ...p, source: 'verified-directory' as const })),
+          aliases: t.aliases,
           label: t.town,
           sublabel: `${dist}, ${st}${primaryPin ? ` • PIN ${primaryPin}${t.pins.length > 1 ? ` (+${t.pins.length - 1} more)` : ''}` : ''}`,
           source: 'verified-directory'
@@ -1610,6 +1786,18 @@ export const INDIA_COORDINATES_DIRECTORY: Record<string, { lat: number; lng: num
   'shimoga': { lat: 13.9299, lng: 75.5681, name: 'Shivamogga' },
   'kolar': { lat: 13.1367, lng: 78.1291, name: 'Kolar' },
   'chikkaballapur': { lat: 13.4355, lng: 77.7275, name: 'Chikkaballapur' },
+  'chickballapur': { lat: 13.4355, lng: 77.7275, name: 'Chikkaballapur' },
+  'chikkaballapura': { lat: 13.4355, lng: 77.7275, name: 'Chikkaballapur' },
+  'gowribidanur': { lat: 13.6125, lng: 77.5186, name: 'Gowribidanur' },
+  'gauribidanur': { lat: 13.6125, lng: 77.5186, name: 'Gowribidanur' },
+  'gowaribid': { lat: 13.6125, lng: 77.5186, name: 'Gowribidanur' },
+  'gowaribidnur': { lat: 13.6125, lng: 77.5186, name: 'Gowribidanur' },
+  'gowribidnur': { lat: 13.6125, lng: 77.5186, name: 'Gowribidanur' },
+  'chintamani': { lat: 13.4022, lng: 78.0558, name: 'Chintamani' },
+  'sidlaghatta': { lat: 13.3917, lng: 77.8631, name: 'Sidlaghatta' },
+  'shidlaghatta': { lat: 13.3917, lng: 77.8631, name: 'Sidlaghatta' },
+  'bagepalli': { lat: 13.7844, lng: 77.7942, name: 'Bagepalli' },
+  'gudibanda': { lat: 13.6708, lng: 77.7028, name: 'Gudibanda' },
   'mandya': { lat: 12.5244, lng: 76.8961, name: 'Mandya' },
   'udupi': { lat: 13.3409, lng: 74.7421, name: 'Udupi' },
   'hassan': { lat: 13.0033, lng: 76.1004, name: 'Hassan' },

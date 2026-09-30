@@ -70,6 +70,7 @@ export interface SavedSearch {
   district?: string;
   state?: string;
   pincode?: string;
+  radiusKm?: number;
   keyword?: string;
   vehicleType?: string;
   activeInDays?: number;
@@ -111,6 +112,9 @@ export interface DriverProfile {
   district?: string;
   state: string;
   pincode?: string;
+  latitude?: number;
+  longitude?: number;
+  distanceKm?: number;
   driverCategory: DriverCategory | '';
   licenseNumber: string;
   licenseType: string;

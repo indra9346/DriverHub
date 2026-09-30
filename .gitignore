@@ -32,3 +32,6 @@ dist-ssr
 # Temporary files
 .system_generated/
 *.tmp
+generate_audio.py
+render_reel_video.py
+reel_build/

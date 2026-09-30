@@ -4,7 +4,7 @@ import {
   Users, Search, MapPin, ShieldCheck, Phone, Mail, Briefcase, 
   CheckCircle2, Download, Bookmark, Filter, ChevronDown, ChevronRight, ChevronLeft,
   ArrowLeft, Sparkles, Lock, Unlock, FileText, Globe, MessageSquare, 
-  Wallet, Trash2, Check, X, Building2, Award
+  Wallet, Trash2, Check, X, Building2, Award, LocateFixed, Compass, Loader2, Navigation
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
@@ -17,8 +17,8 @@ import {
   POPULAR_SEARCH_ROLES
 } from '../../data/indiaLocations';
 import { useLanguage } from '../../services/i18n';
-import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
-import { matchesPanIndiaLocationFilter } from '../../services/indiaLocationService';
+import { PanIndiaLocationSelector, RADIUS_OPTIONS, PanIndiaLocationValue } from '../../components/common/PanIndiaLocationSelector';
+import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, resolveLocationCoordinates } from '../../services/indiaLocationService';
 
 export const EmployerCandidates: React.FC = () => {
   const { t } = useLanguage();
@@ -51,6 +51,13 @@ export const EmployerCandidates: React.FC = () => {
     searchParams.get('city') ? [searchParams.get('city')!] : []
   );
   const [selectedPincode, setSelectedPincode] = useState<string>(searchParams.get('pincode') || '');
+  const [selectedRadiusKm, setSelectedRadiusKm] = useState<number>(
+    searchParams.get('radius') ? Number(searchParams.get('radius')) : 0
+  );
+  const [searchCoords, setSearchCoords] = useState<{ lat?: number; lng?: number }>({
+    lat: searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : undefined,
+    lng: searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : undefined
+  });
   const [minimumExperience, setMinimumExperience] = useState(0);
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState('');
   const [citySearch, setCitySearch] = useState<string>('');
@@ -116,13 +123,40 @@ export const EmployerCandidates: React.FC = () => {
     const qState = searchParams.get('state');
     const qPincode = searchParams.get('pincode');
     const qTerm = searchParams.get('q');
+    const qRadius = searchParams.get('radius');
+    const qLat = searchParams.get('lat');
+    const qLng = searchParams.get('lng');
+
     if (qCat !== null) setCategoryFilter(qCat);
     if (qCity !== null) setSelectedCities(qCity ? [qCity] : []);
     if (qDistrict !== null) setSelectedDistrict(qDistrict);
     if (qState !== null) setSelectedState(qState);
     if (qPincode !== null) setSelectedPincode(qPincode);
     if (qTerm !== null) setKeyword(qTerm);
+    if (qRadius !== null) setSelectedRadiusKm(Number(qRadius) || 0);
+    if (qLat !== null && qLng !== null) {
+      setSearchCoords({ lat: parseFloat(qLat), lng: parseFloat(qLng) });
+    }
   }, [searchParams]);
+
+  // Automatically resolve GPS coordinates when location changes
+  useEffect(() => {
+    const city = selectedCities[0] || '';
+    if (city || selectedDistrict || selectedState || selectedPincode) {
+      resolveLocationCoordinates({
+        city,
+        district: selectedDistrict,
+        state: selectedState,
+        pincode: selectedPincode
+      }).then(res => {
+        if (res) {
+          setSearchCoords({ lat: res.lat, lng: res.lng });
+        }
+      }).catch(() => {});
+    } else {
+      setSearchCoords({});
+    }
+  }, [selectedState, selectedDistrict, selectedCities, selectedPincode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +170,9 @@ export const EmployerCandidates: React.FC = () => {
         district: selectedDistrict,
         state: selectedState,
         pincode: selectedPincode,
+        latitude: searchCoords.lat,
+        longitude: searchCoords.lng,
+        radiusKm: selectedRadiusKm,
         minExperience: minimumExperience,
         skill: mustHaveSkill,
         vehicleType: vehicleTypeFilter,
@@ -167,7 +204,7 @@ export const EmployerCandidates: React.FC = () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [employerId, keyword, categoryFilter, selectedCities, selectedDistrict, selectedState, selectedPincode, minimumExperience, mustHaveSkill, vehicleTypeFilter, activeInDays]);
+  }, [employerId, keyword, categoryFilter, selectedCities, selectedDistrict, selectedState, selectedPincode, selectedRadiusKm, searchCoords, minimumExperience, mustHaveSkill, vehicleTypeFilter, activeInDays]);
 
   const showToast = (text: string, type: 'success' | 'warning' = 'success') => {
     setToast({ text, type });
@@ -226,7 +263,30 @@ export const EmployerCandidates: React.FC = () => {
       );
     }
 
-    if (selectedState || selectedDistrict || selectedPincode || selectedCities.length === 1) {
+    const hasSearchCoords = typeof searchCoords.lat === 'number' && typeof searchCoords.lng === 'number' && !isNaN(searchCoords.lat) && !isNaN(searchCoords.lng);
+
+    if (hasSearchCoords) {
+      list = list.map(d => {
+        if (typeof d.latitude === 'number' && typeof d.longitude === 'number' && !isNaN(d.latitude) && !isNaN(d.longitude)) {
+          const dist = calculateHaversineDistanceKm(searchCoords.lat!, searchCoords.lng!, d.latitude, d.longitude);
+          return { ...d, distanceKm: dist };
+        }
+        return d;
+      });
+
+      if (selectedRadiusKm > 0) {
+        list = list.filter(d => typeof d.distanceKm === 'number' && d.distanceKm <= selectedRadiusKm);
+      }
+
+      list.sort((a, b) => {
+        if (typeof a.distanceKm === 'number' && typeof b.distanceKm === 'number') {
+          return a.distanceKm - b.distanceKm;
+        }
+        if (typeof a.distanceKm === 'number') return -1;
+        if (typeof b.distanceKm === 'number') return 1;
+        return 0;
+      });
+    } else if (selectedState || selectedDistrict || selectedPincode || selectedCities.length === 1) {
       list = list.filter(d =>
         matchesPanIndiaLocationFilter(
           {
@@ -297,6 +357,8 @@ export const EmployerCandidates: React.FC = () => {
     selectedDistrict,
     selectedCities,
     selectedPincode,
+    selectedRadiusKm,
+    searchCoords,
     hideUnlocked,
     hideDownloaded,
     onlyCvAttached,
@@ -313,6 +375,7 @@ export const EmployerCandidates: React.FC = () => {
     (selectedState ? 1 : 0) +
     (selectedDistrict ? 1 : 0) +
     (selectedPincode ? 1 : 0) +
+    (selectedRadiusKm > 0 ? 1 : 0) +
     (hideUnlocked ? 1 : 0) +
     (hideDownloaded ? 1 : 0) +
     (onlyCvAttached ? 1 : 0) +
@@ -563,8 +626,16 @@ export const EmployerCandidates: React.FC = () => {
               <span className="text-sm sm:text-base font-extrabold text-[#08233F]">
                 {filteredDrivers.length} profiles found for{' '}
                 <span className="underline decoration-amber-400 decoration-2 underline-offset-4">
-                  {categoryFilter || 'HMV, LMV, Commercial Chauffeur, Truck Driver'}
-                  {selectedCities.length > 0 ? `, ${selectedCities.join(', ')}` : ''}
+                  {categoryFilter || 'Commercial & Personal Drivers'}
+                  {selectedRadiusKm > 0 && (selectedCities[0] || selectedDistrict || selectedState)
+                    ? ` within ${selectedRadiusKm} km of ${[selectedCities[0], selectedDistrict, selectedState].filter(Boolean).join(', ')} (Nearest first)`
+                    : selectedCities.length > 0
+                    ? ` in ${selectedCities.join(', ')}`
+                    : selectedDistrict
+                    ? ` in ${selectedDistrict}, ${selectedState}`
+                    : selectedState
+                    ? ` in ${selectedState}`
+                    : ' across India'}
                 </span>
               </span>
               <button
@@ -1078,13 +1149,40 @@ export const EmployerCandidates: React.FC = () => {
                   state: selectedState,
                   district: selectedDistrict,
                   city: selectedCities[0] || '',
-                  pincode: selectedPincode
+                  pincode: selectedPincode,
+                  latitude: searchCoords.lat,
+                  longitude: searchCoords.lng
+                }}
+                showRadius={true}
+                radiusKm={selectedRadiusKm}
+                onRadiusChange={(r) => {
+                  setSelectedRadiusKm(r);
+                  const params = new URLSearchParams(searchParams);
+                  if (r > 0) params.set('radius', String(r));
+                  else params.delete('radius');
+                  setSearchParams(params, { replace: true });
+                }}
+                showCurrentLocation={true}
+                onCurrentLocationSuccess={(coords) => {
+                  setSearchCoords(coords);
+                  const params = new URLSearchParams(searchParams);
+                  params.set('lat', coords.lat.toFixed(4));
+                  params.set('lng', coords.lng.toFixed(4));
+                  setSearchParams(params, { replace: true });
                 }}
                 onChange={(next) => {
                   setSelectedState(next.state);
                   setSelectedDistrict(next.district);
                   setSelectedCities(next.city ? [next.city] : []);
                   setSelectedPincode(next.pincode);
+                  if (next.latitude !== undefined && next.longitude !== undefined) {
+                    setSearchCoords({ lat: next.latitude, lng: next.longitude });
+                  } else {
+                    setSearchCoords({});
+                  }
+                  if (next.radiusKm !== undefined) {
+                    setSelectedRadiusKm(next.radiusKm);
+                  }
                   const params = new URLSearchParams(searchParams);
                   if (next.state) params.set('state', next.state);
                   else params.delete('state');
@@ -1094,6 +1192,12 @@ export const EmployerCandidates: React.FC = () => {
                   else params.delete('city');
                   if (next.pincode) params.set('pincode', next.pincode);
                   else params.delete('pincode');
+                  if (next.radiusKm && next.radiusKm > 0) params.set('radius', String(next.radiusKm));
+                  else params.delete('radius');
+                  if (next.latitude) params.set('lat', next.latitude.toFixed(4));
+                  else params.delete('lat');
+                  if (next.longitude) params.set('lng', next.longitude.toFixed(4));
+                  else params.delete('lng');
                   setSearchParams(params, { replace: true });
                 }}
                 mode="filter"
@@ -1188,69 +1292,136 @@ export const EmployerCandidates: React.FC = () => {
 
           {/* RIGHT CANDIDATE RESULTS LIST (Col 5-12) — Exact ApnaHire Candidate Card UI */}
           <div className="lg:col-span-8 xl:col-span-9 space-y-4">
-            {/* Top Interactive Candidate Search Bar with Auto-Suggestions */}
-            <div ref={candidateSearchContainerRef} className="relative bg-white rounded-2xl border border-slate-200 shadow-subtle p-3.5">
-              <div className="relative flex items-center">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
-                <input
-                  type="text"
-                  value={keyword}
-                  onFocus={() => setShowCandidateSearchSuggestions(true)}
-                  onChange={e => {
-                    setKeyword(e.target.value);
-                    setShowCandidateSearchSuggestions(true);
-                  }}
-                  placeholder="Search candidate profiles by role, license, vehicle (e.g. 'HMV Heavy Truck', 'LMV Chauffeur', 'Bus Driver', 'Trailer')..."
-                  className="w-full pl-10 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white font-medium"
-                />
-                {keyword && (
-                  <button
-                    type="button"
-                    onClick={() => setKeyword('')}
-                    className="absolute right-3 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              {/* Suggestions Popup */}
-              {showCandidateSearchSuggestions && candidateSuggestions.length > 0 && (
-                <div className="absolute z-50 left-3.5 right-3.5 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-64 overflow-y-auto animate-in fade-in">
-                  <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                    <span>Suggested Roles & Vehicle Categories</span>
+            {/* Top Interactive Candidate Search Bar with Auto-Suggestions & Pan-India Location / Radius Hierarchy */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-4 space-y-3.5">
+              {/* Keyword / Role Input */}
+              <div ref={candidateSearchContainerRef} className="relative">
+                <div className="relative flex items-center">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={keyword}
+                    onFocus={() => setShowCandidateSearchSuggestions(true)}
+                    onChange={e => {
+                      setKeyword(e.target.value);
+                      setShowCandidateSearchSuggestions(true);
+                    }}
+                    placeholder="Search candidate profiles by role, license, vehicle (e.g. 'HMV Heavy Truck', 'LMV Chauffeur', 'Bus Driver', 'Trailer')..."
+                    className="w-full pl-10 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white font-medium"
+                  />
+                  {keyword && (
                     <button
                       type="button"
-                      onClick={() => setShowCandidateSearchSuggestions(false)}
-                      className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      onClick={() => setKeyword('')}
+                      className="absolute right-3 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
                     >
                       ✕
                     </button>
-                  </div>
-                  {candidateSuggestions.map((item, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setKeyword(item.title);
-                        if (item.category) setCategoryFilter(item.category);
-                        setShowCandidateSearchSuggestions(false);
-                      }}
-                      className="w-full px-3.5 py-2 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <span className="font-bold text-slate-900 group-hover:text-emerald-900 truncate block">
-                          {item.title}
-                        </span>
-                        <span className="text-[11px] text-slate-500 truncate block">{item.subtitle}</span>
-                      </div>
-                      <span className="text-[10px] bg-slate-100 group-hover:bg-emerald-200 text-slate-700 group-hover:text-emerald-900 px-2 py-0.5 rounded font-bold shrink-0">
-                        Filter ↵
-                      </span>
-                    </button>
-                  ))}
+                  )}
                 </div>
-              )}
+
+                {/* Suggestions Popup */}
+                {showCandidateSearchSuggestions && candidateSuggestions.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-64 overflow-y-auto animate-in fade-in">
+                    <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                      <span>Suggested Roles & Vehicle Categories</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowCandidateSearchSuggestions(false)}
+                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {candidateSuggestions.map((item, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setKeyword(item.title);
+                          if (item.category) setCategoryFilter(item.category);
+                          setShowCandidateSearchSuggestions(false);
+                        }}
+                        className="w-full px-3.5 py-2 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <span className="font-bold text-slate-900 group-hover:text-emerald-900 truncate block">
+                            {item.title}
+                          </span>
+                          <span className="text-[11px] text-slate-500 truncate block">{item.subtitle}</span>
+                        </div>
+                        <span className="text-[10px] bg-slate-100 group-hover:bg-emerald-200 text-slate-700 group-hover:text-emerald-900 px-2 py-0.5 rounded font-bold shrink-0">
+                          Filter ↵
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* State/UT -> District -> Town/City -> Radius Pan-India Controls */}
+              <div className="pt-2 border-t border-slate-100">
+                <PanIndiaLocationSelector
+                  value={{
+                    state: selectedState,
+                    district: selectedDistrict,
+                    city: selectedCities[0] || '',
+                    pincode: selectedPincode,
+                    latitude: searchCoords.lat,
+                    longitude: searchCoords.lng
+                  }}
+                  showRadius={true}
+                  radiusKm={selectedRadiusKm}
+                  onRadiusChange={(r) => {
+                    setSelectedRadiusKm(r);
+                    const params = new URLSearchParams(searchParams);
+                    if (r > 0) params.set('radius', String(r));
+                    else params.delete('radius');
+                    setSearchParams(params, { replace: true });
+                  }}
+                  showCurrentLocation={true}
+                  onCurrentLocationSuccess={(coords) => {
+                    setSearchCoords(coords);
+                    const params = new URLSearchParams(searchParams);
+                    params.set('lat', coords.lat.toFixed(4));
+                    params.set('lng', coords.lng.toFixed(4));
+                    setSearchParams(params, { replace: true });
+                  }}
+                  onChange={(next) => {
+                    setSelectedState(next.state);
+                    setSelectedDistrict(next.district);
+                    setSelectedCities(next.city ? [next.city] : []);
+                    setSelectedPincode(next.pincode);
+                    if (next.latitude !== undefined && next.longitude !== undefined) {
+                      setSearchCoords({ lat: next.latitude, lng: next.longitude });
+                    } else {
+                      setSearchCoords({});
+                    }
+                    if (next.radiusKm !== undefined) {
+                      setSelectedRadiusKm(next.radiusKm);
+                    }
+                    const params = new URLSearchParams(searchParams);
+                    if (next.state) params.set('state', next.state);
+                    else params.delete('state');
+                    if (next.district) params.set('district', next.district);
+                    else params.delete('district');
+                    if (next.city) params.set('city', next.city);
+                    else params.delete('city');
+                    if (next.pincode) params.set('pincode', next.pincode);
+                    else params.delete('pincode');
+                    if (next.radiusKm && next.radiusKm > 0) params.set('radius', String(next.radiusKm));
+                    else params.delete('radius');
+                    if (next.latitude) params.set('lat', next.latitude.toFixed(4));
+                    else params.delete('lat');
+                    if (next.longitude) params.set('lng', next.longitude.toFixed(4));
+                    else params.delete('lng');
+                    setSearchParams(params, { replace: true });
+                  }}
+                  mode="filter"
+                  layout="grid-4"
+                  idPrefix="top-candidate-loc"
+                />
+              </div>
             </div>
 
             {/* Candidate Database Preview Notice when 0 unlock credits remain */}
@@ -1444,8 +1615,18 @@ export const EmployerCandidates: React.FC = () => {
                                   </span>
                                   <span className="inline-flex items-center gap-1 font-medium">
                                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                    {[driver.city, driver.state].filter(Boolean).join(', ') || driver.location || 'Location not provided'}
+                                    {[driver.city, driver.district, driver.state].filter((v, i, a) => v && a.indexOf(v) === i).join(', ') || driver.location || 'Location not provided'}
                                   </span>
+                                  {typeof driver.distanceKm === 'number' && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                                      📍 {driver.distanceKm.toFixed(1)} km away
+                                    </span>
+                                  )}
+                                  {selectedRadiusKm > 0 && typeof driver.distanceKm !== 'number' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-slate-500 bg-slate-100 border border-slate-200">
+                                      Distance unverified
+                                    </span>
+                                  )}
                                 </div>
                               </div>
 

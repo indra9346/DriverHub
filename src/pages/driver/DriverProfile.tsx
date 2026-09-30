@@ -58,11 +58,15 @@ export const DriverProfilePage: React.FC = () => {
         setProfile({
           ...p,
           licenseNumber: p.licenseNumber || '',
-          licenseExpiry: p.licenseExpiry ? p.licenseExpiry.slice(0, 10) : ''
+          licenseExpiry: p.licenseExpiry ? p.licenseExpiry.slice(0, 10) : '',
+          latitude: p.latitude,
+          longitude: p.longitude
         });
-        setLocationSelection(
-          parseStructuredLocation(p.location, p.state, p.district, p.city, p.pincode)
-        );
+        setLocationSelection({
+          ...parseStructuredLocation(p.location, p.state, p.district, p.city, p.pincode),
+          latitude: p.latitude,
+          longitude: p.longitude
+        });
         setSkillsText(p.skills?.join(', ') || '');
       }
     }
@@ -79,6 +83,8 @@ export const DriverProfilePage: React.FC = () => {
       district: locationSelection.district || profile.district,
       city: locationSelection.city || locationSelection.district || profile.city,
       pincode: locationSelection.pincode || profile.pincode,
+      latitude: locationSelection.latitude !== undefined ? locationSelection.latitude : profile.latitude,
+      longitude: locationSelection.longitude !== undefined ? locationSelection.longitude : profile.longitude,
       location: formattedLoc,
       skills,
       licenseNumber: (profile.licenseNumber || '').trim().toUpperCase(),
@@ -198,6 +204,14 @@ export const DriverProfilePage: React.FC = () => {
           <div className="pt-2 border-t border-slate-100">
             <PanIndiaLocationSelector
               value={locationSelection}
+              showCurrentLocation={true}
+              onCurrentLocationSuccess={(coords) => {
+                setProfile(prev => ({
+                  ...prev,
+                  latitude: coords.lat,
+                  longitude: coords.lng
+                }));
+              }}
               onChange={(next) => {
                 setLocationSelection(next);
                 setProfile(prev => ({
@@ -206,7 +220,9 @@ export const DriverProfilePage: React.FC = () => {
                   district: next.district,
                   city: next.city || next.district,
                   pincode: next.pincode,
-                  location: next.formattedLocation
+                  location: next.formattedLocation,
+                  latitude: next.latitude,
+                  longitude: next.longitude
                 }));
               }}
               mode="form"

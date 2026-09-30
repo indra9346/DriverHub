@@ -7,7 +7,7 @@ import {
   initialEmployerSubscriptions, initialBillingTransactions, initialSavedSearches, initialCandidateUnlocks, initialDirectMessages
 } from '../data/mockData';
 import { SupabaseSync } from './supabaseSync';
-import { matchesPanIndiaLocationFilter } from './indiaLocationService';
+import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm } from './indiaLocationService';
 
 const allDefaultDrivers: DriverProfile[] = [...initialDrivers, ...additionalDrivers];
 const DEMO_DATA_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
@@ -157,6 +157,7 @@ export const DataStore = {
 
   searchDriversLocally(filters: {
     keyword?: string; category?: string; city?: string; district?: string; state?: string; pincode?: string;
+    latitude?: number; longitude?: number; radiusKm?: number;
     minExperience?: number; skill?: string; vehicleType?: string; userId?: string; activeInDays?: number; limit?: number;
   }): DriverProfile[] {
     let list = this.getDrivers().filter(d => d.status === 'active');
@@ -187,7 +188,38 @@ export const DataStore = {
         (cat === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].includes(d.driverCategory))
       );
     }
-    if (filters.state || filters.district || filters.city || filters.pincode) {
+
+    // Geographic Coordinates & Radius Search
+    const hasSearchCoords = typeof filters.latitude === 'number' && typeof filters.longitude === 'number' && !isNaN(filters.latitude) && !isNaN(filters.longitude);
+    const effectiveRadius = typeof filters.radiusKm === 'number' && filters.radiusKm > 0 ? filters.radiusKm : 0;
+
+    if (hasSearchCoords) {
+      const searchLat = filters.latitude!;
+      const searchLng = filters.longitude!;
+
+      list = list.map(d => {
+        if (typeof d.latitude === 'number' && typeof d.longitude === 'number' && !isNaN(d.latitude) && !isNaN(d.longitude)) {
+          const dist = calculateHaversineDistanceKm(searchLat, searchLng, d.latitude, d.longitude);
+          return { ...d, distanceKm: dist };
+        }
+        return d;
+      });
+
+      if (effectiveRadius > 0) {
+        // Strict radius filter: return candidates within radius distance
+        list = list.filter(d => typeof d.distanceKm === 'number' && d.distanceKm <= effectiveRadius);
+      }
+
+      // Sort nearest first by default when coordinates are active
+      list.sort((a, b) => {
+        if (typeof a.distanceKm === 'number' && typeof b.distanceKm === 'number') {
+          return a.distanceKm - b.distanceKm;
+        }
+        if (typeof a.distanceKm === 'number') return -1;
+        if (typeof b.distanceKm === 'number') return 1;
+        return 0;
+      });
+    } else if (filters.state || filters.district || filters.city || filters.pincode) {
       list = list.filter(d =>
         matchesPanIndiaLocationFilter(d, {
           state: filters.state,
@@ -197,6 +229,7 @@ export const DataStore = {
         })
       );
     }
+
     if (filters.minExperience && filters.minExperience > 0) {
       list = list.filter(d => d.experienceYears >= filters.minExperience!);
     }

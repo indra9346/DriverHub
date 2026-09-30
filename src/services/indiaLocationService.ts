@@ -1215,6 +1215,8 @@ export interface StructuredPanIndiaLocation {
   addressLine?: string;
   legacyLocation?: string;
   formattedLocation: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 /**
@@ -1255,8 +1257,8 @@ export function formatStructuredLocation(val: {
 
 /**
  * Safely parses any existing record (DriverProfile, EmployerProfile, Job) into
- * `{ state, district, city, pincode, addressLine, legacyLocation, formattedLocation }`.
- * Accepts either an object `{ state, district, city, pincode, location }` OR positional `(location, state, district, city, pincode)`.
+ * `{ state, district, city, pincode, addressLine, legacyLocation, formattedLocation, latitude, longitude }`.
+ * Accepts either an object `{ state, district, city, pincode, location, latitude, longitude }` OR positional `(location, state, district, city, pincode, latitude, longitude)`.
  */
 export function parseStructuredLocation(
   recordOrLocation?:
@@ -1266,12 +1268,16 @@ export function parseStructuredLocation(
         city?: string;
         pincode?: string;
         location?: string;
+        latitude?: number;
+        longitude?: number;
       }
     | string,
   stateArg?: string,
   districtArg?: string,
   cityArg?: string,
-  pincodeArg?: string
+  pincodeArg?: string,
+  latArg?: number,
+  lngArg?: number
 ): StructuredPanIndiaLocation {
   const record =
     typeof recordOrLocation === 'object' && recordOrLocation !== null
@@ -1281,7 +1287,9 @@ export function parseStructuredLocation(
           state: stateArg,
           district: districtArg,
           city: cityArg,
-          pincode: pincodeArg
+          pincode: pincodeArg,
+          latitude: latArg,
+          longitude: lngArg
         };
 
   const rawLocation = (record.location || '').trim();
@@ -1353,7 +1361,9 @@ export function parseStructuredLocation(
     pincode: extractedPin,
     addressLine,
     legacyLocation: rawLocation,
-    formattedLocation
+    formattedLocation,
+    latitude: record.latitude,
+    longitude: record.longitude
   };
 }
 
@@ -1433,3 +1443,477 @@ export function matchesPanIndiaLocationFilter(
 
   return true;
 }
+
+/**
+ * Built-in authoritative coordinate centroids for all 36 States & Union Territories,
+ * all major district headquarters, commercial logistics hubs, and ports across India.
+ * Provides zero-latency, keyless, reliable distance calculation that never hits API rate limits.
+ */
+export const INDIA_COORDINATES_DIRECTORY: Record<string, { lat: number; lng: number; name: string }> = {
+  // --- States & Union Territories (Centroids / Capitals) ---
+  'andhra pradesh': { lat: 16.5062, lng: 80.6480, name: 'Andhra Pradesh' },
+  'arunachal pradesh': { lat: 27.0844, lng: 93.6053, name: 'Arunachal Pradesh' },
+  'assam': { lat: 26.1445, lng: 91.7362, name: 'Assam' },
+  'bihar': { lat: 25.5941, lng: 85.1376, name: 'Bihar' },
+  'chhattisgarh': { lat: 21.2514, lng: 81.6296, name: 'Chhattisgarh' },
+  'goa': { lat: 15.4909, lng: 73.8278, name: 'Goa' },
+  'gujarat': { lat: 23.2156, lng: 72.6369, name: 'Gujarat' },
+  'haryana': { lat: 29.0588, lng: 76.0856, name: 'Haryana' },
+  'himachal pradesh': { lat: 31.1048, lng: 77.1734, name: 'Himachal Pradesh' },
+  'jharkhand': { lat: 23.3441, lng: 85.3096, name: 'Jharkhand' },
+  'karnataka': { lat: 12.9716, lng: 77.5946, name: 'Karnataka' },
+  'kerala': { lat: 8.5241, lng: 76.9366, name: 'Kerala' },
+  'madhya pradesh': { lat: 23.2599, lng: 77.4126, name: 'Madhya Pradesh' },
+  'maharashtra': { lat: 19.0760, lng: 72.8777, name: 'Maharashtra' },
+  'manipur': { lat: 24.8170, lng: 93.9368, name: 'Manipur' },
+  'meghalaya': { lat: 25.5788, lng: 91.8933, name: 'Meghalaya' },
+  'mizoram': { lat: 23.7271, lng: 92.7176, name: 'Mizoram' },
+  'nagaland': { lat: 25.6751, lng: 94.1086, name: 'Nagaland' },
+  'odisha': { lat: 20.2961, lng: 85.8245, name: 'Odisha' },
+  'punjab': { lat: 30.7333, lng: 76.7794, name: 'Punjab' },
+  'rajasthan': { lat: 26.9124, lng: 75.7873, name: 'Rajasthan' },
+  'sikkim': { lat: 27.3389, lng: 88.6065, name: 'Sikkim' },
+  'tamil nadu': { lat: 13.0827, lng: 80.2707, name: 'Tamil Nadu' },
+  'telangana': { lat: 17.3850, lng: 78.4867, name: 'Telangana' },
+  'tripura': { lat: 23.8315, lng: 91.2868, name: 'Tripura' },
+  'uttar pradesh': { lat: 26.8467, lng: 80.9462, name: 'Uttar Pradesh' },
+  'uttarakhand': { lat: 30.3165, lng: 78.0322, name: 'Uttarakhand' },
+  'west bengal': { lat: 22.5726, lng: 88.3639, name: 'West Bengal' },
+  'delhi': { lat: 28.6139, lng: 77.2090, name: 'NCT of Delhi' },
+  'delhi ncr': { lat: 28.6139, lng: 77.2090, name: 'Delhi NCR' },
+  'nct of delhi': { lat: 28.6139, lng: 77.2090, name: 'NCT of Delhi' },
+  'chandigarh': { lat: 30.7333, lng: 76.7794, name: 'Chandigarh' },
+  'jammu and kashmir': { lat: 34.0837, lng: 74.7973, name: 'Jammu & Kashmir' },
+  'ladakh': { lat: 34.1526, lng: 77.5771, name: 'Ladakh' },
+  'puducherry': { lat: 11.9416, lng: 79.8083, name: 'Puducherry' },
+  'andaman and nicobar': { lat: 11.6234, lng: 92.7265, name: 'Andaman & Nicobar' },
+  'dadra and nagar haveli': { lat: 20.2763, lng: 73.0083, name: 'Dadra and Nagar Haveli and Daman and Diu' },
+  'lakshadweep': { lat: 10.5667, lng: 72.6417, name: 'Lakshadweep' },
+
+  // --- Karnataka Districts, Cities & Commercial Hubs ---
+  'bengaluru': { lat: 12.9716, lng: 77.5946, name: 'Bengaluru' },
+  'bangalore': { lat: 12.9716, lng: 77.5946, name: 'Bengaluru' },
+  'bengaluru urban': { lat: 12.9716, lng: 77.5946, name: 'Bengaluru Urban' },
+  'bengaluru rural': { lat: 13.2385, lng: 77.5746, name: 'Bengaluru Rural' },
+  'electronic city': { lat: 12.8399, lng: 77.6770, name: 'Electronic City, Bengaluru' },
+  'whitefield': { lat: 12.9698, lng: 77.7500, name: 'Whitefield, Bengaluru' },
+  'peenya': { lat: 13.0285, lng: 77.5197, name: 'Peenya Industrial Area, Bengaluru' },
+  'yeshwanthpur': { lat: 13.0281, lng: 77.5404, name: 'Yeshwanthpur, Bengaluru' },
+  'kengeri': { lat: 12.9177, lng: 77.4838, name: 'Kengeri, Bengaluru' },
+  'indiranagar': { lat: 12.9784, lng: 77.6408, name: 'Indiranagar, Bengaluru' },
+  'koramangala': { lat: 12.9352, lng: 77.6245, name: 'Koramangala, Bengaluru' },
+  'banashankari': { lat: 12.9255, lng: 77.5468, name: 'Banashankari, Bengaluru' },
+  'jayanagar': { lat: 12.9308, lng: 77.5838, name: 'Jayanagar, Bengaluru' },
+  'hebbal': { lat: 13.0358, lng: 77.5970, name: 'Hebbal, Bengaluru' },
+  'bommasandra': { lat: 12.8160, lng: 77.6917, name: 'Bommasandra Industrial Area' },
+  'nelamangala': { lat: 13.0995, lng: 77.3926, name: 'Nelamangala' },
+  'hoskote': { lat: 13.0711, lng: 77.7981, name: 'Hoskote' },
+  'devanahalli': { lat: 13.2483, lng: 77.7126, name: 'Devanahalli Airport Hub' },
+  'yelahanka': { lat: 13.1007, lng: 77.5963, name: 'Yelahanka' },
+  'marathahalli': { lat: 12.9591, lng: 77.6974, name: 'Marathahalli' },
+  'mysuru': { lat: 12.2958, lng: 76.6394, name: 'Mysuru' },
+  'mysore': { lat: 12.2958, lng: 76.6394, name: 'Mysuru' },
+  'kuvempunagar': { lat: 12.2898, lng: 76.6277, name: 'Kuvempunagar, Mysuru' },
+  'vijayanagar mysuru': { lat: 12.3375, lng: 76.6111, name: 'Vijayanagar, Mysuru' },
+  'hubballi': { lat: 15.3647, lng: 75.1240, name: 'Hubballi' },
+  'hubballi-dharwad': { lat: 15.3647, lng: 75.1240, name: 'Hubballi-Dharwad' },
+  'dharwad': { lat: 15.4589, lng: 75.0078, name: 'Dharwad' },
+  'belagavi': { lat: 15.8497, lng: 74.4977, name: 'Belagavi' },
+  'mangaluru': { lat: 12.9141, lng: 74.8560, name: 'Mangaluru' },
+  'dakshina kannada': { lat: 12.9141, lng: 74.8560, name: 'Dakshina Kannada' },
+  'tumakuru': { lat: 13.3379, lng: 77.1173, name: 'Tumakuru' },
+  'tumkur': { lat: 13.3379, lng: 77.1173, name: 'Tumakuru' },
+  'davanagere': { lat: 14.4644, lng: 75.9218, name: 'Davanagere' },
+  'ballari': { lat: 15.1394, lng: 76.9214, name: 'Ballari' },
+  'bellary': { lat: 15.1394, lng: 76.9214, name: 'Ballari' },
+  'shivamogga': { lat: 13.9299, lng: 75.5681, name: 'Shivamogga' },
+  'shimoga': { lat: 13.9299, lng: 75.5681, name: 'Shivamogga' },
+  'kolar': { lat: 13.1367, lng: 78.1291, name: 'Kolar' },
+  'chikkaballapur': { lat: 13.4355, lng: 77.7275, name: 'Chikkaballapur' },
+  'mandya': { lat: 12.5244, lng: 76.8961, name: 'Mandya' },
+  'udupi': { lat: 13.3409, lng: 74.7421, name: 'Udupi' },
+  'hassan': { lat: 13.0033, lng: 76.1004, name: 'Hassan' },
+  'kalaburagi': { lat: 17.3297, lng: 76.8343, name: 'Kalaburagi' },
+  'gulbarga': { lat: 17.3297, lng: 76.8343, name: 'Kalaburagi' },
+  'raichur': { lat: 16.2076, lng: 77.3463, name: 'Raichur' },
+  'bidar': { lat: 17.9104, lng: 77.5199, name: 'Bidar' },
+  'bagalkote': { lat: 16.1691, lng: 75.6615, name: 'Bagalkote' },
+  'vijayapura': { lat: 16.8302, lng: 75.7100, name: 'Vijayapura' },
+  'bijapur': { lat: 16.8302, lng: 75.7100, name: 'Vijayapura' },
+  'gadag': { lat: 15.4298, lng: 75.6318, name: 'Gadag' },
+  'haveri': { lat: 14.7954, lng: 75.3991, name: 'Haveri' },
+  'chitradurga': { lat: 14.2251, lng: 76.3980, name: 'Chitradurga' },
+  'chamarajanagar': { lat: 11.9261, lng: 76.9437, name: 'Chamarajanagar' },
+  'ramanagara': { lat: 12.7209, lng: 77.2799, name: 'Ramanagara' },
+  'koppal': { lat: 15.3456, lng: 76.1554, name: 'Koppal' },
+  'yadgir': { lat: 16.7705, lng: 77.1376, name: 'Yadgir' },
+  'kodagu': { lat: 12.4244, lng: 75.7382, name: 'Kodagu (Madikeri)' },
+  'madikeri': { lat: 12.4244, lng: 75.7382, name: 'Madikeri' },
+  'uttara kannada': { lat: 14.8185, lng: 74.1352, name: 'Uttara Kannada (Karwar)' },
+  'karwar': { lat: 14.8185, lng: 74.1352, name: 'Karwar' },
+  'vijayanagara': { lat: 15.2689, lng: 76.3909, name: 'Vijayanagara (Hosapete)' },
+  'hosapete': { lat: 15.2689, lng: 76.3909, name: 'Hosapete' },
+
+  // --- Andhra Pradesh Districts & Hubs ---
+  'anantapur': { lat: 14.6819, lng: 77.6006, name: 'Anantapur' },
+  'visakhapatnam': { lat: 17.6868, lng: 83.2185, name: 'Visakhapatnam' },
+  'vizag': { lat: 17.6868, lng: 83.2185, name: 'Visakhapatnam' },
+  'vijayawada': { lat: 16.5062, lng: 80.6480, name: 'Vijayawada' },
+  'ntr': { lat: 16.5062, lng: 80.6480, name: 'NTR (Vijayawada)' },
+  'guntur': { lat: 16.3067, lng: 80.4365, name: 'Guntur' },
+  'tirupati': { lat: 13.6288, lng: 79.4192, name: 'Tirupati' },
+  'kurnool': { lat: 15.8281, lng: 78.0373, name: 'Kurnool' },
+  'nellore': { lat: 14.4426, lng: 79.9865, name: 'Sri Potti Sriramulu Nellore' },
+  'kakinada': { lat: 16.9891, lng: 82.2475, name: 'Kakinada' },
+  'rajahmundry': { lat: 17.0005, lng: 81.8040, name: 'East Godavari (Rajahmundry)' },
+  'kadapa': { lat: 14.4673, lng: 78.8242, name: 'YSR Kadapa' },
+  'chittoor': { lat: 13.2172, lng: 79.1003, name: 'Chittoor' },
+  'eluru': { lat: 16.7107, lng: 81.0952, name: 'Eluru' },
+  'ongole': { lat: 15.5057, lng: 80.0499, name: 'Prakasam (Ongole)' },
+  'srikakulam': { lat: 18.2949, lng: 83.8938, name: 'Srikakulam' },
+  'vizianagaram': { lat: 18.1067, lng: 83.3956, name: 'Vizianagaram' },
+  'nandyal': { lat: 15.4886, lng: 78.4836, name: 'Nandyal' },
+  'hindupur': { lat: 13.8290, lng: 77.4929, name: 'Sri Sathya Sai (Hindupur)' },
+
+  // --- Tamil Nadu Districts & Hubs ---
+  'chennai': { lat: 13.0827, lng: 80.2707, name: 'Chennai' },
+  'guindy': { lat: 13.0067, lng: 80.2026, name: 'Guindy, Chennai' },
+  'sriperumbudur': { lat: 12.9691, lng: 79.9493, name: 'Sriperumbudur Auto Hub' },
+  'coimbatore': { lat: 11.0168, lng: 76.9558, name: 'Coimbatore' },
+  'madurai': { lat: 9.9252, lng: 78.1198, name: 'Madurai' },
+  'salem': { lat: 11.6643, lng: 78.1460, name: 'Salem' },
+  'tiruchirappalli': { lat: 10.7905, lng: 78.7047, name: 'Tiruchirappalli' },
+  'trichy': { lat: 10.7905, lng: 78.7047, name: 'Tiruchirappalli' },
+  'tiruppur': { lat: 11.1085, lng: 77.3411, name: 'Tiruppur' },
+  'erode': { lat: 11.3410, lng: 77.7172, name: 'Erode' },
+  'vellore': { lat: 12.9165, lng: 79.1325, name: 'Vellore' },
+  'thoothukudi': { lat: 8.7642, lng: 78.1348, name: 'Thoothukudi (Tuticorin)' },
+  'hosur': { lat: 12.7409, lng: 77.8253, name: 'Krishnagiri (Hosur)' },
+  'tirunelveli': { lat: 8.7139, lng: 77.7567, name: 'Tirunelveli' },
+  'kanchipuram': { lat: 12.8342, lng: 79.7036, name: 'Kanchipuram' },
+  'chengalpattu': { lat: 12.6841, lng: 79.9836, name: 'Chengalpattu' },
+  'thanjavur': { lat: 10.7870, lng: 79.1378, name: 'Thanjavur' },
+  'dindigul': { lat: 10.3673, lng: 77.9803, name: 'Dindigul' },
+  'nagercoil': { lat: 8.1833, lng: 77.4119, name: 'Kanyakumari (Nagercoil)' },
+
+  // --- Telangana Districts & Hubs ---
+  'hyderabad': { lat: 17.3850, lng: 78.4867, name: 'Hyderabad' },
+  'secunderabad': { lat: 17.4399, lng: 78.4983, name: 'Secunderabad' },
+  'gachibowli': { lat: 17.4401, lng: 78.3489, name: 'Gachibowli, Hyderabad' },
+  'shamshabad': { lat: 17.2403, lng: 78.4294, name: 'Shamshabad Airport Zone' },
+  'medchal': { lat: 17.6294, lng: 78.4814, name: 'Medchal-Malkajgiri' },
+  'warangal': { lat: 17.9689, lng: 79.5941, name: 'Hanumakonda (Warangal)' },
+  'nizamabad': { lat: 18.6725, lng: 78.0941, name: 'Nizamabad' },
+  'karimnagar': { lat: 18.4386, lng: 79.1288, name: 'Karimnagar' },
+  'khammam': { lat: 17.2473, lng: 80.1514, name: 'Khammam' },
+  'mahbubnagar': { lat: 16.7488, lng: 78.0035, name: 'Mahabubnagar' },
+  'nalgonda': { lat: 17.0577, lng: 79.2684, name: 'Nalgonda' },
+
+  // --- Maharashtra Districts & Hubs ---
+  'mumbai': { lat: 19.0760, lng: 72.8777, name: 'Mumbai' },
+  'mumbai city': { lat: 18.9388, lng: 72.8354, name: 'Mumbai City' },
+  'mumbai suburban': { lat: 19.1136, lng: 72.8697, name: 'Mumbai Suburban' },
+  'navi mumbai': { lat: 19.0330, lng: 73.0297, name: 'Navi Mumbai' },
+  'thane': { lat: 19.2183, lng: 72.9781, name: 'Thane' },
+  'bhiwandi': { lat: 19.3002, lng: 73.0586, name: 'Bhiwandi Logistics Hub' },
+  'pune': { lat: 18.5204, lng: 73.8567, name: 'Pune' },
+  'hinjewadi': { lat: 18.5913, lng: 73.7389, name: 'Hinjewadi, Pune' },
+  'chakan': { lat: 18.7599, lng: 73.8589, name: 'Chakan Auto Hub' },
+  'nagpur': { lat: 21.1458, lng: 79.0882, name: 'Nagpur' },
+  'nashik': { lat: 19.9975, lng: 73.7898, name: 'Nashik' },
+  'aurangabad': { lat: 19.8762, lng: 75.3433, name: 'Chhatrapati Sambhajinagar (Aurangabad)' },
+  'solapur': { lat: 17.6599, lng: 75.9064, name: 'Solapur' },
+  'kolhapur': { lat: 16.7050, lng: 74.2433, name: 'Kolhapur' },
+  'amravati': { lat: 20.9374, lng: 77.7796, name: 'Amravati' },
+  'akola': { lat: 20.7002, lng: 77.0082, name: 'Akola' },
+  'panvel': { lat: 18.9894, lng: 73.1175, name: 'Raigad (Panvel)' },
+
+  // --- Delhi NCR & North India Hubs ---
+  'new delhi': { lat: 28.6139, lng: 77.2090, name: 'New Delhi' },
+  'gurugram': { lat: 28.4595, lng: 77.0266, name: 'Gurugram' },
+  'gurgaon': { lat: 28.4595, lng: 77.0266, name: 'Gurugram' },
+  'noida': { lat: 28.5355, lng: 77.3910, name: 'Noida' },
+  'greater noida': { lat: 28.4744, lng: 77.5040, name: 'Greater Noida' },
+  'faridabad': { lat: 28.4089, lng: 77.3178, name: 'Faridabad' },
+  'ghaziabad': { lat: 28.6692, lng: 77.4538, name: 'Ghaziabad' },
+  'manesar': { lat: 28.3516, lng: 76.9388, name: 'Manesar Auto Corridor' },
+  'jaipur': { lat: 26.9124, lng: 75.7873, name: 'Jaipur' },
+  'jodhpur': { lat: 26.2389, lng: 73.0243, name: 'Jodhpur' },
+  'udaipur': { lat: 24.5854, lng: 73.7125, name: 'Udaipur' },
+  'kota': { lat: 25.2138, lng: 75.8648, name: 'Kota' },
+  'lucknow': { lat: 26.8467, lng: 80.9462, name: 'Lucknow' },
+  'kanpur': { lat: 26.4499, lng: 80.3319, name: 'Kanpur' },
+  'agra': { lat: 27.1767, lng: 78.0081, name: 'Agra' },
+  'varanasi': { lat: 25.3176, lng: 82.9739, name: 'Varanasi' },
+  'meerut': { lat: 28.9845, lng: 77.7064, name: 'Meerut' },
+  'ludhiana': { lat: 30.9010, lng: 75.8573, name: 'Ludhiana' },
+  'amritsar': { lat: 31.6340, lng: 74.8723, name: 'Amritsar' },
+  'jalandhar': { lat: 31.3260, lng: 75.5762, name: 'Jalandhar' },
+  'dehradun': { lat: 30.3165, lng: 78.0322, name: 'Dehradun' },
+  'haridwar': { lat: 29.9457, lng: 78.1642, name: 'Haridwar' },
+
+  // --- Gujarat, Central & East Hubs ---
+  'ahmedabad': { lat: 23.0225, lng: 72.5714, name: 'Ahmedabad' },
+  'surat': { lat: 21.1702, lng: 72.8311, name: 'Surat' },
+  'vadodara': { lat: 22.3072, lng: 73.1812, name: 'Vadodara' },
+  'rajkot': { lat: 22.3039, lng: 70.8022, name: 'Rajkot' },
+  'indore': { lat: 22.7196, lng: 75.8577, name: 'Indore' },
+  'bhopal': { lat: 23.2599, lng: 77.4126, name: 'Bhopal' },
+  'gwalior': { lat: 26.2183, lng: 78.1828, name: 'Gwalior' },
+  'jabalpur': { lat: 23.1815, lng: 79.9864, name: 'Jabalpur' },
+  'kolkata': { lat: 22.5726, lng: 88.3639, name: 'Kolkata' },
+  'howrah': { lat: 22.5958, lng: 88.2636, name: 'Howrah' },
+  'durgapur': { lat: 23.5204, lng: 87.3119, name: 'Durgapur' },
+  'asansol': { lat: 23.6739, lng: 86.9524, name: 'Asansol' },
+  'siliguri': { lat: 26.7271, lng: 88.3953, name: 'Siliguri' },
+  'patna': { lat: 25.5941, lng: 85.1376, name: 'Patna' },
+  'gaya': { lat: 24.7914, lng: 85.0002, name: 'Gaya' },
+  'bhubaneswar': { lat: 20.2961, lng: 85.8245, name: 'Bhubaneswar' },
+  'cuttack': { lat: 20.4625, lng: 85.8828, name: 'Cuttack' },
+  'rourkela': { lat: 22.2604, lng: 84.8536, name: 'Rourkela' },
+  'ranchi': { lat: 23.3441, lng: 85.3096, name: 'Ranchi' },
+  'jamshedpur': { lat: 22.8046, lng: 86.2029, name: 'Jamshedpur' },
+  'dhanbad': { lat: 23.7957, lng: 86.4304, name: 'Dhanbad' },
+  'raipur': { lat: 21.2514, lng: 81.6296, name: 'Raipur' },
+  'kochi': { lat: 9.9312, lng: 76.2673, name: 'Kochi' },
+  'cochin': { lat: 9.9312, lng: 76.2673, name: 'Kochi' },
+  'thiruvananthapuram': { lat: 8.5241, lng: 76.9366, name: 'Thiruvananthapuram' },
+  'trivandrum': { lat: 8.5241, lng: 76.9366, name: 'Thiruvananthapuram' },
+  'kozhikode': { lat: 11.2588, lng: 75.7804, name: 'Kozhikode' },
+  'calicut': { lat: 11.2588, lng: 75.7804, name: 'Kozhikode' },
+  'guwahati': { lat: 26.1445, lng: 91.7362, name: 'Guwahati' }
+};
+
+/**
+ * Calculates exact great-circle distance between two geographic coordinates in kilometers
+ * using the Haversine formula (Mean Earth Radius = 6,371 km).
+ */
+export function calculateHaversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  if (
+    typeof lat1 !== 'number' ||
+    typeof lon1 !== 'number' ||
+    typeof lat2 !== 'number' ||
+    typeof lon2 !== 'number' ||
+    Number.isNaN(lat1) ||
+    Number.isNaN(lon1) ||
+    Number.isNaN(lat2) ||
+    Number.isNaN(lon2)
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  // Exact match
+  if (lat1 === lat2 && lon1 === lon2) return 0;
+
+  const R = 6371; // Earth radius in kilometers
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c;
+  return Math.round(d * 10) / 10; // Round to 1 decimal place (e.g. 12.4 km)
+}
+
+const geoCoordMemoryCache = new Map<string, { lat: number; lng: number; displayName: string }>();
+
+function getSessionGeoCache(key: string): { lat: number; lng: number; displayName: string } | null {
+  try {
+    const raw = sessionStorage.getItem(`driverhub_geo_${key}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSessionGeoCache(key: string, val: { lat: number; lng: number; displayName: string }) {
+  try {
+    sessionStorage.setItem(`driverhub_geo_${key}`, JSON.stringify(val));
+  } catch {
+    // Ignore storage write issues
+  }
+}
+
+/**
+ * Resolves latitude and longitude coordinates for any Pan-India location
+ * (State, District, Town/City, Locality, or 6-digit PIN code).
+ * Uses zero-latency directory lookup first, falling back to cached Nominatim lookup.
+ */
+export async function resolveLocationCoordinates(loc: {
+  city?: string;
+  district?: string;
+  state?: string;
+  pincode?: string;
+  location?: string;
+}): Promise<{ lat: number; lng: number; displayName: string } | null> {
+  const normCity = loc.city ? normalizeName(extractPrimaryName(loc.city)) : '';
+  const normDist = loc.district ? normalizeName(extractPrimaryName(loc.district)) : '';
+  const normState = loc.state ? normalizeName(loc.state) : '';
+  const cleanPin = loc.pincode && /^\d{6}$/.test(loc.pincode.trim()) ? loc.pincode.trim() : '';
+
+  // 1. Check local authoritative table first (instant, 0 ms)
+  const lookupKeys = [
+    normCity,
+    normDist,
+    `${normCity} ${normState}`,
+    `${normDist} ${normState}`,
+    normState
+  ].filter(Boolean);
+
+  for (const k of lookupKeys) {
+    if (INDIA_COORDINATES_DIRECTORY[k]) {
+      const match = INDIA_COORDINATES_DIRECTORY[k];
+      return {
+        lat: match.lat,
+        lng: match.lng,
+        displayName: match.name
+      };
+    }
+  }
+
+  // 2. Check memory & session cache
+  const cacheKey = `${normCity}|${normDist}|${normState}|${cleanPin}`;
+  if (geoCoordMemoryCache.has(cacheKey)) {
+    return geoCoordMemoryCache.get(cacheKey)!;
+  }
+  const sessionCached = getSessionGeoCache(cacheKey);
+  if (sessionCached) {
+    geoCoordMemoryCache.set(cacheKey, sessionCached);
+    return sessionCached;
+  }
+
+  // 3. Fallback: Query Nominatim OpenStreetMap (keyless, with India boundary filter)
+  const queryParts = [loc.city, loc.district, loc.state, cleanPin, 'India'].filter(Boolean);
+  const query = queryParts.join(', ');
+  if (!query.trim()) return null;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&q=${encodeURIComponent(
+      query
+    )}&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'DriverHub-India/2.0'
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const item = data[0];
+        const lat = parseFloat(item.lat);
+        const lng = parseFloat(item.lon);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const result = {
+            lat,
+            lng,
+            displayName: item.display_name || query
+          };
+          geoCoordMemoryCache.set(cacheKey, result);
+          saveSessionGeoCache(cacheKey, result);
+          return result;
+        }
+      }
+    }
+  } catch {
+    // If offline or network error, fallback to state center if state is recognized
+  }
+
+  if (normState && INDIA_COORDINATES_DIRECTORY[normState]) {
+    const stateMatch = INDIA_COORDINATES_DIRECTORY[normState];
+    return {
+      lat: stateMatch.lat,
+      lng: stateMatch.lng,
+      displayName: stateMatch.name
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Reverse-geocodes GPS coordinates (latitude, longitude) into structured
+ * Indian State, District, City/Town, and PIN code.
+ */
+export async function reverseGeocodeCoordinates(
+  lat: number,
+  lng: number
+): Promise<{
+  state: string;
+  district: string;
+  city: string;
+  pincode: string;
+  formattedLocation: string;
+} | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'DriverHub-India/2.0'
+      }
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const addr = data.address || {};
+
+    const rawState = String(addr.state || addr.province || '').trim();
+    const rawDistrict = String(
+      addr.state_district || addr.county || addr.district || ''
+    ).trim();
+    const rawCity = String(
+      addr.city || addr.town || addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || ''
+    ).trim();
+    const rawPin = String(addr.postcode || '').trim().replace(/\D/g, '').slice(0, 6);
+
+    // Match against canonical State & District in STATE_DISTRICTS_DIRECTORY
+    const allStates = getAllStatesAndUTs();
+    const matchedState =
+      allStates.find(
+        s =>
+          normalizeName(s) === normalizeName(rawState) ||
+          normalizeName(s).includes(normalizeName(rawState)) ||
+          normalizeName(rawState).includes(normalizeName(s))
+      ) || rawState;
+
+    const stateDists = matchedState ? getDistrictsForState(matchedState) : [];
+    const matchedDistrict =
+      stateDists.find(
+        d =>
+          normalizeName(d) === normalizeName(rawDistrict) ||
+          normalizeName(extractPrimaryName(d)) === normalizeName(rawDistrict) ||
+          d.toLowerCase().includes(rawDistrict.toLowerCase()) ||
+          rawDistrict.toLowerCase().includes(extractPrimaryName(d).toLowerCase())
+      ) || rawDistrict;
+
+    const formattedLocation = formatStructuredLocation({
+      city: rawCity,
+      district: matchedDistrict,
+      state: matchedState,
+      pincode: rawPin
+    });
+
+    return {
+      state: matchedState,
+      district: matchedDistrict,
+      city: rawCity || matchedDistrict,
+      pincode: rawPin,
+      formattedLocation
+    };
+  } catch (err) {
+    console.warn('Reverse geocoding notice:', err);
+    return null;
+  }
+}
+

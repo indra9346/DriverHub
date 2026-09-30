@@ -1,6 +1,6 @@
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 import { Job, Application, DriverProfile, EmployerProfile, User, Notification, DriverDocument, DirectMessage, SavedSearch, FavoriteJob, DriverExperience } from '../types';
-import { parseStructuredLocation } from './indiaLocationService';
+import { parseStructuredLocation, calculateHaversineDistanceKm } from './indiaLocationService';
 
 // Helper to convert any string ID to a valid deterministic UUID
 export function toUUID(id: string): string {
@@ -322,18 +322,29 @@ export const SupabaseSync = {
   },
 
   async searchDriverCandidates(filters: {
-    keyword?: string; category?: string; city?: string; state?: string;
+    keyword?: string; category?: string; city?: string; district?: string; state?: string; pincode?: string;
+    latitude?: number; longitude?: number; radiusKm?: number;
     minExperience?: number; skill?: string; vehicleType?: string; userId?: string; activeInDays?: number; limit?: number;
   }): Promise<DriverProfile[]> {
     if (!isSupabaseConfigured) return [];
     try {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData?.user) return [];
-      const { data, error } = await supabase.rpc('search_driverhub_candidates', {
+
+      let data: any[] | null = null;
+      let error: any = null;
+
+      // Try RPC with new spatial arguments first
+      const rpcTry1 = await supabase.rpc('search_driverhub_candidates', {
         p_keyword: filters.keyword?.trim() || null,
         p_category: filters.category || null,
         p_city: filters.city || null,
+        p_district: filters.district || null,
         p_state: filters.state || null,
+        p_pincode: filters.pincode || null,
+        p_lat: typeof filters.latitude === 'number' && !isNaN(filters.latitude) ? filters.latitude : null,
+        p_lng: typeof filters.longitude === 'number' && !isNaN(filters.longitude) ? filters.longitude : null,
+        p_radius_km: typeof filters.radiusKm === 'number' && filters.radiusKm > 0 ? filters.radiusKm : null,
         p_min_years: filters.minExperience || 0,
         p_skill: filters.skill?.trim() || null,
         p_vehicle_type: filters.vehicleType || null,
@@ -342,40 +353,95 @@ export const SupabaseSync = {
         p_limit: Math.min(Math.max(filters.limit || 100, 1), 250),
         p_offset: 0
       });
+
+      if (!rpcTry1.error) {
+        data = rpcTry1.data;
+      } else {
+        // Fallback to legacy RPC parameter signature if new migration is still pending in DB
+        const rpcTry2 = await supabase.rpc('search_driverhub_candidates', {
+          p_keyword: filters.keyword?.trim() || null,
+          p_category: filters.category || null,
+          p_city: filters.city || null,
+          p_state: filters.state || null,
+          p_min_years: filters.minExperience || 0,
+          p_skill: filters.skill?.trim() || null,
+          p_vehicle_type: filters.vehicleType || null,
+          p_user_id: filters.userId || null,
+          p_active_in_days: filters.activeInDays || null,
+          p_limit: Math.min(Math.max(filters.limit || 100, 1), 250),
+          p_offset: 0
+        });
+        data = rpcTry2.data;
+        error = rpcTry2.error;
+      }
+
       if (error) {
         console.warn('Supabase candidate search notice:', error.message);
         return [];
       }
-      return (data || []).map((row: any): DriverProfile => ({
-        id: row.user_id,
-        fullName: row.full_name || 'Driver',
-        phone: row.phone || '',
-        email: row.email || '',
-        location: [row.city, row.state].filter(Boolean).join(', '),
-        city: row.city || '',
-        state: row.state || '',
-        driverCategory: row.driver_category || '',
-        licenseNumber: row.license_number || '',
-        licenseType: row.license_type || '',
-        licenseExpiry: row.license_expiry || '',
-        experienceYears: row.years_experience || 0,
-        experienceMonths: row.months_experience || 0,
-        skills: row.skills || [],
-        languages: row.languages || [],
-        vehicleTypes: row.vehicle_types || [],
-        currentRole: row.current_role || '',
-        education: row.education || '',
-        preferredLocation: row.preferred_location || '',
-        expectedSalary: row.expected_salary || 0,
-        availability: row.availability || 'Flexible',
-        cvAttached: Boolean(row.cv_attached),
-        policeVerified: Boolean(row.police_verified),
-        lastActive: row.last_active || undefined,
-        bio: row.bio || '',
-        resumeUrl: row.resume_url || undefined,
-        status: 'active',
-        documents: []
-      }));
+
+      let list = (data || []).map((row: any): DriverProfile => {
+        let lat = typeof row.latitude === 'number' ? row.latitude : (row.latitude ? parseFloat(row.latitude) : undefined);
+        let lng = typeof row.longitude === 'number' ? row.longitude : (row.longitude ? parseFloat(row.longitude) : undefined);
+        let dist = typeof row.distance_km === 'number' ? row.distance_km : (row.distance_km ? parseFloat(row.distance_km) : undefined);
+
+        if (dist === undefined && typeof filters.latitude === 'number' && typeof filters.longitude === 'number' && lat !== undefined && lng !== undefined) {
+          dist = calculateHaversineDistanceKm(filters.latitude, filters.longitude, lat, lng);
+        }
+
+        return {
+          id: row.user_id,
+          fullName: row.full_name || 'Driver',
+          phone: row.phone || '',
+          email: row.email || '',
+          location: [row.city, row.district, row.state].filter(Boolean).join(', ') || [row.city, row.state].filter(Boolean).join(', '),
+          city: row.city || '',
+          district: row.district || undefined,
+          state: row.state || '',
+          pincode: row.pincode || undefined,
+          latitude: lat,
+          longitude: lng,
+          distanceKm: dist,
+          driverCategory: row.driver_category || '',
+          licenseNumber: row.license_number || '',
+          licenseType: row.license_type || '',
+          licenseExpiry: row.license_expiry || '',
+          experienceYears: row.years_experience || 0,
+          experienceMonths: row.months_experience || 0,
+          skills: row.skills || [],
+          languages: row.languages || [],
+          vehicleTypes: row.vehicle_types || [],
+          currentRole: row.current_role || '',
+          education: row.education || '',
+          preferredLocation: row.preferred_location || '',
+          expectedSalary: row.expected_salary || 0,
+          availability: row.availability || 'Flexible',
+          cvAttached: Boolean(row.cv_attached),
+          policeVerified: Boolean(row.police_verified),
+          lastActive: row.last_active || undefined,
+          bio: row.bio || '',
+          resumeUrl: row.resume_url || undefined,
+          status: 'active',
+          documents: []
+        };
+      });
+
+      if (typeof filters.radiusKm === 'number' && filters.radiusKm > 0) {
+        list = list.filter(d => typeof d.distanceKm === 'number' && d.distanceKm <= filters.radiusKm!);
+      }
+
+      if (typeof filters.latitude === 'number' && typeof filters.longitude === 'number') {
+        list.sort((a, b) => {
+          if (typeof a.distanceKm === 'number' && typeof b.distanceKm === 'number') {
+            return a.distanceKm - b.distanceKm;
+          }
+          if (typeof a.distanceKm === 'number') return -1;
+          if (typeof b.distanceKm === 'number') return 1;
+          return 0;
+        });
+      }
+
+      return list;
     } catch (err) {
       console.warn('Supabase candidate search notice:', err);
       return [];
@@ -650,7 +716,11 @@ export const SupabaseSync = {
           cv_attached: Boolean(dp.cvAttached || dp.resumeUrl),
           police_verified: Boolean(dp.policeVerified),
           resume_url: dp.resumeUrl || null,
-          bio: dp.bio || null
+          bio: dp.bio || null,
+          latitude: typeof dp.latitude === 'number' && !isNaN(dp.latitude) ? dp.latitude : null,
+          longitude: typeof dp.longitude === 'number' && !isNaN(dp.longitude) ? dp.longitude : null,
+          district: dp.district || null,
+          pincode: dp.pincode || null
         }, { onConflict: 'user_id' });
 
         if (drvError) {
@@ -985,6 +1055,10 @@ export const SupabaseSync = {
               fullName: profile?.full_name || authUser.user_metadata?.full_name || '',
               phone: profile?.phone || '', email: profile?.email || authUser.email || '',
               location: profile?.location || profile?.city || '', city: profile?.city || '', state: profile?.state || '',
+              district: profile?.district || driverRow.district || undefined,
+              pincode: profile?.pincode || driverRow.pincode || undefined,
+              latitude: typeof driverRow.latitude === 'number' ? driverRow.latitude : typeof profile?.latitude === 'number' ? profile.latitude : (driverRow.latitude ? parseFloat(driverRow.latitude) : profile?.latitude ? parseFloat(profile.latitude) : undefined),
+              longitude: typeof driverRow.longitude === 'number' ? driverRow.longitude : typeof profile?.longitude === 'number' ? profile.longitude : (driverRow.longitude ? parseFloat(driverRow.longitude) : profile?.longitude ? parseFloat(profile.longitude) : undefined),
               driverCategory: driverRow.driver_category || '', licenseNumber: driverRow.license_number || '',
               licenseType: driverRow.license_type || '', licenseExpiry: driverRow.license_expiry || '',
               experienceYears: driverRow.years_experience || 0, experienceMonths: driverRow.months_experience || 0,
@@ -1065,6 +1139,10 @@ export const SupabaseSync = {
             return {
               id: account.id, fullName: account.full_name || '', phone: account.phone || '', email: account.email || '',
               location: account.location || account.city || '', city: account.city || '', state: account.state || '',
+              district: account.district || row?.district || undefined,
+              pincode: account.pincode || row?.pincode || undefined,
+              latitude: typeof row?.latitude === 'number' ? row.latitude : typeof account.latitude === 'number' ? account.latitude : (row?.latitude ? parseFloat(row.latitude) : account.latitude ? parseFloat(account.latitude) : undefined),
+              longitude: typeof row?.longitude === 'number' ? row.longitude : typeof account.longitude === 'number' ? account.longitude : (row?.longitude ? parseFloat(row.longitude) : account.longitude ? parseFloat(account.longitude) : undefined),
               driverCategory: row?.driver_category || '', licenseNumber: row?.license_number || '',
               licenseType: row?.license_type || '', licenseExpiry: row?.license_expiry || '',
               experienceYears: row?.years_experience || 0, experienceMonths: row?.months_experience || 0,

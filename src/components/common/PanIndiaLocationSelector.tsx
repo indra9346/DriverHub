@@ -22,8 +22,11 @@ import {
   formatStructuredLocation,
   TownLocalityOption,
   PinOption,
-  PanIndiaAutocompleteSuggestion
+  PanIndiaAutocompleteSuggestion,
+  resolveLocationCoordinates,
+  reverseGeocodeCoordinates
 } from '../../services/indiaLocationService';
+import { Navigation, LocateFixed } from 'lucide-react';
 
 export interface PanIndiaLocationValue {
   state: string;
@@ -32,6 +35,9 @@ export interface PanIndiaLocationValue {
   pincode: string;
   addressLine?: string;
   formattedLocation: string;
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
 }
 
 interface PanIndiaLocationSelectorProps {
@@ -45,6 +51,8 @@ interface PanIndiaLocationSelectorProps {
     pincode?: string;
     addressLine?: string;
     legacyLocation?: string;
+    latitude?: number;
+    longitude?: number;
   };
   onChange: (next: PanIndiaLocationValue) => void;
   required?: boolean;
@@ -52,6 +60,11 @@ interface PanIndiaLocationSelectorProps {
   addressLineLabel?: string;
   addressLinePlaceholder?: string;
   className?: string;
+  showRadius?: boolean;
+  radiusKm?: number;
+  onRadiusChange?: (radiusKm: number) => void;
+  showCurrentLocation?: boolean;
+  onCurrentLocationSuccess?: (coords: { lat: number; lng: number }) => void;
 }
 
 interface ComboboxOption {
@@ -382,6 +395,17 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
   );
 };
 
+export const RADIUS_OPTIONS = [
+  { value: 0, label: 'Any distance (All India / No radius limit)' },
+  { value: 10, label: 'Within 10 km (Immediate local area)' },
+  { value: 25, label: 'Within 25 km (City & suburbs)' },
+  { value: 50, label: 'Within 50 km (Metropolitan district)' },
+  { value: 100, label: 'Within 100 km (Inter-district commute)' },
+  { value: 150, label: 'Within 150 km (Regional freight hub)' },
+  { value: 250, label: 'Within 250 km (State-wide / Heavy haul)' },
+  { value: 500, label: 'Within 500 km (Interstate transport)' }
+];
+
 export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> = ({
   mode = 'form',
   layout = 'grid',
@@ -392,7 +416,12 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   showAddressLine = false,
   addressLineLabel = 'Depot / Hub / Street Landmark (Optional)',
   addressLinePlaceholder = 'e.g. Electronic City Phase 1, Transport Nagar, NH-48',
-  className = ''
+  className = '',
+  showRadius = false,
+  radiusKm = 0,
+  onRadiusChange,
+  showCurrentLocation = false,
+  onCurrentLocationSuccess
 }) => {
   const statesList = useMemo(() => getAllStatesAndUTs(), []);
   const allDistrictsWithState = useMemo(() => getAllDistrictsWithState(), []);
@@ -405,6 +434,8 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   const [loadingLivePlaces, setLoadingLivePlaces] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [isLiveVerified, setIsLiveVerified] = useState(false);
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
   const [pinLookupStatus, setPinLookupStatus] = useState<{
     checking: boolean;
     message?: string;
@@ -560,12 +591,104 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
     city: string;
     pincode: string;
     addressLine?: string;
+    latitude?: number;
+    longitude?: number;
+    radiusKm?: number;
   }) => {
     const formattedLocation = formatStructuredLocation(next);
+    const resolvedLat = next.latitude !== undefined ? next.latitude : value.latitude;
+    const resolvedLng = next.longitude !== undefined ? next.longitude : value.longitude;
+    const effectiveRadius = next.radiusKm !== undefined ? next.radiusKm : radiusKm;
+
     onChange({
       ...next,
-      formattedLocation
+      formattedLocation,
+      latitude: resolvedLat,
+      longitude: resolvedLng,
+      radiusKm: effectiveRadius
     });
+
+    // If coordinates are not yet resolved, resolve them in background via authoritative table / Nominatim
+    if (resolvedLat === undefined || resolvedLng === undefined) {
+      if (next.city || next.district || next.state || next.pincode) {
+        resolveLocationCoordinates({
+          city: next.city,
+          district: next.district,
+          state: next.state,
+          pincode: next.pincode
+        })
+          .then(coords => {
+            if (coords) {
+              onChange({
+                ...next,
+                formattedLocation,
+                latitude: coords.lat,
+                longitude: coords.lng,
+                radiusKm: effectiveRadius
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setIsDetectingGps(true);
+    setGpsError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async position => {
+        try {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const res = await reverseGeocodeCoordinates(lat, lng);
+          if (res) {
+            emitChange({
+              state: res.state,
+              district: res.district,
+              city: res.city,
+              pincode: res.pincode,
+              addressLine: value.addressLine,
+              latitude: lat,
+              longitude: lng,
+              radiusKm: radiusKm
+            });
+            onCurrentLocationSuccess?.({ lat, lng });
+          } else {
+            emitChange({
+              state: value.state,
+              district: value.district || '',
+              city: value.city,
+              pincode: value.pincode || '',
+              addressLine: value.addressLine,
+              latitude: lat,
+              longitude: lng,
+              radiusKm: radiusKm
+            });
+            onCurrentLocationSuccess?.({ lat, lng });
+          }
+        } catch {
+          setGpsError('Could not resolve your location details.');
+        } finally {
+          setIsDetectingGps(false);
+        }
+      },
+      error => {
+        setIsDetectingGps(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setGpsError('Location access was denied. Please allow location access or select manually.');
+        } else {
+          setGpsError('Could not detect current GPS position.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
   };
 
   // Build combobox options for Field 1: State / Union Territory
@@ -770,7 +893,24 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {showCurrentLocation && (
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={isDetectingGps}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              title="Detect current location via browser GPS"
+            >
+              {isDetectingGps ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+              ) : (
+                <LocateFixed className="w-3.5 h-3.5 text-blue-600" />
+              )}
+              <span>{isDetectingGps ? 'Detecting GPS…' : 'Use My Current Location'}</span>
+            </button>
+          )}
+
           {isLiveVerified && (
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
               <CheckCircle2 className="w-3 h-3" /> India Post PIN Directory Active
@@ -787,6 +927,13 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           )}
         </div>
       </div>
+
+      {gpsError && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{gpsError}</span>
+        </div>
+      )}
 
       {/* Legacy free-text preservation notice */}
       {value.legacyLocation && !value.state && !value.district && (
@@ -1021,6 +1168,75 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           )}
         </div>
       </div>
+
+      {/* 5. Search Radius Selection Control (when showRadius is active) */}
+      {showRadius && (
+        <div className="p-3 bg-gradient-to-r from-blue-50/80 to-emerald-50/80 border border-blue-200/80 rounded-2xl space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label
+              htmlFor={`${idPrefix}-radius`}
+              className="text-xs font-bold text-slate-800 flex items-center gap-1.5"
+            >
+              <Compass className="w-3.5 h-3.5 text-blue-600" />
+              <span>Search Radius (Distance from Selected Location)</span>
+            </label>
+            {radiusKm && radiusKm > 0 ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-[11px] font-bold">
+                📍 Within {radiusKm} km
+              </span>
+            ) : (
+              <span className="text-[11px] font-semibold text-slate-500">
+                All India (No radius limit)
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+            <div className="sm:col-span-8">
+              <select
+                id={`${idPrefix}-radius`}
+                value={radiusKm || 0}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  onRadiusChange?.(val);
+                  emitChange({
+                    state: value.state,
+                    district: value.district || '',
+                    city: value.city,
+                    pincode: value.pincode || '',
+                    addressLine: value.addressLine,
+                    latitude: value.latitude,
+                    longitude: value.longitude,
+                    radiusKm: val
+                  });
+                }}
+                className="w-full px-3 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 cursor-pointer shadow-2xs"
+              >
+                {RADIUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="sm:col-span-4 flex items-center gap-1 text-[11px] text-slate-600">
+              {value.latitude !== undefined && value.longitude !== undefined ? (
+                <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>GPS Lock: {value.latitude.toFixed(2)}°, {value.longitude.toFixed(2)}°</span>
+                </span>
+              ) : (
+                <span className="text-slate-500">
+                  {value.city || value.district || value.state
+                    ? `Center: ${value.city || value.district || value.state}`
+                    : 'Select a location to center radius'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Optional Street / Depot / Landmark Line */}
       {showAddressLine && (

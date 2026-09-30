@@ -67,7 +67,11 @@ Apply these SQL files in order using the Supabase SQL Editor:
 2. `supabase-apnahire-upgrade.sql`
 3. `supabase-security-hardening.sql`
 4. `supabase-marketplace-flows.sql`
-5. `supabase-payment-checkout.sql`
+5. `supabase-pan-india-locations.sql`
+6. `supabase-radius-search.sql`
+7. `supabase-payment-checkout.sql`
+
+Apply the location migrations after the marketplace migration. The radius-search migration is the final candidate-search RPC definition and keeps current driver location fields in `profiles` authoritative when reconciling older values in `driver_profiles`.
 
 The final migration creates payment-order records and a server-only, idempotent entitlement grant. Employer credits are activated only after the payment provider reports a captured payment and its signature is verified. Do not run these files against production until you have reviewed the SQL and backed up any existing production data.
 

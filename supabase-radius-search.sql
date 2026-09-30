@@ -1,6 +1,8 @@
--- ==============================================================================
+-- ================================================================================
 -- DriverHub India-Wide Spatial & Radius Candidate Search Migration
 -- ==============================================================================
+
+BEGIN;
 -- Adds latitude, longitude, district, and pincode columns to profiles and driver_profiles.
 -- Creates spatial indices and updates search_driverhub_candidates RPC with exact
 -- spherical Haversine distance calculation and radius filtering.
@@ -22,6 +24,26 @@ CREATE INDEX IF NOT EXISTS idx_driver_profiles_lat_lng ON public.driver_profiles
 CREATE INDEX IF NOT EXISTS idx_profiles_lat_lng ON public.profiles(latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_profiles_district ON public.profiles(district);
 CREATE INDEX IF NOT EXISTS idx_profiles_pincode ON public.profiles(pincode);
+
+-- public.profiles is the canonical source for a driver's current location.
+-- Repair old denormalized driver rows that still contain an earlier district/PIN.
+UPDATE public.driver_profiles AS d
+SET district = COALESCE(NULLIF(BTRIM(p.district), ''), d.district),
+    pincode = COALESCE(NULLIF(BTRIM(p.pincode), ''), d.pincode),
+    preferred_location = COALESCE(NULLIF(BTRIM(p.location), ''), d.preferred_location),
+    latitude = COALESCE(p.latitude, d.latitude),
+    longitude = COALESCE(p.longitude, d.longitude),
+    updated_at = now()
+FROM public.profiles AS p
+WHERE p.id = d.user_id
+  AND p.role::text = 'driver'
+  AND (
+    (NULLIF(BTRIM(p.district), '') IS NOT NULL AND d.district IS DISTINCT FROM NULLIF(BTRIM(p.district), '')) OR
+    (NULLIF(BTRIM(p.pincode), '') IS NOT NULL AND d.pincode IS DISTINCT FROM NULLIF(BTRIM(p.pincode), '')) OR
+    (NULLIF(BTRIM(p.location), '') IS NOT NULL AND d.preferred_location IS DISTINCT FROM NULLIF(BTRIM(p.location), '')) OR
+    (p.latitude IS NOT NULL AND d.latitude IS DISTINCT FROM p.latitude) OR
+    (p.longitude IS NOT NULL AND d.longitude IS DISTINCT FROM p.longitude)
+  );
 
 -- 3. Replace search_driverhub_candidates RPC with Spatial Distance & Radius Filter
 DROP FUNCTION IF EXISTS public.search_driverhub_candidates(text,text,text,text,integer,text,text,uuid,integer,integer,integer);
@@ -123,19 +145,19 @@ BEGIN
         WHERE unlocked.employer_id = auth.uid() AND unlocked.driver_id = p.id
       ) THEN p.email ELSE NULL END AS c_email,
       COALESCE(p.city, '') AS c_city,
-      COALESCE(d.district, p.district, '') AS c_district,
+      COALESCE(NULLIF(BTRIM(p.district), ''), NULLIF(BTRIM(d.district), ''), '') AS c_district,
       COALESCE(p.state, '') AS c_state,
-      COALESCE(d.pincode, p.pincode, '') AS c_pincode,
-      COALESCE(d.latitude, p.latitude) AS c_lat,
-      COALESCE(d.longitude, p.longitude) AS c_lng,
+      COALESCE(NULLIF(BTRIM(p.pincode), ''), NULLIF(BTRIM(d.pincode), ''), '') AS c_pincode,
+      COALESCE(p.latitude, d.latitude) AS c_lat,
+      COALESCE(p.longitude, d.longitude) AS c_lng,
       CASE 
-        WHEN p_lat IS NOT NULL AND p_lng IS NOT NULL AND COALESCE(d.latitude, p.latitude) IS NOT NULL AND COALESCE(d.longitude, p.longitude) IS NOT NULL THEN
+        WHEN p_lat IS NOT NULL AND p_lng IS NOT NULL AND COALESCE(p.latitude, d.latitude) IS NOT NULL AND COALESCE(p.longitude, d.longitude) IS NOT NULL THEN
           ROUND(
             (6371 * 2 * ASIN(
               SQRT(
-                POWER(SIN(RADIANS(COALESCE(d.latitude, p.latitude) - p_lat) / 2), 2) +
-                COS(RADIANS(p_lat)) * COS(RADIANS(COALESCE(d.latitude, p.latitude))) *
-                POWER(SIN(RADIANS(COALESCE(d.longitude, p.longitude) - p_lng) / 2), 2)
+                POWER(SIN(RADIANS(COALESCE(p.latitude, d.latitude) - p_lat) / 2), 2) +
+                COS(RADIANS(p_lat)) * COS(RADIANS(COALESCE(p.latitude, d.latitude))) *
+                POWER(SIN(RADIANS(COALESCE(p.longitude, d.longitude) - p_lng) / 2), 2)
               )
             ))::numeric, 1
           )::double precision
@@ -158,7 +180,7 @@ BEGIN
       COALESCE(d.vehicle_types, ARRAY[]::text[]) AS c_vehicle_types,
       d."current_role" AS c_current_role,
       d.education AS c_education,
-      d.preferred_location AS c_preferred_location,
+      COALESCE(NULLIF(BTRIM(p.location), ''), d.preferred_location) AS c_preferred_location,
       d.expected_salary AS c_expected_salary,
       d.availability AS c_availability,
       COALESCE(d.cv_attached, false) AS c_cv_attached,
@@ -182,10 +204,10 @@ BEGIN
         OR (p_category = 'HMV' AND (d.driver_category ILIKE '%truck%' OR d.driver_category ILIKE '%trailer%' OR d.driver_category ILIKE '%HMV%'))
         OR (p_category = 'LMV' AND (d.driver_category ILIKE '%cab%' OR d.driver_category ILIKE '%personal%' OR d.driver_category ILIKE '%tempo%' OR d.driver_category ILIKE '%LMV%'))
       )
-      AND (p_city IS NULL OR concat_ws(' ', p.city, d.preferred_location) ILIKE '%' || p_city || '%')
-      AND (p_district IS NULL OR concat_ws(' ', COALESCE(d.district, p.district, ''), d.preferred_location) ILIKE '%' || p_district || '%')
-      AND (p_state IS NULL OR concat_ws(' ', p.state, d.preferred_location) ILIKE '%' || p_state || '%')
-      AND (p_pincode IS NULL OR COALESCE(d.pincode, p.pincode, '') = p_pincode)
+      AND (p_city IS NULL OR COALESCE(p.city, '') ILIKE '%' || p_city || '%')
+      AND (p_district IS NULL OR COALESCE(NULLIF(BTRIM(p.district), ''), NULLIF(BTRIM(d.district), ''), '') ILIKE '%' || p_district || '%')
+      AND (p_state IS NULL OR COALESCE(p.state, '') ILIKE '%' || p_state || '%')
+      AND (p_pincode IS NULL OR COALESCE(NULLIF(BTRIM(p.pincode), ''), NULLIF(BTRIM(d.pincode), ''), '') = p_pincode)
       AND COALESCE(d.years_experience, 0) >= GREATEST(COALESCE(p_min_years, 0), 0)
       AND (p_skill IS NULL OR array_to_string(d.skills, ' ') ILIKE '%' || p_skill || '%')
       AND (
@@ -238,3 +260,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.search_driverhub_candidates(text,text,text,text,text,text,double precision,double precision,double precision,integer,text,text,uuid,integer,integer,integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.search_driverhub_candidates(text,text,text,text,text,text,double precision,double precision,double precision,integer,text,text,uuid,integer,integer,integer) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+COMMIT;

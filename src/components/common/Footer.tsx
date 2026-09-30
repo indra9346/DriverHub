@@ -148,9 +148,6 @@ export const Footer: React.FC = () => {
             <Link to="/about" className="hover:text-slate-400">{t('Privacy Policy')}</Link>
             <Link to="/about" className="hover:text-slate-400">{t('Terms of Service')}</Link>
             <Link to="/contact" className="hover:text-slate-400">{t('Driver Welfare')}</Link>
-            <Link to="/login?role=admin" className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" /> {t('Admin Login')}
-            </Link>
           </div>
         </div>
 

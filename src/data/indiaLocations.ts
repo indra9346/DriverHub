@@ -400,14 +400,18 @@ export function getAllIndianCities(): { city: string; state: string }[] {
   return list;
 }
 
+import { STATE_DISTRICTS_DIRECTORY } from '../services/indiaLocationService';
+
 /**
- * Get cities for a specific state
+ * Get cities and districts for a specific state
  */
 export function getCitiesForState(stateName: string): string[] {
   const found = ALL_INDIAN_STATES.find(
     s => s.state.toLowerCase() === stateName.toLowerCase() || s.code.toLowerCase() === stateName.toLowerCase()
   );
-  return found ? found.majorCities : [];
+  const baseCities = found ? found.majorCities : [];
+  const stateDistricts = STATE_DISTRICTS_DIRECTORY[found?.state || stateName]?.districts || [];
+  return Array.from(new Set([...baseCities, ...stateDistricts]));
 }
 
 /**
@@ -531,7 +535,7 @@ export function getSearchRoleSuggestions(
 
 export function getSearchLocationSuggestions(query: string): { city: string; state: string; label: string }[] {
   const q = query.trim().toLowerCase();
-  if (!q) return POPULAR_INDIAN_LOCATIONS.slice(0, 6);
+  if (!q) return POPULAR_INDIAN_LOCATIONS.slice(0, 8);
 
   const popularMatches = POPULAR_INDIAN_LOCATIONS.filter(l =>
     l.city.toLowerCase().includes(q) ||
@@ -540,18 +544,41 @@ export function getSearchLocationSuggestions(query: string): { city: string; sta
   );
 
   const otherMatches: { city: string; state: string; label: string }[] = [];
+  const seen = new Set(popularMatches.map(p => `${p.city.toLowerCase()}|${p.state.toLowerCase()}`));
+
   for (const st of ALL_INDIAN_STATES) {
-    if (st.state.toLowerCase().includes(q) && !popularMatches.some(p => p.state.toLowerCase() === st.state.toLowerCase())) {
+    if (st.state.toLowerCase().includes(q)) {
       const primaryCity = st.majorCities[0] || st.state;
-      otherMatches.push({ city: primaryCity, state: st.state, label: `${primaryCity}, ${st.state}` });
+      const key = `${primaryCity.toLowerCase()}|${st.state.toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        otherMatches.push({ city: primaryCity, state: st.state, label: `${primaryCity}, ${st.state}` });
+      }
     }
     for (const city of st.majorCities) {
-      if (city.toLowerCase().includes(q) && !popularMatches.some(p => p.city.toLowerCase() === city.toLowerCase())) {
-        otherMatches.push({ city, state: st.state, label: `${city}, ${st.state}` });
+      if (city.toLowerCase().includes(q)) {
+        const key = `${city.toLowerCase()}|${st.state.toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          otherMatches.push({ city, state: st.state, label: `${city}, ${st.state}` });
+        }
       }
     }
   }
 
-  return [...popularMatches, ...otherMatches].slice(0, 8);
+  for (const [stateName, info] of Object.entries(STATE_DISTRICTS_DIRECTORY)) {
+    for (const dist of info.districts) {
+      if (dist.toLowerCase().includes(q) || stateName.toLowerCase().includes(q)) {
+        const cleanCity = dist.replace(/\s*\([^)]*\)/, '').trim();
+        const key = `${cleanCity.toLowerCase()}|${stateName.toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          otherMatches.push({ city: cleanCity, state: stateName, label: `${dist}, ${stateName}` });
+        }
+      }
+    }
+  }
+
+  return [...popularMatches, ...otherMatches].slice(0, 10);
 }
 

@@ -10,6 +10,8 @@ import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { useLanguage } from '../../services/i18n';
 import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserType } from '../../types';
 import { getLoginPathForRole, getPostLoginPath } from '../../services/authRouting';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { StructuredPanIndiaLocation, formatStructuredLocation } from '../../services/indiaLocationService';
 
 export const RegisterPage: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -28,7 +30,13 @@ export const RegisterPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [location, setLocation] = useState('');
+  const [locationSelection, setLocationSelection] = useState<StructuredPanIndiaLocation>({
+    state: 'Karnataka',
+    district: 'Bengaluru Urban',
+    city: 'Bengaluru (GPO / MG Road)',
+    pincode: '560001',
+    formattedLocation: 'Bengaluru (GPO / MG Road), Bengaluru Urban Dist., Karnataka - 560001'
+  });
 
   // Driver fields
   const [driverName, setDriverName] = useState('');
@@ -55,6 +63,11 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
+    if (!locationSelection.state || !locationSelection.district || !locationSelection.city) {
+      setError('Please select your State/UT, District, and Town/City.');
+      return;
+    }
+
     if (!isSupabaseConfigured) {
       setError('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as Vercel Config environment variables, then redeploy.');
       return;
@@ -63,11 +76,22 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
     try {
       const fullName = role === 'driver' ? driverName : contactPerson;
+      const formattedLocation = formatStructuredLocation(locationSelection);
+      const selectedCity = locationSelection.city || locationSelection.district;
+      const selectedState = locationSelection.state;
+      const selectedDistrict = locationSelection.district;
+      const selectedPincode = locationSelection.pincode;
+
       const { data: authResult, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: { data: {
-          role, full_name: fullName, phone, city: location, state: 'Karnataka',
+          role, full_name: fullName, phone,
+          city: selectedCity,
+          district: selectedDistrict,
+          state: selectedState,
+          pincode: selectedPincode,
+          location: formattedLocation,
           company_name: role === 'employer' ? companyName : undefined,
           industry: role === 'employer' ? industry : undefined,
           driver_category: role === 'driver' ? driverCategory : undefined,
@@ -101,9 +125,11 @@ export const RegisterPage: React.FC = () => {
           fullName: driverName,
           phone,
           email: cleanEmail,
-          location,
-          city: location,
-          state: 'Karnataka',
+          location: formattedLocation,
+          city: selectedCity,
+          district: selectedDistrict,
+          state: selectedState,
+          pincode: selectedPincode,
           driverCategory: driverCategory as DriverCategory,
           licenseNumber: '',
           licenseType: licenseType || driverCategory,
@@ -136,9 +162,11 @@ export const RegisterPage: React.FC = () => {
           email: cleanEmail,
           phone,
           industry,
-          location,
-          city: location,
-          state: 'Karnataka',
+          location: formattedLocation,
+          city: selectedCity,
+          district: selectedDistrict,
+          state: selectedState,
+          pincode: selectedPincode,
           verified: false,
           status: 'active',
           createdAt: new Date().toISOString().slice(0, 10)
@@ -367,43 +395,39 @@ export const RegisterPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Password')}</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="new-password"
-                    autoComplete="new-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">{lang === 'kn' ? 'ನಗರ' : 'City'}</label>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Password')}</label>
+              <div className="relative">
                 <input
-                  type="text"
-                  name="address-level2"
-                  autoComplete="address-level2"
+                  type={showPassword ? 'text' : 'password'}
+                  name="new-password"
+                  autoComplete="new-password"
                   required
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="Bengaluru"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
+            </div>
+
+            <div className="pt-1 border-t border-slate-100">
+              <PanIndiaLocationSelector
+                value={locationSelection}
+                onChange={setLocationSelection}
+                mode="form"
+                layout="grid-2"
+                required
+                idPrefix="register-loc"
+              />
             </div>
 
             <button

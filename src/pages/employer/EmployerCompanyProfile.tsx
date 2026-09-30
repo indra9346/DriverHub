@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Save, CheckCircle2 } from 'lucide-react';
 import { DataStore } from '../../services/store';
+import { SupabaseSync } from '../../services/supabaseSync';
 import { EmployerProfile } from '../../types';
 import { useLanguage } from '../../services/i18n';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { parseStructuredLocation, formatStructuredLocation, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 export const EmployerCompanyProfile: React.FC = () => {
   const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [profile, setProfile] = useState<EmployerProfile | null>(null);
+  const [locationSelection, setLocationSelection] = useState<StructuredPanIndiaLocation>({
+    state: 'Karnataka',
+    district: 'Bengaluru Urban',
+    city: '',
+    pincode: '',
+    formattedLocation: ''
+  });
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -19,13 +29,29 @@ export const EmployerCompanyProfile: React.FC = () => {
       verified: false, status: 'pending' as const, createdAt: new Date().toISOString().slice(0, 10)
     };
     setProfile(c);
+    setLocationSelection(
+      parseStructuredLocation(c.location, c.state, c.district, c.city, c.pincode)
+    );
   }, [currentUser]);
 
   if (!profile) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    DataStore.updateEmployerProfile(profile);
+    const formattedLoc = formatStructuredLocation(locationSelection) || profile.location || profile.city || '';
+    const updatedProfile: EmployerProfile = {
+      ...profile,
+      state: locationSelection.state || profile.state,
+      district: locationSelection.district || profile.district,
+      city: locationSelection.city || locationSelection.district || profile.city,
+      pincode: locationSelection.pincode || profile.pincode,
+      location: formattedLoc
+    };
+    DataStore.updateEmployerProfile(updatedProfile);
+    if (currentUser) {
+      await SupabaseSync.registerUser(currentUser, updatedProfile);
+    }
+    setProfile(updatedProfile);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -119,27 +145,25 @@ export const EmployerCompanyProfile: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('city')}</label>
-              <input
-                type="text"
-                required
-                value={profile.city}
-                onChange={(e) => setProfile({ ...profile, city: e.target.value, location: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-brand-amber focus:bg-white focus:outline-none transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('state')}</label>
-              <input
-                type="text"
-                required
-                value={profile.state}
-                onChange={(e) => setProfile({ ...profile, state: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-brand-amber focus:bg-white focus:outline-none transition-all"
-              />
-            </div>
+          <div className="pt-2 border-t border-slate-100">
+            <PanIndiaLocationSelector
+              value={locationSelection}
+              onChange={(next) => {
+                setLocationSelection(next);
+                setProfile({
+                  ...profile,
+                  state: next.state,
+                  district: next.district,
+                  city: next.city || next.district,
+                  pincode: next.pincode,
+                  location: next.formattedLocation
+                });
+              }}
+              mode="form"
+              layout="grid-2"
+              required
+              idPrefix="employer-company-loc"
+            />
           </div>
 
           <div>

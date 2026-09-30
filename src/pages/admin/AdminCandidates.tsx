@@ -6,11 +6,20 @@ import { DataStore } from '../../services/store';
 import { DriverProfile, UserStatus } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useLanguage } from '../../services/i18n';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { matchesPanIndiaLocationFilter, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 export const AdminCandidates: React.FC = () => {
   const { t } = useLanguage();
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [search, setSearch] = useState('');
+  const [locationFilter, setLocationFilter] = useState<StructuredPanIndiaLocation>({
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
+    formattedLocation: ''
+  });
   const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -46,12 +55,25 @@ export const AdminCandidates: React.FC = () => {
     }
   };
 
-  const filtered = drivers.filter(d => 
-    d.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    d.email.toLowerCase().includes(search.toLowerCase()) ||
-    d.driverCategory.toLowerCase().includes(search.toLowerCase()) ||
-    d.location.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = drivers.filter(d => {
+    const matchesSearch =
+      !search.trim() ||
+      d.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      d.email.toLowerCase().includes(search.toLowerCase()) ||
+      d.driverCategory.toLowerCase().includes(search.toLowerCase()) ||
+      d.location.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    return matchesPanIndiaLocationFilter(
+      {
+        state: d.state,
+        district: d.district,
+        city: d.city,
+        pincode: d.pincode,
+        location: d.location
+      },
+      locationFilter
+    );
+  });
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
@@ -132,12 +154,23 @@ export const AdminCandidates: React.FC = () => {
         </div>
       </div>
 
+      {/* Pan-India Dependent Location Filter (State/UT -> District -> Town/City -> PIN Code) */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card">
+        <PanIndiaLocationSelector
+          value={locationFilter}
+          onChange={setLocationFilter}
+          mode="filter"
+          layout="grid-4"
+          idPrefix="admin-candidates-loc"
+        />
+      </div>
+
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-card divide-y divide-slate-100 overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-500">{search ? t('noMatchingResults') : t('noCandidatesFound')}</div>
+          <div className="p-10 text-center text-sm text-slate-500">{search || locationFilter.state || locationFilter.pincode ? t('noMatchingResults') : t('noCandidatesFound')}</div>
         ) : filtered.map((driver) => (
           <div key={driver.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
@@ -151,7 +184,7 @@ export const AdminCandidates: React.FC = () => {
                   <StatusBadge status={driver.status} size="sm" />
                 </div>
                 <p className="text-xs text-slate-500">
-                  {t(driver.driverCategory)} • {driver.experienceYears} {t('yearsExperience')} • {driver.location}
+                  {t(driver.driverCategory)} • {driver.experienceYears} {t('yearsExperience')} • {driver.location || [driver.city, driver.district, driver.state].filter(Boolean).join(', ')}
                 </p>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
                   <span>📞 {driver.phone}</span>

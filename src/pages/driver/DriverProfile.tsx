@@ -7,6 +7,8 @@ import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { DriverProfile, DriverCategory, DriverExperience } from '../../types';
 import { useLanguage } from '../../services/i18n';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { parseStructuredLocation, formatStructuredLocation, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 export const DriverProfilePage: React.FC = () => {
   const { t } = useLanguage();
@@ -27,6 +29,9 @@ export const DriverProfilePage: React.FC = () => {
       licenseExpiry: d.licenseExpiry ? d.licenseExpiry.slice(0, 10) : ''
     };
   });
+  const [locationSelection, setLocationSelection] = useState<StructuredPanIndiaLocation>(() =>
+    parseStructuredLocation(profile.location, profile.state, profile.district, profile.city, profile.pincode)
+  );
   const [skillsText, setSkillsText] = useState(() => profile.skills?.join(', ') || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -55,6 +60,9 @@ export const DriverProfilePage: React.FC = () => {
           licenseNumber: p.licenseNumber || '',
           licenseExpiry: p.licenseExpiry ? p.licenseExpiry.slice(0, 10) : ''
         });
+        setLocationSelection(
+          parseStructuredLocation(p.location, p.state, p.district, p.city, p.pincode)
+        );
         setSkillsText(p.skills?.join(', ') || '');
       }
     }
@@ -64,8 +72,14 @@ export const DriverProfilePage: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     const skills = skillsText.split(',').map(s => s.trim()).filter(Boolean);
+    const formattedLoc = formatStructuredLocation(locationSelection) || profile.location || profile.city || '';
     const updated: DriverProfile = { 
       ...profile, 
+      state: locationSelection.state || profile.state,
+      district: locationSelection.district || profile.district,
+      city: locationSelection.city || locationSelection.district || profile.city,
+      pincode: locationSelection.pincode || profile.pincode,
+      location: formattedLoc,
       skills,
       licenseNumber: (profile.licenseNumber || '').trim().toUpperCase(),
       licenseExpiry: profile.licenseExpiry ? profile.licenseExpiry.slice(0, 10) : ''
@@ -146,7 +160,7 @@ export const DriverProfilePage: React.FC = () => {
             <User className="w-4 h-4 text-brand-blue" /> {t('Personal & Contact Info')}
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('Full Legal Name')}</label>
               <input
@@ -178,17 +192,28 @@ export const DriverProfilePage: React.FC = () => {
                 className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 cursor-not-allowed"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('City / Residential Area')}</label>
-              <input
-                type="text"
-                required
-                value={profile.location || profile.city || ''}
-                onChange={(e) => setProfile(prev => ({ ...prev, location: e.target.value, city: e.target.value }))}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-brand-amber focus:bg-white focus:outline-none transition-all"
-              />
-            </div>
+          {/* Pan-India Dependent Location Selection */}
+          <div className="pt-2 border-t border-slate-100">
+            <PanIndiaLocationSelector
+              value={locationSelection}
+              onChange={(next) => {
+                setLocationSelection(next);
+                setProfile(prev => ({
+                  ...prev,
+                  state: next.state,
+                  district: next.district,
+                  city: next.city || next.district,
+                  pincode: next.pincode,
+                  location: next.formattedLocation
+                }));
+              }}
+              mode="form"
+              layout="grid-2"
+              required
+              idPrefix="driver-profile-loc"
+            />
           </div>
         </div>
 

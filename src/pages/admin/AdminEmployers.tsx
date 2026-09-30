@@ -6,11 +6,20 @@ import { DataStore } from '../../services/store';
 import { EmployerProfile } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useLanguage } from '../../services/i18n';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { matchesPanIndiaLocationFilter, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 export const AdminEmployers: React.FC = () => {
   const { t } = useLanguage();
   const [employers, setEmployers] = useState<EmployerProfile[]>([]);
   const [search, setSearch] = useState('');
+  const [locationFilter, setLocationFilter] = useState<StructuredPanIndiaLocation>({
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
+    formattedLocation: ''
+  });
   const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -45,11 +54,24 @@ export const AdminEmployers: React.FC = () => {
     }
   };
 
-  const filtered = employers.filter(e => 
-    e.companyName.toLowerCase().includes(search.toLowerCase()) ||
-    e.industry.toLowerCase().includes(search.toLowerCase()) ||
-    e.city.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = employers.filter(e => {
+    const matchesSearch =
+      !search.trim() ||
+      e.companyName.toLowerCase().includes(search.toLowerCase()) ||
+      e.industry.toLowerCase().includes(search.toLowerCase()) ||
+      e.city.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    return matchesPanIndiaLocationFilter(
+      {
+        state: e.state,
+        district: e.district,
+        city: e.city,
+        pincode: e.pincode,
+        location: e.location
+      },
+      locationFilter
+    );
+  });
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = React.useRef<HTMLDivElement>(null);
@@ -131,12 +153,23 @@ export const AdminEmployers: React.FC = () => {
         </div>
       </div>
 
+      {/* Pan-India Dependent Location Filter */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card">
+        <PanIndiaLocationSelector
+          value={locationFilter}
+          onChange={setLocationFilter}
+          mode="filter"
+          layout="grid-4"
+          idPrefix="admin-employers-loc"
+        />
+      </div>
+
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-card divide-y divide-slate-100 overflow-hidden">
         {filtered.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-500">{search ? t('noMatchingResults') : t('noEmployersFound')}</div>
+          <div className="p-10 text-center text-sm text-slate-500">{search || locationFilter.state || locationFilter.pincode ? t('noMatchingResults') : t('noEmployersFound')}</div>
         ) : filtered.map((emp) => (
           <div key={emp.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
@@ -154,7 +187,7 @@ export const AdminEmployers: React.FC = () => {
                   <StatusBadge status={emp.status === 'blocked' ? 'blocked' : emp.verified ? 'verified' : 'pending'} size="sm" />
                 </div>
                 <p className="text-xs text-slate-500">
-                  {emp.industry} • {t('contactPerson')}: {emp.contactPerson} • {emp.city}, {emp.state}
+                  {emp.industry} • {t('contactPerson')}: {emp.contactPerson} • {emp.location || [emp.city, emp.district, emp.state].filter(Boolean).join(', ')}
                 </p>
                 <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
                   <span>📞 {emp.phone}</span>

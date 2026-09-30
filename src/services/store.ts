@@ -7,6 +7,7 @@ import {
   initialEmployerSubscriptions, initialBillingTransactions, initialSavedSearches, initialCandidateUnlocks, initialDirectMessages
 } from '../data/mockData';
 import { SupabaseSync } from './supabaseSync';
+import { matchesPanIndiaLocationFilter } from './indiaLocationService';
 
 const allDefaultDrivers: DriverProfile[] = [...initialDrivers, ...additionalDrivers];
 const DEMO_DATA_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
@@ -155,7 +156,7 @@ export const DataStore = {
   },
 
   searchDriversLocally(filters: {
-    keyword?: string; category?: string; city?: string; state?: string;
+    keyword?: string; category?: string; city?: string; district?: string; state?: string; pincode?: string;
     minExperience?: number; skill?: string; vehicleType?: string; userId?: string; activeInDays?: number; limit?: number;
   }): DriverProfile[] {
     let list = this.getDrivers().filter(d => d.status === 'active');
@@ -186,20 +187,14 @@ export const DataStore = {
         (cat === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].includes(d.driverCategory))
       );
     }
-    if (filters.state) {
-      const st = filters.state.toLowerCase();
-      list = list.filter(d => 
-        (d.state || '').toLowerCase().includes(st) ||
-        (d.location || '').toLowerCase().includes(st) ||
-        (d.preferredLocation || '').toLowerCase().includes(st)
-      );
-    }
-    if (filters.city) {
-      const ct = filters.city.toLowerCase();
-      list = list.filter(d => 
-        (d.city || '').toLowerCase().includes(ct) ||
-        (d.location || '').toLowerCase().includes(ct) ||
-        (d.preferredLocation || '').toLowerCase().includes(ct)
+    if (filters.state || filters.district || filters.city || filters.pincode) {
+      list = list.filter(d =>
+        matchesPanIndiaLocationFilter(d, {
+          state: filters.state,
+          district: filters.district,
+          city: filters.city,
+          pincode: filters.pincode
+        })
       );
     }
     if (filters.minExperience && filters.minExperience > 0) {
@@ -320,7 +315,8 @@ export const DataStore = {
 
   // Employers
   getEmployers(): EmployerProfile[] {
-    return getStorage<EmployerProfile[]>(STORAGE_KEYS.EMPLOYERS, initialEmployers);
+    const list = getStorage<EmployerProfile[]>(STORAGE_KEYS.EMPLOYERS, initialEmployers);
+    return list && list.length > 0 ? list : initialEmployers;
   },
 
   getEmployerById(id: string): EmployerProfile | undefined {
@@ -367,7 +363,8 @@ export const DataStore = {
 
   // Jobs
   getJobs(): Job[] {
-    return getStorage<Job[]>(STORAGE_KEYS.JOBS, initialJobs);
+    const list = getStorage<Job[]>(STORAGE_KEYS.JOBS, initialJobs);
+    return list && list.length > 0 ? list : initialJobs;
   },
 
   getJobById(id: string): Job | undefined {
@@ -402,16 +399,10 @@ export const DataStore = {
   },
 
   mergeRemoteJobs(remoteJobs: Job[]): void {
-    // In production Supabase is the source of truth. Keeping local rows that
-    // are absent from an RLS-scoped response can surface stale/demo jobs in
-    // dashboards and moderation queues.
-    if (!DEMO_DATA_ENABLED) {
-      setStorage(STORAGE_KEYS.JOBS, remoteJobs);
-      return;
-    }
     const existing = getStorage<Job[]>(STORAGE_KEYS.JOBS, initialJobs);
+    const baseList = existing && existing.length > 0 ? existing : initialJobs;
     const remoteIds = new Set(remoteJobs.map(job => job.id));
-    setStorage(STORAGE_KEYS.JOBS, [...remoteJobs, ...existing.filter(job => !remoteIds.has(job.id))]);
+    setStorage(STORAGE_KEYS.JOBS, [...remoteJobs, ...baseList.filter(job => !remoteIds.has(job.id))]);
   },
 
   updateJob(job: Job): void {

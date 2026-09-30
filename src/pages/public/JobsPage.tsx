@@ -8,6 +8,8 @@ import {
 import { DataStore } from '../../services/store';
 import { Job, DriverCategory } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { matchesPanIndiaLocationFilter } from '../../services/indiaLocationService';
 import { useLanguage, formatMinSalaryThreshold } from '../../services/i18n';
 import { 
   ALL_INDIAN_STATES, 
@@ -28,11 +30,13 @@ export const JobsPage: React.FC = () => {
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
 
-  // Pan-India Filter States
+  // Pan-India Filter States (State/UT -> District -> Town/City -> PIN code)
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(() => searchParams.get('category') || '');
   const [selectedState, setSelectedState] = useState(() => searchParams.get('state') || '');
+  const [selectedDistrict, setSelectedDistrict] = useState(() => searchParams.get('district') || '');
   const [selectedCity, setSelectedCity] = useState(() => searchParams.get('city') || searchParams.get('location') || '');
+  const [selectedPincode, setSelectedPincode] = useState(() => searchParams.get('pincode') || '');
   const [selectedArea, setSelectedArea] = useState(() => searchParams.get('area') || '');
   const [selectedType, setSelectedType] = useState(() => searchParams.get('type') || '');
   const [minSalary, setMinSalary] = useState<number>(() => Number(searchParams.get('minSalary')) || 0);
@@ -83,7 +87,9 @@ export const JobsPage: React.FC = () => {
     const q = searchParams.get('q') || '';
     const cat = searchParams.get('category') || '';
     const st = searchParams.get('state') || '';
+    const dist = searchParams.get('district') || '';
     const ct = searchParams.get('city') || searchParams.get('location') || '';
+    const pin = searchParams.get('pincode') || '';
     const ar = searchParams.get('area') || '';
     const ty = searchParams.get('type') || '';
     const sal = Number(searchParams.get('minSalary')) || 0;
@@ -92,7 +98,9 @@ export const JobsPage: React.FC = () => {
     setSearchQuery(q);
     setSelectedCategory(cat);
     setSelectedState(st);
+    setSelectedDistrict(dist);
     setSelectedCity(ct);
+    setSelectedPincode(pin);
     setSelectedArea(ar);
     setSelectedType(ty);
     setMinSalary(sal);
@@ -136,7 +144,9 @@ export const JobsPage: React.FC = () => {
     q?: string;
     category?: string;
     state?: string;
+    district?: string;
     city?: string;
+    pincode?: string;
     area?: string;
     type?: string;
     minSalary?: number;
@@ -145,7 +155,9 @@ export const JobsPage: React.FC = () => {
     const nextQ = updates.q !== undefined ? updates.q : searchQuery;
     const nextCat = updates.category !== undefined ? updates.category : selectedCategory;
     const nextSt = updates.state !== undefined ? updates.state : selectedState;
+    const nextDist = updates.district !== undefined ? updates.district : selectedDistrict;
     const nextCt = updates.city !== undefined ? updates.city : selectedCity;
+    const nextPin = updates.pincode !== undefined ? updates.pincode : selectedPincode;
     const nextAr = updates.area !== undefined ? updates.area : selectedArea;
     const nextTy = updates.type !== undefined ? updates.type : selectedType;
     const nextSal = updates.minSalary !== undefined ? updates.minSalary : minSalary;
@@ -155,7 +167,9 @@ export const JobsPage: React.FC = () => {
     if (nextQ) params.set('q', nextQ);
     if (nextCat) params.set('category', nextCat);
     if (nextSt) params.set('state', nextSt);
+    if (nextDist) params.set('district', nextDist);
     if (nextCt) params.set('city', nextCt);
+    if (nextPin) params.set('pincode', nextPin);
     if (nextAr) params.set('area', nextAr);
     if (nextTy) params.set('type', nextTy);
     if (nextSal > 0) params.set('minSalary', nextSal.toString());
@@ -198,7 +212,9 @@ export const JobsPage: React.FC = () => {
     setSearchQuery('');
     setSelectedCategory('');
     setSelectedState('');
+    setSelectedDistrict('');
     setSelectedCity('');
+    setSelectedPincode('');
     setSelectedArea('');
     setSelectedType('');
     setMinSalary(0);
@@ -259,41 +275,38 @@ export const JobsPage: React.FC = () => {
         job.category.toLowerCase().includes(selectedCategory.toLowerCase()) ||
         selectedCategory.toLowerCase().includes(job.category.toLowerCase()) ||
         (selectedCategory === 'HMV' && ['HMV', 'HMV-Transport', 'Trailer Driver', 'Heavy Truck'].some(c => job.category.includes(c))) ||
-        (selectedCategory === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].some(c => job.category.includes(c)));
+        (selectedCategory === 'LMV' && ['LMV', 'LMV-Transport', 'Personal Driver', 'Cab Driver', 'Tempo Driver'].some(c => job.category.includes(c))) ||
+        (selectedCategory === 'Commercial Driver' && ['Commercial Driver', 'Bus Driver', 'Cab Driver', 'LMV-Transport'].some(c => job.category.includes(c)));
 
-      // 3. State match
-      const matchesState = 
-        !selectedState ||
-        job.state.toLowerCase() === selectedState.toLowerCase() ||
-        job.location.toLowerCase().includes(selectedState.toLowerCase());
+      // 3. Pan-India Location match (State/UT -> District -> Town/City -> PIN code)
+      const matchesPanIndia = matchesPanIndiaLocationFilter(job, {
+        state: selectedState,
+        district: selectedDistrict,
+        city: selectedCity,
+        pincode: selectedPincode
+      });
 
-      // 4. City match
-      const matchesCity = 
-        !selectedCity ||
-        job.city.toLowerCase() === selectedCity.toLowerCase() ||
-        job.location.toLowerCase().includes(selectedCity.toLowerCase());
-
-      // 5. Area / Corridor match
+      // 4. Area / Corridor match
       const matchesArea = 
         !selectedArea ||
         job.location.toLowerCase().includes(selectedArea.toLowerCase()) ||
         job.description.toLowerCase().includes(selectedArea.toLowerCase());
 
-      // 6. Employment type match
+      // 5. Employment type match
       const matchesType = !selectedType || job.employmentType === selectedType;
 
-      // 7. Salary match (Exact minimum guaranteed threshold)
+      // 6. Salary match (Exact minimum guaranteed threshold)
       const matchesSalary = minSalary === 0 || job.salaryMax >= minSalary;
 
-      // 8. Skill match
+      // 7. Skill match
       const matchesSkill = 
         !selectedSkill ||
         job.requiredSkills?.some(s => s.toLowerCase().includes(selectedSkill.toLowerCase())) ||
         job.description.toLowerCase().includes(selectedSkill.toLowerCase());
 
-      return matchesQuery && matchesCategory && matchesState && matchesCity && matchesArea && matchesType && matchesSalary && matchesSkill;
+      return matchesQuery && matchesCategory && matchesPanIndia && matchesArea && matchesType && matchesSalary && matchesSkill;
     });
-  }, [jobs, searchQuery, selectedCategory, selectedState, selectedCity, selectedArea, selectedType, minSalary, selectedSkill]);
+  }, [jobs, searchQuery, selectedCategory, selectedState, selectedDistrict, selectedCity, selectedPincode, selectedArea, selectedType, minSalary, selectedSkill]);
 
   // Paginated jobs
   const totalPages = Math.max(1, Math.ceil(filteredJobs.length / itemsPerPage));
@@ -359,7 +372,7 @@ export const JobsPage: React.FC = () => {
             onClick={() => setIsMobileFilterOpen(true)}
             className="lg:hidden flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-3 rounded-xl text-xs shadow-lg transition-all cursor-pointer"
           >
-            <SlidersHorizontal className="w-4 h-4" /> {t('Filters ({count})', { count: [selectedCategory, selectedState, selectedCity, selectedArea, selectedType, minSalary > 0, selectedSkill].filter(Boolean).length })}
+            <SlidersHorizontal className="w-4 h-4" /> {t('Filters ({count})', { count: [selectedCategory, selectedState, selectedDistrict, selectedCity, selectedPincode, selectedArea, selectedType, minSalary > 0, selectedSkill].filter(Boolean).length })}
           </button>
         </div>
 
@@ -377,8 +390,10 @@ export const JobsPage: React.FC = () => {
                 onClick={() => {
                   setSelectedCity(hub.city);
                   setSelectedState(hub.state);
+                  setSelectedDistrict('');
+                  setSelectedPincode('');
                   setSelectedArea('');
-                  updateUrlParams({ city: hub.city, state: hub.state, area: '' });
+                  updateUrlParams({ city: hub.city, state: hub.state, district: '', pincode: '', area: '' });
                 }}
                 className={`shrink-0 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer text-[11px] ${
                   isSelected
@@ -391,6 +406,34 @@ export const JobsPage: React.FC = () => {
             );
           })}
         </div>
+      </div>
+
+      {/* Pan-India Dependent Location Filter Bar (State/UT -> District -> Town/City -> PIN code) */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-subtle">
+        <PanIndiaLocationSelector
+          mode="filter"
+          layout="grid"
+          value={{
+            state: selectedState,
+            district: selectedDistrict,
+            city: selectedCity,
+            pincode: selectedPincode
+          }}
+          onChange={(next) => {
+            setSelectedState(next.state);
+            setSelectedDistrict(next.district);
+            setSelectedCity(next.city);
+            setSelectedPincode(next.pincode);
+            setSelectedArea('');
+            updateUrlParams({
+              state: next.state,
+              district: next.district,
+              city: next.city,
+              pincode: next.pincode,
+              area: ''
+            });
+          }}
+        />
       </div>
 
       {/* Main Grid: Filters Sidebar + Job Listings */}

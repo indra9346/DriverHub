@@ -67,7 +67,9 @@ export interface SavedSearch {
   title: string;
   category: string;
   city: string;
+  district?: string;
   state?: string;
+  pincode?: string;
   keyword?: string;
   vehicleType?: string;
   activeInDays?: number;
@@ -106,7 +108,9 @@ export interface DriverProfile {
   email: string;
   location: string;
   city: string;
+  district?: string;
   state: string;
+  pincode?: string;
   driverCategory: DriverCategory | '';
   licenseNumber: string;
   licenseType: string;
@@ -168,7 +172,9 @@ export interface EmployerProfile {
   industry: string;
   location: string;
   city: string;
+  district?: string;
   state: string;
+  pincode?: string;
   address?: string;
   website?: string;
   logoUrl?: string;
@@ -189,7 +195,9 @@ export interface Job {
   category: DriverCategory;
   location: string;
   city: string;
+  district?: string;
   state: string;
+  pincode?: string;
   workLocationType?: 'Work From Depot / Office' | 'Client / Household Site' | 'Interstate / Field Route';
   experienceRequired: string;
   experienceMinYears?: number;

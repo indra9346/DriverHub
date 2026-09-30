@@ -1,5 +1,6 @@
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 import { Job, Application, DriverProfile, EmployerProfile, User, Notification, DriverDocument, DirectMessage, SavedSearch, FavoriteJob, DriverExperience } from '../types';
+import { parseStructuredLocation } from './indiaLocationService';
 
 // Helper to convert any string ID to a valid deterministic UUID
 export function toUUID(id: string): string {
@@ -49,28 +50,33 @@ export const SupabaseSync = {
       counts.set(row.employer_id, (counts.get(row.employer_id) || 0) + vacancies);
     }
 
-    return companies.map((row: any) => ({
-      employer: {
-        id: row.user_id,
-        companyName: row.company_name || '',
-        contactPerson: '',
-        email: '',
-        phone: '',
-        industry: row.industry || '',
-        location: row.location || row.city || '',
-        city: row.city || '',
-        state: row.state || '',
-        address: '',
-        website: row.website || '',
-        logoUrl: row.logo_url || '',
-        description: row.description || '',
-        gstin: '',
-        verified: Boolean(row.verified),
-        status: row.status || 'active',
-        createdAt: row.created_at?.slice(0, 10) || ''
-      },
-      activeVacancyCount: counts.get(row.user_id) || 0
-    }));
+    return companies.map((row: any) => {
+      const parsed = parseStructuredLocation(row.location, row.state, row.district, row.city, row.pincode);
+      return {
+        employer: {
+          id: row.user_id,
+          companyName: row.company_name || '',
+          contactPerson: '',
+          email: '',
+          phone: '',
+          industry: row.industry || '',
+          location: row.location || row.city || '',
+          city: row.city || parsed.city || '',
+          district: row.district || parsed.district || undefined,
+          state: row.state || parsed.state || '',
+          pincode: row.pincode || parsed.pincode || undefined,
+          address: '',
+          website: row.website || '',
+          logoUrl: row.logo_url || '',
+          description: row.description || '',
+          gstin: '',
+          verified: Boolean(row.verified),
+          status: row.status || 'active',
+          createdAt: row.created_at?.slice(0, 10) || ''
+        },
+        activeVacancyCount: counts.get(row.user_id) || 0
+      };
+    });
   },
 
   subscribeToPublicEmployerDirectory(onChange: () => void) {
@@ -87,21 +93,78 @@ export const SupabaseSync = {
     if (!isSupabaseConfigured) return null;
     try {
       const { data, error } = await supabase.rpc('get_driverhub_public_stats');
-      if (error) throw error;
-      if (!data || typeof data !== 'object') return null;
-      const stats = data as Record<string, unknown>;
-      const values = [stats.verifiedDrivers, stats.verifiedEmployers, stats.activeVacancies, stats.hires];
-      if (values.some(value => typeof value !== 'number' || !Number.isFinite(value)) ||
-        !stats.vacanciesByCategory || typeof stats.vacanciesByCategory !== 'object' || Array.isArray(stats.vacanciesByCategory)) return null;
-      const vacanciesByCategory = Object.fromEntries(
-        Object.entries(stats.vacanciesByCategory as Record<string, unknown>)
-          .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))
-      );
+      if (!error && data && typeof data === 'object') {
+        const stats = data as Record<string, unknown>;
+        const values = [stats.verifiedDrivers, stats.verifiedEmployers, stats.activeVacancies, stats.hires];
+        if (
+          !values.some(value => typeof value !== 'number' || !Number.isFinite(value)) &&
+          stats.vacanciesByCategory &&
+          typeof stats.vacanciesByCategory === 'object' &&
+          !Array.isArray(stats.vacanciesByCategory)
+        ) {
+          const vacanciesByCategory = Object.fromEntries(
+            Object.entries(stats.vacanciesByCategory as Record<string, unknown>)
+              .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))
+          );
+          return {
+            verifiedDrivers: stats.verifiedDrivers as number,
+            verifiedEmployers: stats.verifiedEmployers as number,
+            activeVacancies: stats.activeVacancies as number,
+            hires: stats.hires as number,
+            vacanciesByCategory
+          };
+        }
+      }
+    } catch {
+      // Fallback to direct queries below if RPC is unavailable
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const [
+        { data: activeJobs, error: jobsErr },
+        { count: verifiedEmpCount },
+        { count: driverCount },
+        { count: hiresCount }
+      ] = await Promise.all([
+        supabase
+          .from('jobs')
+          .select('category,vacancies,status,expires_at,application_deadline')
+          .eq('status', 'active'),
+        supabase
+          .from('companies')
+          .select('user_id', { count: 'exact', head: true })
+          .eq('verified', true)
+          .eq('status', 'active'),
+        supabase
+          .from('driver_profiles')
+          .select('user_id', { count: 'exact', head: true }),
+        supabase
+          .from('applications')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'hired')
+      ]);
+
+      if (jobsErr) return null;
+
+      const vacanciesByCategory: Record<string, number> = {};
+      let activeVacancies = 0;
+      for (const row of activeJobs || []) {
+        if (row.expires_at && row.expires_at <= now) continue;
+        if (row.application_deadline && row.application_deadline < now.slice(0, 10)) continue;
+        const count = Math.max(1, Number(row.vacancies) || 1);
+        activeVacancies += count;
+        const key = String(row.category || '').trim().toLowerCase();
+        if (key) {
+          vacanciesByCategory[key] = (vacanciesByCategory[key] || 0) + count;
+        }
+      }
+
       return {
-        verifiedDrivers: stats.verifiedDrivers as number,
-        verifiedEmployers: stats.verifiedEmployers as number,
-        activeVacancies: stats.activeVacancies as number,
-        hires: stats.hires as number,
+        verifiedDrivers: driverCount ?? 0,
+        verifiedEmployers: verifiedEmpCount ?? 0,
+        activeVacancies,
+        hires: hiresCount ?? 0,
         vacanciesByCategory
       };
     } catch (error) {
@@ -1046,25 +1109,30 @@ export const SupabaseSync = {
       // Fetch all public & verified company profiles from Supabase so all devices (drivers, visitors, employers) sync verified partners
       const { data: allCompanies } = await supabase.from('companies').select('*');
       if (allCompanies && allCompanies.length > 0) {
-        const publicEmployers: EmployerProfile[] = allCompanies.map((c: any) => ({
-          id: c.user_id,
-          companyName: c.company_name || 'Verified Fleet Partner',
-          contactPerson: c.contact_person || '',
-          email: c.email || '',
-          phone: c.phone || '',
-          industry: c.industry || 'Logistics & Fleet Transport',
-          location: c.location || [c.city, c.state].filter(Boolean).join(', ') || 'India',
-          city: c.city || '',
-          state: c.state || '',
-          address: c.address || '',
-          website: c.website || '',
-          logoUrl: c.logo_url || '',
-          description: c.description || '',
-          gstin: c.gstin || '',
-          verified: Boolean(c.verified),
-          status: c.status === 'suspended' ? 'blocked' : (c.status || (c.verified ? 'active' : 'pending')),
-          createdAt: c.created_at?.slice(0, 10) || ''
-        }));
+        const publicEmployers: EmployerProfile[] = allCompanies.map((c: any) => {
+          const parsedLoc = parseStructuredLocation(c.location, c.state, c.district, c.city, c.pincode);
+          return {
+            id: c.user_id,
+            companyName: c.company_name || 'Verified Fleet Partner',
+            contactPerson: c.contact_person || '',
+            email: c.email || '',
+            phone: c.phone || '',
+            industry: c.industry || 'Logistics & Fleet Transport',
+            location: c.location || [c.city, c.state].filter(Boolean).join(', ') || 'India',
+            city: c.city || parsedLoc.city || '',
+            district: c.district || parsedLoc.district || undefined,
+            state: c.state || parsedLoc.state || '',
+            pincode: c.pincode || parsedLoc.pincode || undefined,
+            address: c.address || '',
+            website: c.website || '',
+            logoUrl: c.logo_url || '',
+            description: c.description || '',
+            gstin: c.gstin || '',
+            verified: Boolean(c.verified),
+            status: c.status === 'suspended' ? 'blocked' : (c.status || (c.verified ? 'active' : 'pending')),
+            createdAt: c.created_at?.slice(0, 10) || ''
+          };
+        });
         dataStore.mergeRemoteEmployers(publicEmployers);
       }
 
@@ -1074,10 +1142,15 @@ export const SupabaseSync = {
       const companyById = new Map((allCompanies || []).map((company: any) => [company.user_id, company]));
       const jobs: Job[] = rows.map((row: any) => {
         const company = companyById.get(row.employer_id) as any;
+        const parsedLoc = parseStructuredLocation(row.location, row.state, row.district, row.city, row.pincode);
         return {
           id: row.id, employerId: row.employer_id, companyName: row.company_name || company?.company_name || 'Verified employer',
           companyLogo: company?.logo_url || undefined, postedBy: company?.contact_person || undefined,
-          title: row.title, category: row.category, location: row.location, city: row.city || '', state: row.state || '',
+          title: row.title, category: row.category, location: row.location,
+          city: row.city || parsedLoc.city || '',
+          district: row.district || parsedLoc.district || undefined,
+          state: row.state || parsedLoc.state || '',
+          pincode: row.pincode || parsedLoc.pincode || undefined,
           experienceRequired: row.experience_required || '', experienceMinYears: row.experience_min_years || 0,
           salaryMin: row.salary_min || 0, salaryMax: row.salary_max || 0, salaryType: row.salary_type || 'monthly',
           workingHours: row.working_hours || '', employmentType: row.employment_type || 'Full-time',

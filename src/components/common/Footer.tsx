@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Phone, Mail, MapPin, Award } from 'lucide-react';
+import { ShieldCheck, Phone, Mail, MapPin, Award, Heart } from 'lucide-react';
 import { Logo } from './Logo';
 import { useLanguage } from '../../services/i18n';
 
 export const Footer: React.FC = () => {
   const { t } = useLanguage();
+  const [logoFailed, setLogoFailed] = useState(false);
 
   return (
     <footer className="bg-[#051626] text-slate-300 border-t border-slate-800/90 pt-16 pb-12 mt-auto">
@@ -143,7 +144,7 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright & attribution */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© {new Date().getFullYear()} Driver Hub Inc. {t('All rights reserved.')}</p>
-          <div className="flex items-center gap-5 text-xs">
+          <div className="flex items-center flex-wrap justify-center gap-5 text-xs">
             <Link to="/about" className="hover:text-slate-400">{t('Privacy Policy')}</Link>
             <Link to="/about" className="hover:text-slate-400">{t('Terms of Service')}</Link>
             <Link to="/contact" className="hover:text-slate-400">{t('Driver Welfare')}</Link>
@@ -155,20 +156,39 @@ export const Footer: React.FC = () => {
 
         {/* Developer Attribution */}
         <div className="mt-8 pt-6 border-t border-slate-800/60 flex items-center justify-center">
-          <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs text-slate-400">
-            <span className="font-semibold tracking-wider uppercase text-slate-400 text-[11px]">
-              DEVELOPED BY
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 text-xs sm:text-sm text-slate-300 text-center">
+            <span className="font-medium tracking-wide text-slate-300">
+              Designed &amp; Developed with
             </span>
-            <div className="inline-flex items-center bg-[#111110] px-2.5 py-1 rounded-md border border-slate-800 shadow-sm">
-              <img
-                src="/hosting-baba-logo.png"
-                alt="Hosting Baba"
-                className="h-6 w-auto object-contain"
-              />
-            </div>
-            <span className="font-bold text-slate-200 text-xs tracking-wide">
-              Hosting Baba
+            <Heart
+              className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0 inline-block"
+              aria-label="love"
+              role="img"
+            />
+            <span className="font-medium tracking-wide text-slate-300">
+              by
             </span>
+            <a
+              href="https://webhostingbaba.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Hosting Baba official website (opens in a new tab)"
+              title="Visit Hosting Baba — https://webhostingbaba.com/"
+              className="inline-flex items-center bg-[#111110] hover:bg-[#1b1b19] px-2.5 py-1 rounded-lg border border-slate-700/90 hover:border-amber-400/60 shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+            >
+              {!logoFailed ? (
+                <img
+                  src="/hosting-baba-logo.png"
+                  alt="Hosting Baba"
+                  onError={() => setLogoFailed(true)}
+                  className="h-6 sm:h-7 w-auto object-contain select-none"
+                />
+              ) : (
+                <span className="font-extrabold text-white text-xs sm:text-sm tracking-wide px-1.5 py-0.5">
+                  Hosting Baba
+                </span>
+              )}
+            </a>
           </div>
         </div>
       </div>

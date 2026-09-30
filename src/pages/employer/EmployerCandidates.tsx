@@ -17,6 +17,8 @@ import {
   POPULAR_SEARCH_ROLES
 } from '../../data/indiaLocations';
 import { useLanguage } from '../../services/i18n';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { matchesPanIndiaLocationFilter } from '../../services/indiaLocationService';
 
 export const EmployerCandidates: React.FC = () => {
   const { t } = useLanguage();
@@ -44,9 +46,11 @@ export const EmployerCandidates: React.FC = () => {
   const [keyword, setKeyword] = useState(searchParams.get('q') || '');
   const [categoryFilter, setCategoryFilter] = useState<string>(searchParams.get('category') || '');
   const [selectedState, setSelectedState] = useState<string>(searchParams.get('state') || '');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>(searchParams.get('district') || '');
   const [selectedCities, setSelectedCities] = useState<string[]>(
     searchParams.get('city') ? [searchParams.get('city')!] : []
   );
+  const [selectedPincode, setSelectedPincode] = useState<string>(searchParams.get('pincode') || '');
   const [minimumExperience, setMinimumExperience] = useState(0);
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState('');
   const [citySearch, setCitySearch] = useState<string>('');
@@ -108,11 +112,15 @@ export const EmployerCandidates: React.FC = () => {
   useEffect(() => {
     const qCat = searchParams.get('category');
     const qCity = searchParams.get('city');
+    const qDistrict = searchParams.get('district');
     const qState = searchParams.get('state');
+    const qPincode = searchParams.get('pincode');
     const qTerm = searchParams.get('q');
     if (qCat !== null) setCategoryFilter(qCat);
     if (qCity !== null) setSelectedCities(qCity ? [qCity] : []);
+    if (qDistrict !== null) setSelectedDistrict(qDistrict);
     if (qState !== null) setSelectedState(qState);
+    if (qPincode !== null) setSelectedPincode(qPincode);
     if (qTerm !== null) setKeyword(qTerm);
   }, [searchParams]);
 
@@ -125,7 +133,9 @@ export const EmployerCandidates: React.FC = () => {
         keyword,
         category: categoryFilter,
         city: selectedCities.length === 1 ? selectedCities[0] : '',
+        district: selectedDistrict,
         state: selectedState,
+        pincode: selectedPincode,
         minExperience: minimumExperience,
         skill: mustHaveSkill,
         vehicleType: vehicleTypeFilter,
@@ -157,7 +167,7 @@ export const EmployerCandidates: React.FC = () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [employerId, keyword, categoryFilter, selectedCities, selectedState, minimumExperience, mustHaveSkill, vehicleTypeFilter, activeInDays]);
+  }, [employerId, keyword, categoryFilter, selectedCities, selectedDistrict, selectedState, selectedPincode, minimumExperience, mustHaveSkill, vehicleTypeFilter, activeInDays]);
 
   const showToast = (text: string, type: 'success' | 'warning' = 'success') => {
     setToast({ text, type });
@@ -216,15 +226,27 @@ export const EmployerCandidates: React.FC = () => {
       );
     }
 
-    if (selectedState) {
+    if (selectedState || selectedDistrict || selectedPincode || selectedCities.length === 1) {
       list = list.filter(d =>
-        (d.state || '').toLowerCase().includes(selectedState.toLowerCase()) ||
-        (d.location || '').toLowerCase().includes(selectedState.toLowerCase()) ||
-        (d.preferredLocation || '').toLowerCase().includes(selectedState.toLowerCase())
+        matchesPanIndiaLocationFilter(
+          {
+            state: d.state,
+            district: d.district,
+            city: d.city,
+            pincode: d.pincode,
+            location: `${d.location || ''} ${d.preferredLocation || ''}`
+          },
+          {
+            state: selectedState,
+            district: selectedDistrict,
+            city: selectedCities.length === 1 ? selectedCities[0] : '',
+            pincode: selectedPincode
+          }
+        )
       );
     }
 
-    if (selectedCities.length > 0) {
+    if (selectedCities.length > 1) {
       list = list.filter(d =>
         selectedCities.some(
           c =>
@@ -272,7 +294,9 @@ export const EmployerCandidates: React.FC = () => {
     keyword,
     categoryFilter,
     selectedState,
+    selectedDistrict,
     selectedCities,
+    selectedPincode,
     hideUnlocked,
     hideDownloaded,
     onlyCvAttached,
@@ -287,6 +311,8 @@ export const EmployerCandidates: React.FC = () => {
   const appliedFilterCount =
     (categoryFilter ? 1 : 0) +
     (selectedState ? 1 : 0) +
+    (selectedDistrict ? 1 : 0) +
+    (selectedPincode ? 1 : 0) +
     (hideUnlocked ? 1 : 0) +
     (hideDownloaded ? 1 : 0) +
     (onlyCvAttached ? 1 : 0) +
@@ -305,7 +331,9 @@ export const EmployerCandidates: React.FC = () => {
     keyword,
     categoryFilter,
     selectedState,
+    selectedDistrict,
     selectedCities,
+    selectedPincode,
     hideUnlocked,
     hideDownloaded,
     onlyCvAttached,
@@ -482,7 +510,9 @@ export const EmployerCandidates: React.FC = () => {
     setKeyword('');
     setCategoryFilter('');
     setSelectedState('');
+    setSelectedDistrict('');
     setSelectedCities([]);
+    setSelectedPincode('');
     setCitySearch('');
     setMinimumExperience(0);
     setVehicleTypeFilter('');
@@ -1041,44 +1071,42 @@ export const EmployerCandidates: React.FC = () => {
               </div>
             </div>
 
-            {/* Section 5: State & Union Territory */}
+            {/* Section 5: Pan-India Location Hierarchy (State/UT -> District -> Town/City -> PIN Code) */}
             <div className="p-4 border-b border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800">Operating State / UT</span>
-                {selectedState && (
-                  <button
-                    onClick={() => {
-                      setSelectedState('');
-                      setSelectedCities([]);
-                    }}
-                    className="text-[11px] font-semibold text-emerald-700 hover:underline cursor-pointer"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <select
-                value={selectedState}
-                onChange={e => {
-                  setSelectedState(e.target.value);
-                  setSelectedCities([]);
+              <PanIndiaLocationSelector
+                value={{
+                  state: selectedState,
+                  district: selectedDistrict,
+                  city: selectedCities[0] || '',
+                  pincode: selectedPincode
                 }}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
-              >
-                <option value="">All Indian States & UTs ({drivers.length} Drivers)</option>
-                {ALL_INDIAN_STATES.map(st => (
-                  <option key={st.state} value={st.state}>
-                    {st.state} ({st.region}) {stateCounts[st.state] ? `• ${stateCounts[st.state]} active` : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={(next) => {
+                  setSelectedState(next.state);
+                  setSelectedDistrict(next.district);
+                  setSelectedCities(next.city ? [next.city] : []);
+                  setSelectedPincode(next.pincode);
+                  const params = new URLSearchParams(searchParams);
+                  if (next.state) params.set('state', next.state);
+                  else params.delete('state');
+                  if (next.district) params.set('district', next.district);
+                  else params.delete('district');
+                  if (next.city) params.set('city', next.city);
+                  else params.delete('city');
+                  if (next.pincode) params.set('pincode', next.pincode);
+                  else params.delete('pincode');
+                  setSearchParams(params, { replace: true });
+                }}
+                mode="filter"
+                layout="vertical"
+                idPrefix="emp-candidate-loc"
+              />
             </div>
 
-            {/* Section 6: Current City / Area */}
+            {/* Section 6: Multi-City Quick Checkboxes */}
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800">
-                  Current City / Area {selectedState ? `(${selectedState})` : ''}
+                  Quick Multi-City Filter {selectedState ? `(${selectedState})` : ''}
                 </span>
                 <div className="flex items-center gap-2">
                   <button

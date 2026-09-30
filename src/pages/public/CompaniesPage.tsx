@@ -7,11 +7,20 @@ import { SupabaseSync } from '../../services/supabaseSync';
 import { EmployerProfile } from '../../types';
 import { useLanguage } from '../../services/i18n';
 import { getCompanyCardBanner } from '../../services/cardBanners';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { matchesPanIndiaLocationFilter, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 export const CompaniesPage: React.FC = () => {
   const { t, lang } = useLanguage();
   const [directory, setDirectory] = useState<Array<{ employer: EmployerProfile; activeVacancyCount: number }>>([]);
   const [search, setSearch] = useState('');
+  const [locationFilter, setLocationFilter] = useState<StructuredPanIndiaLocation>({
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
+    formattedLocation: ''
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const requestVersion = React.useRef(0);
@@ -110,11 +119,24 @@ export const CompaniesPage: React.FC = () => {
     return suggestions.slice(0, 7);
   }, [directory, search]);
 
-  const filtered = directory.filter(({ employer: e }) =>
-    e.companyName.toLowerCase().includes(search.toLowerCase()) ||
-    (e.industry || '').toLowerCase().includes(search.toLowerCase()) ||
-    (e.city || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = directory.filter(({ employer: e }) => {
+    const matchesSearch =
+      !search.trim() ||
+      e.companyName.toLowerCase().includes(search.toLowerCase()) ||
+      (e.industry || '').toLowerCase().includes(search.toLowerCase()) ||
+      (e.city || '').toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    return matchesPanIndiaLocationFilter(
+      {
+        state: e.state,
+        district: e.district,
+        city: e.city,
+        pincode: e.pincode,
+        location: e.location
+      },
+      locationFilter
+    );
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -205,6 +227,17 @@ export const CompaniesPage: React.FC = () => {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Pan-India Dependent Location Filter (State/UT -> District -> Town/City -> PIN Code) */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card">
+        <PanIndiaLocationSelector
+          value={locationFilter}
+          onChange={setLocationFilter}
+          mode="filter"
+          layout="grid-4"
+          idPrefix="companies-directory-loc"
+        />
       </div>
 
       {/* Companies Grid */}

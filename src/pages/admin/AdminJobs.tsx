@@ -6,11 +6,20 @@ import { DataStore } from '../../services/store';
 import { Job, JobStatus } from '../../types';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { useLanguage } from '../../services/i18n';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { matchesPanIndiaLocationFilter, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 export const AdminJobs: React.FC = () => {
   const { t } = useLanguage();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filter, setFilter] = useState<string>('pending');
+  const [locationFilter, setLocationFilter] = useState<StructuredPanIndiaLocation>({
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
+    formattedLocation: ''
+  });
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [workingId, setWorkingId] = useState('');
   const [error, setError] = useState('');
@@ -45,8 +54,18 @@ export const AdminJobs: React.FC = () => {
   };
 
   const filtered = jobs.filter((j) => {
-    if (filter === 'all') return true;
-    return j.status === filter;
+    const matchesStatus = filter === 'all' ? true : j.status === filter;
+    if (!matchesStatus) return false;
+    return matchesPanIndiaLocationFilter(
+      {
+        state: j.state,
+        district: j.district,
+        city: j.city,
+        pincode: j.pincode,
+        location: j.location
+      },
+      locationFilter
+    );
   });
 
   return (
@@ -73,6 +92,17 @@ export const AdminJobs: React.FC = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Pan-India Dependent Location Filter */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-card">
+        <PanIndiaLocationSelector
+          value={locationFilter}
+          onChange={setLocationFilter}
+          mode="filter"
+          layout="grid-4"
+          idPrefix="admin-jobs-loc"
+        />
       </div>
 
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}

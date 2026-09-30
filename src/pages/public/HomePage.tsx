@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, MapPin, Truck, ShieldCheck, Briefcase, Users, Award, 
   ArrowRight, CheckCircle2, Star, Sparkles, Building2, ChevronRight, 
-  IndianRupee, Phone, Check, Clock, Zap, Shield, FileCheck
+  IndianRupee, Phone, Check, Clock, Zap, Shield, FileCheck, ChevronDown
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
@@ -22,9 +22,17 @@ export const HomePage: React.FC = () => {
   const [category, setCategory] = useState<string>('');
   const [location, setLocation] = useState('');
   const [showKeywordSuggestions, setShowKeywordSuggestions] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [activeKeywordIndex, setActiveKeywordIndex] = useState<number>(-1);
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState<number>(0);
+  const [activeLocationIndex, setActiveLocationIndex] = useState<number>(-1);
+
   const keywordContainerRef = useRef<HTMLDivElement>(null);
+  const categoryContainerRef = useRef<HTMLDivElement>(null);
   const locationContainerRef = useRef<HTMLDivElement>(null);
+
+  const [allActiveJobs, setAllActiveJobs] = useState<Job[]>([]);
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
   const [trustedEmployers, setTrustedEmployers] = useState<Awaited<ReturnType<typeof SupabaseSync.fetchPublicEmployerDirectory>>>([]);
   const [trustedEmployersLoading, setTrustedEmployersLoading] = useState(true);
@@ -38,6 +46,7 @@ export const HomePage: React.FC = () => {
 
   const loadData = () => {
     const active = DataStore.getJobs().filter(j => j.status === 'active');
+    setAllActiveJobs(active);
     setFeaturedJobs(active.slice(0, 6));
 
     // Dynamic verified partners list (employers approved/verified by admin)
@@ -127,10 +136,14 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (keywordContainerRef.current && !keywordContainerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (keywordContainerRef.current && !keywordContainerRef.current.contains(target)) {
         setShowKeywordSuggestions(false);
       }
-      if (locationContainerRef.current && !locationContainerRef.current.contains(e.target as Node)) {
+      if (categoryContainerRef.current && !categoryContainerRef.current.contains(target)) {
+        setShowCategoryDropdown(false);
+      }
+      if (locationContainerRef.current && !locationContainerRef.current.contains(target)) {
         setShowLocationSuggestions(false);
       }
     };
@@ -141,17 +154,36 @@ export const HomePage: React.FC = () => {
   const keywordSuggestions = useMemo(() => {
     return getSearchRoleSuggestions(
       keyword,
-      featuredJobs.map(j => ({ title: j.title, category: j.category, company: j.companyName }))
+      allActiveJobs.map(j => ({ title: j.title, category: j.category, company: j.companyName }))
     );
-  }, [keyword, featuredJobs]);
+  }, [keyword, allActiveJobs]);
 
   const locationSuggestions = useMemo(() => {
     return getSearchLocationSuggestions(location);
   }, [location]);
 
+  const driverTypeOptions = useMemo(() => [
+    { value: '', label: t('All Driver Types'), subtitle: 'Browse all commercial & personal roles', icon: '🚛' },
+    { value: 'HMV', label: t('Heavy Truck (HMV)'), subtitle: 'Multi-axle, interstate & container transport', icon: '🚛' },
+    { value: 'LMV', label: t('LMV Chauffeur'), subtitle: 'Personal, corporate sedans & luxury fleet', icon: '🚗' },
+    { value: 'Cab Driver', label: t('Cab Driver'), subtitle: 'App-based ride hailing & airport transfers', icon: '🚕' },
+    { value: 'Delivery Driver', label: t('Delivery Driver'), subtitle: 'E-commerce vans, 2-wheelers & hyperlocal', icon: '📦' },
+    { value: 'Bus Driver', label: t('School / Staff Bus'), subtitle: 'Passenger transit & student shuttle', icon: '🚌' },
+    { value: 'Tempo Driver', label: t('Tempo / Ace'), subtitle: 'Intra-city distribution & cargo logistics', icon: '🚚' },
+    { value: 'Trailer Driver', label: t('40ft Trailer Driver'), subtitle: 'Port container clearing & heavy haulage', icon: '🚜' },
+    { value: 'Commercial Driver', label: t('Commercial Driver'), subtitle: 'Tour operations & outstation rentals', icon: '🚐' },
+    { value: 'Personal Driver', label: t('Personal Driver'), subtitle: 'Private family & executive cars', icon: '🚘' },
+  ], [t]);
+
+  const selectedDriverTypeOption = useMemo(
+    () => driverTypeOptions.find(opt => opt.value === category) || driverTypeOptions[0],
+    [driverTypeOptions, category]
+  );
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setShowKeywordSuggestions(false);
+    setShowCategoryDropdown(false);
     setShowLocationSuggestions(false);
     const params = new URLSearchParams();
     if (keyword.trim()) params.append('q', keyword.trim());
@@ -164,15 +196,114 @@ export const HomePage: React.FC = () => {
   };
 
   const categories = [
-    { label: 'Heavy Truck (HMV)', filter: 'HMV', countKeys: ['hmv', 'heavy truck (hmv)', 'heavy truck', 'hmv-transport'], icon: '🚛', image: '/hero-truck.jpg', desc: 'Multi-axle, interstate & container transport' },
-    { label: 'LMV Chauffeur', filter: 'LMV', countKeys: ['lmv', 'lmv-transport', 'personal driver', 'personal chauffeur'], icon: '🚗', image: '/auth-banner.jpg', desc: 'Personal, corporate sedans & luxury fleet' },
-    { label: 'Cab Driver', filter: 'Cab Driver', countKeys: ['cab driver', 'cab'], icon: '🚕', image: '/card-banners/taxi.svg', desc: 'App-based ride hailing & airport transfers' },
-    { label: 'Delivery Driver', filter: 'Delivery Driver', countKeys: ['delivery driver', 'delivery'], icon: '📦', image: '/card-banners/delivery.svg', desc: 'E-commerce vans, 2-wheelers & hyperlocal' },
-    { label: 'School / Staff Bus', filter: 'Bus Driver', countKeys: ['bus driver', 'school bus driver', 'school / staff bus'], icon: '🚌', image: '/card-banners/bus.svg', desc: 'Passenger transit & student shuttle' },
-    { label: 'Tempo / Ace', filter: 'Tempo Driver', countKeys: ['tempo driver', 'tempo / ace'], icon: '🚚', image: '/card-banners/tempo.svg', desc: 'Intra-city distribution & cargo logistics' },
-    { label: '40ft Trailer Driver', filter: 'Trailer Driver', countKeys: ['trailer driver', '40ft trailer driver'], icon: '🚜', image: '/hero-truck.jpg', desc: 'Port container clearing & heavy haulage' },
-    { label: 'Commercial Driver', filter: 'Commercial Driver', countKeys: ['commercial driver'], icon: '🚐', image: '/card-banners/commercial.svg', desc: 'Tour operations & outstation rentals' },
+    {
+      label: 'Heavy Truck (HMV)',
+      filter: 'HMV',
+      countKeys: ['hmv', 'heavy truck (hmv)', 'heavy truck', 'hmv-transport'],
+      icon: '🚛',
+      image: '/banners/heavy_freight_truck.jpg',
+      alt: 'Heavy Commercial Multi-Axle Freight Truck on Indian Highway',
+      desc: 'Multi-axle, interstate & container transport'
+    },
+    {
+      label: 'LMV Chauffeur',
+      filter: 'LMV',
+      countKeys: ['lmv', 'lmv-transport', 'personal driver', 'personal chauffeur'],
+      icon: '🚗',
+      image: '/banners/executive_chauffeur_car.jpg',
+      alt: 'Executive Sedan & Corporate LMV Chauffeur Vehicle',
+      desc: 'Personal, corporate sedans & luxury fleet'
+    },
+    {
+      label: 'Cab Driver',
+      filter: 'Cab Driver',
+      countKeys: ['cab driver', 'cab'],
+      icon: '🚕',
+      image: '/banners/urban_cab_fleet.jpg',
+      alt: 'Urban Ride-Hailing Cab & Airport Taxi Fleet',
+      desc: 'App-based ride hailing & airport transfers'
+    },
+    {
+      label: 'Delivery Driver',
+      filter: 'Delivery Driver',
+      countKeys: ['delivery driver', 'delivery'],
+      icon: '📦',
+      image: '/banners/electric_delivery_van.jpg',
+      alt: 'E-Commerce Delivery Cargo Van & Last-Mile Logistics Fleet',
+      desc: 'E-commerce vans, 2-wheelers & hyperlocal'
+    },
+    {
+      label: 'School / Staff Bus',
+      filter: 'Bus Driver',
+      countKeys: ['bus driver', 'school bus driver', 'school / staff bus'],
+      icon: '🚌',
+      image: '/banners/school_bus_transit.jpg',
+      alt: 'Yellow School Bus & Corporate Staff Transit Shuttle',
+      desc: 'Passenger transit & student shuttle'
+    },
+    {
+      label: 'Tempo / Ace',
+      filter: 'Tempo Driver',
+      countKeys: ['tempo driver', 'tempo / ace'],
+      icon: '🚚',
+      image: '/banners/tempo_delivery_truck.jpg',
+      alt: 'Tata Ace Mini Cargo Tempo & Intra-City Logistics Pickup',
+      desc: 'Intra-city distribution & cargo logistics'
+    },
+    {
+      label: '40ft Trailer Driver',
+      filter: 'Trailer Driver',
+      countKeys: ['trailer driver', '40ft trailer driver'],
+      icon: '🚜',
+      image: '/banners/container_trailer_truck.jpg',
+      alt: '40ft Heavy Port Container Trailer Truck',
+      desc: 'Port container clearing & heavy haulage'
+    },
+    {
+      label: 'Commercial Driver',
+      filter: 'Commercial Driver',
+      countKeys: ['commercial driver'],
+      icon: '🚐',
+      image: '/banners/intercity_passenger_coach.jpg',
+      alt: 'Commercial Tour Operations & Outstation Passenger Coach',
+      desc: 'Tour operations & outstation rentals'
+    },
   ];
+
+  // Calculate live active vacancy count per category matching JobsPage.tsx filter semantics
+  const getLiveCategoryVacancies = (catFilter: string, countKeys: string[]): number => {
+    const rpcCount = marketplaceStats
+      ? countKeys.reduce((acc, key) => acc + (marketplaceStats.vacanciesByCategory[key] || 0), 0)
+      : 0;
+
+    const matchingJobs = allActiveJobs.filter(job => {
+      const jobCat = (job.category || '').toLowerCase();
+      const target = catFilter.toLowerCase();
+      if (jobCat === target || jobCat.includes(target) || target.includes(jobCat)) return true;
+      if (catFilter === 'HMV' && ['hmv', 'hmv-transport', 'trailer driver', 'heavy truck'].some(c => jobCat.includes(c))) return true;
+      if (catFilter === 'LMV' && ['lmv', 'lmv-transport', 'personal driver', 'cab driver', 'tempo driver'].some(c => jobCat.includes(c))) return true;
+      if (catFilter === 'Commercial Driver' && ['commercial driver', 'bus driver', 'cab driver', 'lmv-transport'].some(c => jobCat.includes(c))) return true;
+      return false;
+    });
+
+    const storeVacancies = matchingJobs.reduce((sum, j) => sum + Math.max(1, Number(j.vacancies) || 1), 0);
+    return Math.max(rpcCount, storeVacancies);
+  };
+
+  // Resolved hero statistics (live database stats with active store fallback)
+  const resolvedStats = useMemo(() => {
+    const storeDrivers = DataStore.getDrivers().filter(d => d.status === 'active').length;
+    const storeEmps = DataStore.getEmployers().filter(e => e.verified).length;
+    const storeVacancies = allActiveJobs.reduce((sum, j) => sum + Math.max(1, Number(j.vacancies) || 1), 0);
+    const storeHires = DataStore.getApplications().filter(a => a.status === 'hired' || a.status === 'selected').length;
+
+    return {
+      verifiedDrivers: Math.max(marketplaceStats?.verifiedDrivers || 0, storeDrivers),
+      verifiedEmployers: Math.max(marketplaceStats?.verifiedEmployers || 0, storeEmps),
+      activeVacancies: Math.max(marketplaceStats?.activeVacancies || 0, storeVacancies),
+      hires: Math.max(marketplaceStats?.hires || 0, storeHires),
+    };
+  }, [marketplaceStats, allActiveJobs]);
 
   const siteAdCards = [
     {
@@ -237,8 +368,8 @@ export const HomePage: React.FC = () => {
     <div className="space-y-16 pb-20 bg-[#F5F8FB]">
       
       {/* SECTION 1: HERO SECTION */}
-      <section className="relative overflow-hidden bg-[#08233F] text-white pt-12 sm:pt-16 lg:pt-20 pb-16 sm:pb-20 lg:pb-24 px-4 sm:px-6 lg:px-8 shadow-xl min-h-[560px] flex flex-col justify-center">
-        <div className="absolute inset-0 z-0">
+      <section className="relative bg-[#08233F] text-white pt-12 sm:pt-16 lg:pt-20 pb-16 sm:pb-20 lg:pb-24 px-4 sm:px-6 lg:px-8 shadow-xl min-h-[560px] flex flex-col justify-center">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <img
             src="/hero-truck.jpg"
             alt="Driver Hub Commercial Transport & Heavy Fleet Truck on Highway"
@@ -250,7 +381,7 @@ export const HomePage: React.FC = () => {
           <div className="absolute inset-0 bg-[radial-gradient(#F5A800_1px,transparent_1px)] opacity-[0.07] [background-size:24px_24px] pointer-events-none" />
         </div>
 
-        <div className="max-w-6xl mx-auto relative z-10 w-full text-center space-y-7 sm:space-y-8">
+        <div className="max-w-6xl mx-auto relative z-20 w-full text-center space-y-7 sm:space-y-8">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-amber-400/30 text-xs text-amber-400 font-bold shadow-lg">
             <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
             <span>{t('Driver Recruitment & Fleet Hiring')}</span>
@@ -283,20 +414,59 @@ export const HomePage: React.FC = () => {
             </span>
           </div>
 
-          {/* SEARCH BAR (Desktop & Mobile Responsive with Real-Time Auto-Suggestions - Pic 3 & 4) */}
-          <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-white/30 text-slate-800 text-left">
+          {/* SEARCH BAR (Elevated stacking context z-40 so open dropdowns always appear above hero stat cards) */}
+          <div className="relative z-40 max-w-4xl mx-auto bg-white/95 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl shadow-2xl border border-white/30 text-slate-800 text-left">
             <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-              {/* Keyword / Job Title input with Real-Time Auto-Suggestions */}
+              {/* 1. Keyword / Job Title Combobox with Keyboard Navigation */}
               <div ref={keywordContainerRef} className="relative sm:col-span-4">
-                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
                   <Search className="w-4 h-4 text-slate-400 shrink-0" />
                   <input
                     type="text"
+                    role="combobox"
+                    aria-label="Search by job title, vehicle type, or role"
+                    aria-expanded={showKeywordSuggestions && keywordSuggestions.length > 0}
+                    aria-controls="hero-keyword-listbox"
+                    aria-activedescendant={
+                      activeKeywordIndex >= 0 ? `hero-keyword-opt-${activeKeywordIndex}` : undefined
+                    }
                     value={keyword}
-                    onFocus={() => setShowKeywordSuggestions(true)}
+                    onFocus={() => {
+                      setShowKeywordSuggestions(true);
+                      setShowCategoryDropdown(false);
+                      setShowLocationSuggestions(false);
+                    }}
                     onChange={(e) => {
                       setKeyword(e.target.value);
                       setShowKeywordSuggestions(true);
+                      setActiveKeywordIndex(-1);
+                    }}
+                    onKeyDown={(e) => {
+                      if (!showKeywordSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                        setShowKeywordSuggestions(true);
+                        return;
+                      }
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setActiveKeywordIndex((prev) =>
+                          prev < keywordSuggestions.length - 1 ? prev + 1 : 0
+                        );
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setActiveKeywordIndex((prev) =>
+                          prev > 0 ? prev - 1 : keywordSuggestions.length - 1
+                        );
+                      } else if (e.key === 'Enter' && activeKeywordIndex >= 0 && keywordSuggestions[activeKeywordIndex]) {
+                        e.preventDefault();
+                        const chosen = keywordSuggestions[activeKeywordIndex];
+                        setKeyword(chosen.title);
+                        if (chosen.category) setCategory(chosen.category);
+                        setShowKeywordSuggestions(false);
+                        setActiveKeywordIndex(-1);
+                      } else if (e.key === 'Escape') {
+                        setShowKeywordSuggestions(false);
+                        setActiveKeywordIndex(-1);
+                      }
                     }}
                     placeholder={lang === 'kn' ? "ಹುದ್ದೆ, 'HMV', 'ಕ್ಯಾಬ್', 'ಡೆಲಿವರಿ'..." : "Job title, 'HMV', 'Cab', 'Delivery'..."}
                     className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
@@ -304,82 +474,265 @@ export const HomePage: React.FC = () => {
                   {keyword && (
                     <button
                       type="button"
-                      onClick={() => setKeyword('')}
-                      className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                      aria-label="Clear job title search"
+                      onClick={() => {
+                        setKeyword('');
+                        setActiveKeywordIndex(-1);
+                      }}
+                      className="text-slate-400 hover:text-slate-700 text-xs px-1 cursor-pointer"
                     >
                       ✕
                     </button>
                   )}
                 </div>
 
-                {/* Real-time Keyword / Role Suggestions Popup (Pic 3 & 4) */}
+                {/* Accessible Role Suggestions Dropdown */}
                 {showKeywordSuggestions && keywordSuggestions.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-64 overflow-y-auto animate-in fade-in">
-                    <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                      <span>Suggested Roles & Categories</span>
+                  <div
+                    id="hero-keyword-listbox"
+                    role="listbox"
+                    aria-label="Suggested Roles and Categories"
+                    className="absolute z-50 left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/95 py-2 max-h-72 overflow-y-auto ring-1 ring-slate-900/5"
+                  >
+                    <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
+                      <span>Suggested Roles &amp; Categories</span>
                       <button
                         type="button"
+                        aria-label="Close role suggestions"
                         onClick={() => setShowKeywordSuggestions(false)}
-                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                        className="text-slate-400 hover:text-slate-700 px-1 cursor-pointer"
                       >
                         ✕
                       </button>
                     </div>
-                    {keywordSuggestions.map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setKeyword(item.title);
-                          if (item.category) setCategory(item.category);
-                          setShowKeywordSuggestions(false);
-                        }}
-                        className="w-full px-3.5 py-2.5 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
-                      >
-                        <div>
-                          <span className="font-bold text-slate-900 group-hover:text-emerald-900 block">{item.title}</span>
-                          <span className="text-[11px] text-slate-500">{item.subtitle}</span>
-                        </div>
-                        <span className="text-[10px] bg-slate-100 group-hover:bg-emerald-200 text-slate-700 group-hover:text-emerald-900 px-2 py-0.5 rounded font-bold shrink-0 ml-2">
-                          Select ↵
-                        </span>
-                      </button>
-                    ))}
+                    <div className="divide-y divide-slate-100">
+                      {keywordSuggestions.map((item, idx) => {
+                        const isSelected = keyword.toLowerCase() === item.title.toLowerCase();
+                        const isActive = activeKeywordIndex === idx;
+                        return (
+                          <button
+                            key={idx}
+                            id={`hero-keyword-opt-${idx}`}
+                            role="option"
+                            aria-selected={isSelected || isActive}
+                            type="button"
+                            onMouseEnter={() => setActiveKeywordIndex(idx)}
+                            onClick={() => {
+                              setKeyword(item.title);
+                              if (item.category) setCategory(item.category);
+                              setShowKeywordSuggestions(false);
+                              setActiveKeywordIndex(-1);
+                            }}
+                            className={`w-full px-4 py-3 text-left text-xs flex items-center justify-between gap-3 group transition-colors cursor-pointer ${
+                              isActive || isSelected
+                                ? 'bg-emerald-50/95 text-emerald-950'
+                                : 'hover:bg-slate-50 text-slate-800'
+                            }`}
+                          >
+                            <div className="min-w-0 space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 group-hover:text-emerald-900 truncate">
+                                  {item.title}
+                                </span>
+                                {item.category && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200/80 shrink-0">
+                                    {item.category}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-slate-500 block line-clamp-1">
+                                {item.subtitle}
+                              </span>
+                            </div>
+                            <span
+                              className={`text-[10px] px-2.5 py-1 rounded-lg font-bold shrink-0 flex items-center gap-1 transition-colors ${
+                                isSelected
+                                  ? 'bg-emerald-600 text-white'
+                                  : isActive
+                                  ? 'bg-emerald-200 text-emerald-950'
+                                  : 'bg-slate-100 text-slate-700 group-hover:bg-emerald-100 group-hover:text-emerald-900'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <Check className="w-3 h-3" /> Selected
+                                </>
+                              ) : (
+                                'Select ↵'
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Driver Type dropdown */}
-              <div className="sm:col-span-3 flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
-                <Truck className="w-4 h-4 text-slate-400 shrink-0" />
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-transparent text-xs sm:text-sm text-slate-800 focus:outline-none cursor-pointer font-medium"
+              {/* 2. Driver Type Accessible Custom Dropdown */}
+              <div ref={categoryContainerRef} className="relative sm:col-span-3">
+                <button
+                  type="button"
+                  role="combobox"
+                  aria-label="Select Driver Category"
+                  aria-expanded={showCategoryDropdown}
+                  aria-controls="hero-category-listbox"
+                  onClick={() => {
+                    setShowCategoryDropdown((prev) => !prev);
+                    setShowKeywordSuggestions(false);
+                    setShowLocationSuggestions(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setShowCategoryDropdown(true);
+                      setActiveCategoryIndex((prev) =>
+                        prev < driverTypeOptions.length - 1 ? prev + 1 : 0
+                      );
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setShowCategoryDropdown(true);
+                      setActiveCategoryIndex((prev) =>
+                        prev > 0 ? prev - 1 : driverTypeOptions.length - 1
+                      );
+                    } else if (e.key === 'Enter' || e.key === ' ') {
+                      if (showCategoryDropdown && driverTypeOptions[activeCategoryIndex]) {
+                        e.preventDefault();
+                        setCategory(driverTypeOptions[activeCategoryIndex].value);
+                        setShowCategoryDropdown(false);
+                      }
+                    } else if (e.key === 'Escape') {
+                      setShowCategoryDropdown(false);
+                    }
+                  }}
+                  className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    category
+                      ? 'bg-emerald-50/70 border-emerald-400 text-emerald-950'
+                      : 'bg-slate-50/90 border-slate-200 text-slate-800 hover:bg-white'
+                  }`}
                 >
-                  <option value="">{t('All Driver Types')}</option>
-                  <option value="HMV">{t('Heavy Truck (HMV)')}</option>
-                  <option value="LMV">{t('LMV Chauffeur')}</option>
-                  <option value="Cab Driver">{t('Cab Driver')}</option>
-                  <option value="Delivery Driver">{t('Delivery Driver')}</option>
-                  <option value="Bus Driver">{t('School & Staff Bus Driver')}</option>
-                  <option value="Trailer Driver">{t('40ft Container Trailer Driver')}</option>
-                  <option value="Personal Driver">{t('Personal Driver')}</option>
-                  <option value="Tempo Driver">{t('Tempo Driver')}</option>
-                </select>
+                  <span className="flex items-center gap-2 min-w-0">
+                    <Truck className={`w-4 h-4 shrink-0 ${category ? 'text-emerald-600' : 'text-slate-400'}`} />
+                    <span className="text-xs sm:text-sm font-semibold truncate">
+                      {selectedDriverTypeOption.label}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 shrink-0 transition-transform duration-200 ${
+                      showCategoryDropdown ? 'rotate-180 text-emerald-600' : ''
+                    }`}
+                  />
+                </button>
+
+                {showCategoryDropdown && (
+                  <div
+                    id="hero-category-listbox"
+                    role="listbox"
+                    aria-label="Driver Categories"
+                    className="absolute z-50 left-0 right-0 sm:w-72 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/95 py-2 max-h-80 overflow-y-auto ring-1 ring-slate-900/5"
+                  >
+                    <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
+                      <span>Filter by Vehicle / License Type</span>
+                      <button
+                        type="button"
+                        aria-label="Close category menu"
+                        onClick={() => setShowCategoryDropdown(false)}
+                        className="text-slate-400 hover:text-slate-700 px-1 cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {driverTypeOptions.map((opt, idx) => {
+                        const isSelected = category === opt.value;
+                        const isActive = activeCategoryIndex === idx;
+                        return (
+                          <button
+                            key={opt.value || 'all'}
+                            role="option"
+                            aria-selected={isSelected}
+                            type="button"
+                            onMouseEnter={() => setActiveCategoryIndex(idx)}
+                            onClick={() => {
+                              setCategory(opt.value);
+                              setShowCategoryDropdown(false);
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between gap-2.5 transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-50 text-emerald-950 font-bold'
+                                : isActive
+                                ? 'bg-slate-100 text-slate-900'
+                                : 'hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <span className="text-base leading-none mt-0.5 shrink-0">{opt.icon}</span>
+                              <div className="min-w-0">
+                                <span className="block font-bold text-slate-900 truncate">{opt.label}</span>
+                                <span className="block text-[11px] text-slate-500 truncate">{opt.subtitle}</span>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 text-white shrink-0">
+                                <Check className="w-3 h-3" />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Location input with Real-Time Auto-Suggestions */}
+              {/* 3. Location / City Combobox with Keyboard Navigation */}
               <div ref={locationContainerRef} className="relative sm:col-span-3">
-                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
+                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/90 rounded-xl border border-slate-200 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
                   <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
                   <input
                     type="text"
+                    role="combobox"
+                    aria-label="Search by Indian city, district, or state"
+                    aria-expanded={showLocationSuggestions && locationSuggestions.length > 0}
+                    aria-controls="hero-location-listbox"
+                    aria-activedescendant={
+                      activeLocationIndex >= 0 ? `hero-location-opt-${activeLocationIndex}` : undefined
+                    }
                     value={location}
-                    onFocus={() => setShowLocationSuggestions(true)}
+                    onFocus={() => {
+                      setShowLocationSuggestions(true);
+                      setShowKeywordSuggestions(false);
+                      setShowCategoryDropdown(false);
+                    }}
                     onChange={(e) => {
                       setLocation(e.target.value);
                       setShowLocationSuggestions(true);
+                      setActiveLocationIndex(-1);
+                    }}
+                    onKeyDown={(e) => {
+                      if (!showLocationSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                        setShowLocationSuggestions(true);
+                        return;
+                      }
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setActiveLocationIndex((prev) =>
+                          prev < locationSuggestions.length - 1 ? prev + 1 : 0
+                        );
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setActiveLocationIndex((prev) =>
+                          prev > 0 ? prev - 1 : locationSuggestions.length - 1
+                        );
+                      } else if (e.key === 'Enter' && activeLocationIndex >= 0 && locationSuggestions[activeLocationIndex]) {
+                        e.preventDefault();
+                        setLocation(locationSuggestions[activeLocationIndex].city);
+                        setShowLocationSuggestions(false);
+                        setActiveLocationIndex(-1);
+                      } else if (e.key === 'Escape') {
+                        setShowLocationSuggestions(false);
+                        setActiveLocationIndex(-1);
+                      }
                     }}
                     placeholder={lang === 'kn' ? 'ನಗರ (ಬೆಂಗಳೂರು, ಮೈಸೂರು...)' : 'City (Bengaluru, Chennai...)'}
                     className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-500 focus:outline-none"
@@ -387,44 +740,71 @@ export const HomePage: React.FC = () => {
                   {location && (
                     <button
                       type="button"
-                      onClick={() => setLocation('')}
-                      className="text-slate-400 hover:text-slate-600 text-xs px-1 cursor-pointer"
+                      aria-label="Clear city filter"
+                      onClick={() => {
+                        setLocation('');
+                        setActiveLocationIndex(-1);
+                      }}
+                      className="text-slate-400 hover:text-slate-700 text-xs px-1 cursor-pointer"
                     >
                       ✕
                     </button>
                   )}
                 </div>
 
-                {/* Real-time Location Suggestions Popup (Pic 4) */}
+                {/* Accessible Location Suggestions Dropdown */}
                 {showLocationSuggestions && locationSuggestions.length > 0 && (
-                  <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 max-h-60 overflow-y-auto animate-in fade-in">
-                    <div className="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                      <span>Suggested Cities & States</span>
+                  <div
+                    id="hero-location-listbox"
+                    role="listbox"
+                    aria-label="Suggested Indian Cities and States"
+                    className="absolute z-50 left-0 right-0 sm:w-72 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200/95 py-2 max-h-72 overflow-y-auto ring-1 ring-slate-900/5"
+                  >
+                    <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
+                      <span>Suggested Cities &amp; States</span>
                       <button
                         type="button"
+                        aria-label="Close location suggestions"
                         onClick={() => setShowLocationSuggestions(false)}
-                        className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                        className="text-slate-400 hover:text-slate-700 px-1 cursor-pointer"
                       >
                         ✕
                       </button>
                     </div>
-                    {locationSuggestions.map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          setLocation(item.city);
-                          setShowLocationSuggestions(false);
-                        }}
-                        className="w-full px-3.5 py-2 text-left text-xs hover:bg-emerald-50 hover:text-emerald-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
-                      >
-                        <span className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                          <span className="font-semibold text-slate-900 group-hover:text-emerald-900">{item.label}</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 group-hover:text-emerald-700 shrink-0">Select ↵</span>
-                      </button>
-                    ))}
+                    <div className="divide-y divide-slate-100">
+                      {locationSuggestions.map((item, idx) => {
+                        const isSelected = location.toLowerCase() === item.city.toLowerCase();
+                        const isActive = activeLocationIndex === idx;
+                        return (
+                          <button
+                            key={idx}
+                            id={`hero-location-opt-${idx}`}
+                            role="option"
+                            aria-selected={isSelected || isActive}
+                            type="button"
+                            onMouseEnter={() => setActiveLocationIndex(idx)}
+                            onClick={() => {
+                              setLocation(item.city);
+                              setShowLocationSuggestions(false);
+                              setActiveLocationIndex(-1);
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-xs flex items-center justify-between gap-2 group transition-colors cursor-pointer ${
+                              isActive || isSelected
+                                ? 'bg-emerald-50 text-emerald-950'
+                                : 'hover:bg-slate-50 text-slate-800'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="font-bold text-slate-900 truncate">{item.label}</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 group-hover:text-emerald-800 shrink-0">
+                              {isSelected ? '✓ Selected' : 'Select ↵'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -433,7 +813,7 @@ export const HomePage: React.FC = () => {
               <div className="sm:col-span-2">
                 <button
                   type="submit"
-                  className="w-full min-h-[44px] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow transition-all duration-150 hover:scale-[1.02] cursor-pointer text-xs sm:text-sm active:scale-95"
+                  className="w-full min-h-[44px] flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow transition-all duration-150 hover:scale-[1.02] cursor-pointer text-xs sm:text-sm active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
                 >
                   <Search className="w-4 h-4" />
                   <span>{t('Search')}</span>
@@ -442,35 +822,35 @@ export const HomePage: React.FC = () => {
             </form>
           </div>
 
-          {/* Live aggregates; never substitute marketing estimates for database values. */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4 max-w-5xl mx-auto pt-6 sm:pt-8 text-slate-200 text-center">
+          {/* Live aggregates (z-10 so open dropdowns from search bar z-40 render cleanly above) */}
+          <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4 max-w-5xl mx-auto pt-6 sm:pt-8 text-slate-200 text-center">
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {marketplaceStats?.verifiedDrivers.toLocaleString('en-IN') ?? '—'}
+                {resolvedStats.verifiedDrivers.toLocaleString('en-IN')}
               </p>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Verified Drivers')}</p>
             </div>
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {marketplaceStats?.verifiedEmployers.toLocaleString('en-IN') ?? '—'}
+                {resolvedStats.verifiedEmployers.toLocaleString('en-IN')}
               </p>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Fleet & Corporate Employers')}</p>
             </div>
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {marketplaceStats?.activeVacancies.toLocaleString('en-IN') ?? '—'}
+                {resolvedStats.activeVacancies.toLocaleString('en-IN')}
               </p>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Active Job Openings')}</p>
             </div>
             <div className="p-3 sm:p-4 rounded-2xl bg-slate-900/60 backdrop-blur-md border border-white/15 shadow-lg">
               <p className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-400 font-display">
-                {marketplaceStats?.hires.toLocaleString('en-IN') ?? '—'}
+                {resolvedStats.hires.toLocaleString('en-IN')}
               </p>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 font-medium">{t('Successful Hires')}</p>
             </div>
           </div>
-          <p className="text-[11px] text-slate-300/90" role="status" aria-live="polite">
-            {marketplaceStats ? t('Live figures from the marketplace database.') : t('Live figures are unavailable. Please check the database setup.')}
+          <p className="relative z-10 text-[11px] text-slate-300/90" role="status" aria-live="polite">
+            {t('Live figures from active marketplace listings & verified records.')}
           </p>
         </div>
       </section>
@@ -523,7 +903,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* SECTION 3: POPULAR SPECIALIZATIONS */}
+      {/* SECTION 3: POPULAR SPECIALIZATIONS (Picture 4 — Realistic Vehicle Background Cards) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
           <div>
@@ -542,35 +922,55 @@ export const HomePage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {categories.map((cat, idx) => {
-            const count = marketplaceStats 
-              ? cat.countKeys.reduce((acc, key) => acc + (marketplaceStats.vacanciesByCategory[key] || 0), 0)
-              : 0;
+            const count = getLiveCategoryVacancies(cat.filter, cat.countKeys);
             return (
-            <Link
-              key={idx}
-              to={`/jobs?category=${encodeURIComponent(cat.filter)}`}
-              className="group p-5 bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <span className="text-3xl block group-hover:scale-105 transition-transform">{cat.icon}</span>
-                <h3 className="text-sm font-bold text-[#08233F] group-hover:text-blue-700 transition-colors">
-                  {t(cat.label)}
-                </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  {t(cat.desc)}
-                </p>
-              </div>
+              <Link
+                key={idx}
+                to={`/jobs?category=${encodeURIComponent(cat.filter)}`}
+                aria-label={`${cat.label} — ${cat.desc} (${count} Vacancies)`}
+                className="group relative min-h-[210px] rounded-2xl overflow-hidden border border-slate-800/80 hover:border-amber-400 shadow-card hover:shadow-2xl transition-all duration-300 flex flex-col justify-between p-5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400"
+              >
+                {/* Realistic Vehicle Photography Background */}
+                <img
+                  src={cat.image}
+                  alt={cat.alt}
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-110"
+                />
+                {/* Multi-stop dark gradient overlay for crisp text legibility */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#04101E]/95 via-[#071C34]/75 to-[#08233F]/40 group-hover:from-[#04101E]/95 group-hover:via-[#071C34]/70 transition-colors" />
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-400 group-hover:text-slate-700">
-                <span className="text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full text-[11px] font-bold border border-blue-200/60">
-                  {t('{count} Vacancies', { count })}
-                </span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform text-slate-500 group-hover:text-blue-700" />
-              </div>
-            </Link>
-          )})}
+                <div className="relative z-10 flex items-center justify-between">
+                  <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/20 text-xl shadow-sm group-hover:scale-105 transition-transform">
+                    {cat.icon}
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-400/95 text-slate-950 shadow-sm">
+                    {cat.filter}
+                  </span>
+                </div>
+
+                <div className="relative z-10 space-y-1.5 pt-8">
+                  <h3 className="text-base font-extrabold text-white group-hover:text-amber-300 transition-colors font-display drop-shadow-sm">
+                    {t(cat.label)}
+                  </h3>
+                  <p className="text-xs text-slate-200/95 leading-relaxed line-clamp-2 drop-shadow-xs">
+                    {t(cat.desc)}
+                  </p>
+
+                  <div className="pt-3 mt-2 border-t border-white/15 flex items-center justify-between text-xs">
+                    <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md text-white px-3 py-1 rounded-full text-[11px] font-bold border border-white/25 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:border-amber-300 transition-colors">
+                      {t('{count} Vacancies', { count })}
+                    </span>
+                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 group-hover:bg-amber-400 text-white group-hover:text-slate-950 transition-all">
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 

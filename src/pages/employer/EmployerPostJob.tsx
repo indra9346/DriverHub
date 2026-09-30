@@ -9,6 +9,8 @@ import { DataStore } from '../../services/store';
 import { DriverCategory, Job } from '../../types';
 import { ALL_INDIAN_STATES, getCitiesForState, getAreasForCity, searchIndianLocations, CITY_AREAS_MAP } from '../../data/indiaLocations';
 import { useLanguage } from '../../services/i18n';
+import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
+import { parseStructuredLocation, formatStructuredLocation, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 interface JobTemplate {
   id: string;
@@ -227,8 +229,19 @@ export const EmployerPostJob: React.FC = () => {
 
   // Location
   const [workLocationType, setWorkLocationType] = useState<'Work From Depot / Office' | 'Client / Household Site' | 'Interstate / Field Route'>('Work From Depot / Office');
-  const [state, setState] = useState(employer?.state || 'Karnataka');
-  const [city, setCity] = useState(employer?.city || 'Bengaluru');
+  const [locationSelection, setLocationSelection] = useState<StructuredPanIndiaLocation>(() =>
+    parseStructuredLocation(
+      employer?.location || 'Electronic City, Bengaluru Urban Dist., Karnataka - 560100',
+      employer?.state || 'Karnataka',
+      employer?.district || 'Bengaluru Urban',
+      employer?.city || 'Electronic City',
+      employer?.pincode || '560100'
+    )
+  );
+  const [state, setState] = useState(locationSelection.state || 'Karnataka');
+  const [district, setDistrict] = useState(locationSelection.district || 'Bengaluru Urban');
+  const [city, setCity] = useState(locationSelection.city || 'Electronic City');
+  const [pincode, setPincode] = useState(locationSelection.pincode || '560100');
   const [location, setLocation] = useState(employer?.location || 'Electronic City Phase 1');
   const [vacancies, setVacancies] = useState<number>(1);
 
@@ -423,6 +436,11 @@ export const EmployerPostJob: React.FC = () => {
       slotUsed = entitlement.slotUsed === true;
     }
 
+    const structuredFormatted = formatStructuredLocation({ state, district, city, pincode });
+    const fullLocationString = location && !structuredFormatted.toLowerCase().includes(location.toLowerCase())
+      ? `${location}, ${structuredFormatted}`
+      : structuredFormatted || `${location}, ${city}, ${state}`;
+
     const newJob: Job = {
       id: crypto.randomUUID(),
       employerId,
@@ -431,9 +449,11 @@ export const EmployerPostJob: React.FC = () => {
       postedBy: employer?.contactPerson || '',
       title: title.trim(),
       category,
-      location: `${location}, ${city}`,
-      city,
+      location: fullLocationString,
+      city: city || district,
+      district,
       state,
+      pincode,
       workLocationType,
       experienceRequired,
       experienceMinYears,
@@ -816,51 +836,29 @@ export const EmployerPostJob: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">State / UT *</label>
-                <select
-                  value={state}
-                  onChange={e => {
-                    const newState = e.target.value;
-                    setState(newState);
-                    const cities = getCitiesForState(newState);
-                    if (cities.length > 0) {
-                      setCity(cities[0]);
-                      const areas = getAreasForCity(cities[0]);
-                      setLocation(areas[0] || `${cities[0]} Central Hub`);
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none cursor-pointer"
-                >
-                  {ALL_INDIAN_STATES.map(s => (
-                    <option key={s.state} value={s.state}>
-                      {s.state} ({s.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Pan-India Dependent Hierarchy: State/UT -> District -> Town/City -> PIN Code */}
+            <PanIndiaLocationSelector
+              value={locationSelection}
+              onChange={(next) => {
+                setLocationSelection(next);
+                setState(next.state);
+                setDistrict(next.district);
+                setCity(next.city || next.district);
+                setPincode(next.pincode);
+                if (next.city) {
+                  setLocation(next.city);
+                }
+              }}
+              mode="form"
+              layout="grid-4"
+              required
+              idPrefix="post-job-loc"
+            />
 
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">City / District *</label>
-                <select
-                  value={city}
-                  onChange={e => {
-                    setCity(e.target.value);
-                    const areas = getAreasForCity(e.target.value);
-                    if (areas.length > 0) setLocation(areas[0]);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none cursor-pointer"
-                >
-                  {availableCities.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Depot / Area Locality with Floating Auto-Suggestions Popup (Pic 1 & 2) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+              {/* Depot / Landmark Locality with Floating Auto-Suggestions Popup */}
               <div className="relative">
-                <label className="block text-xs font-bold text-slate-800 mb-1">Depot / Area Locality *</label>
+                <label className="block text-xs font-bold text-slate-800 mb-1">Depot / Hub / Landmark Locality *</label>
                 <div className="relative">
                   <input
                     ref={locationInputRef}
@@ -872,10 +870,10 @@ export const EmployerPostJob: React.FC = () => {
                       setLocation(e.target.value);
                       setShowLocationSuggestions(true);
                     }}
-                    placeholder="Type area e.g. Kamala Nagar, Peenya..."
-                    className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    placeholder="Type depot/landmark e.g. Peenya Industrial Area..."
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                   />
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3 pointer-events-none" />
                 </div>
                 <datalist id="locality-suggestions-list">
                   {availableAreas.map(a => (
@@ -928,18 +926,9 @@ export const EmployerPostJob: React.FC = () => {
                   max={200}
                   value={vacancies}
                   onChange={e => setVacancies(Number(e.target.value))}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
-            </div>
-
-            {/* Live Location Preview */}
-            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-900 font-medium">
-              <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>
-                <strong>Formatted Live Location: </strong>
-                {location ? `${location}, ` : ''}{city}, {state} (India)
-              </span>
             </div>
           </div>
 

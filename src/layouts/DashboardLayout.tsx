@@ -5,6 +5,7 @@ import {
   PlusCircle, Briefcase, Users, Building2, ShieldCheck, Settings 
 } from 'lucide-react';
 import { Navbar } from '../components/common/Navbar';
+import { Footer } from '../components/common/Footer';
 import { Sidebar, getNavLinks } from '../components/common/Sidebar';
 import { AIChatbot } from '../components/common/AIChatbot';
 import { RoutePageBoundary } from '../components/common/RoutePageBoundary';
@@ -196,6 +197,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
             <Outlet />
           </RoutePageBoundary>
         </main>
+      </div>
+
+      <div className="pb-16 lg:pb-0">
+        <Footer />
       </div>
 
       {/* Sleek Mobile Bottom Tab Bar */}

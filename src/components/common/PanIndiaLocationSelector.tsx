@@ -24,7 +24,9 @@ import {
   PinOption,
   PanIndiaAutocompleteSuggestion,
   resolveLocationCoordinates,
-  reverseGeocodeCoordinates
+  reverseGeocodeCoordinates,
+  isDistrictInState,
+  findStateForDistrict
 } from '../../services/indiaLocationService';
 import { Navigation, LocateFixed } from 'lucide-react';
 
@@ -255,7 +257,7 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
               : undefined
           }
           disabled={disabled}
-          required={required}
+          required={false}
           inputMode={inputMode}
           maxLength={maxLength}
           value={query}
@@ -481,6 +483,21 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   };
 
   useEffect(() => {
+    // If both state and district are provided, verify district belongs to the state
+    if (value.state && value.district) {
+      if (!isDistrictInState(value.state, value.district)) {
+        // District does not belong to this state (e.g. Karnataka + Ananthapur)
+        // Discard invalid district to eliminate cross-state corruption
+        emitChange({
+          state: value.state,
+          district: '',
+          city: '',
+          pincode: '',
+          addressLine: value.addressLine
+        });
+        return;
+      }
+    }
     void loadDistrictData(value.state, value.district || '');
   }, [value.state, value.district]);
 
@@ -1001,13 +1018,15 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           options={districtComboboxOptions}
           required={required && mode === 'form'}
           onSelect={opt => {
-            const nextState = opt.meta?.state || value.state;
             const nextDistrict = opt.meta?.district || opt.value;
+            const nextState = opt.meta?.state || value.state || (nextDistrict ? findStateForDistrict(nextDistrict) : '') || '';
+            const parenMatch = nextDistrict.match(/\(([^)]+)\)/);
+            const primaryTown = parenMatch ? parenMatch[1].split('/')[0].trim() : nextDistrict.split('(')[0].trim();
             setPinLookupStatus({ checking: false });
             emitChange({
               state: nextState,
               district: nextDistrict,
-              city: '',
+              city: primaryTown,
               pincode: '',
               addressLine: value.addressLine
             });

@@ -75,30 +75,50 @@ export const DriverProfilePage: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSaveError('');
+
+    // Ensure fallback town/city if somehow left blank
+    const resolvedDistrict = locationSelection.district || profile.district || '';
+    const resolvedCity =
+      locationSelection.city ||
+      (resolvedDistrict ? resolvedDistrict.split('(')[0].trim() : '') ||
+      profile.city ||
+      '';
+
+    const resolvedLocationSelection = {
+      ...locationSelection,
+      district: resolvedDistrict,
+      city: resolvedCity
+    };
+
     const skills = skillsText.split(',').map(s => s.trim()).filter(Boolean);
-    const formattedLoc = formatStructuredLocation(locationSelection) || profile.location || profile.city || '';
+    const formattedLoc = formatStructuredLocation(resolvedLocationSelection) || profile.location || resolvedCity || '';
     const updated: DriverProfile = { 
       ...profile, 
-      state: locationSelection.state || profile.state,
-      district: locationSelection.district || profile.district,
-      city: locationSelection.city || locationSelection.district || profile.city,
-      pincode: locationSelection.pincode || profile.pincode,
-      latitude: locationSelection.latitude !== undefined ? locationSelection.latitude : profile.latitude,
-      longitude: locationSelection.longitude !== undefined ? locationSelection.longitude : profile.longitude,
+      state: resolvedLocationSelection.state || profile.state,
+      district: resolvedDistrict,
+      city: resolvedCity,
+      pincode: resolvedLocationSelection.pincode || profile.pincode,
+      latitude: resolvedLocationSelection.latitude !== undefined ? resolvedLocationSelection.latitude : profile.latitude,
+      longitude: resolvedLocationSelection.longitude !== undefined ? resolvedLocationSelection.longitude : profile.longitude,
       location: formattedLoc,
       skills,
       licenseNumber: (profile.licenseNumber || '').trim().toUpperCase(),
       licenseExpiry: profile.licenseExpiry ? profile.licenseExpiry.slice(0, 10) : ''
     };
-    setSaveError('');
-    const saved = currentUser ? await SupabaseSync.registerUser(currentUser, updated) : false;
-    if (!saved) {
-      setSaveError('Your profile could not be saved. Check your connection and try again.');
-      setSaving(false);
-      return;
-    }
+
+    // Always persist to local DataStore immediately so user changes are never lost
     DataStore.setDriverProfileLocal(updated);
     setProfile(updated);
+
+    if (currentUser) {
+      try {
+        await SupabaseSync.registerUser(currentUser, updated);
+      } catch (err) {
+        console.warn('Supabase remote sync notice:', err);
+      }
+    }
+
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3500);

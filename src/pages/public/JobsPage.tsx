@@ -9,7 +9,7 @@ import { DataStore } from '../../services/store';
 import { Job, DriverCategory } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
 import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
-import { matchesPanIndiaLocationFilter } from '../../services/indiaLocationService';
+import { matchesPanIndiaLocationFilter, isDistrictInState } from '../../services/indiaLocationService';
 import { useLanguage, formatMinSalaryThreshold } from '../../services/i18n';
 import { 
   ALL_INDIAN_STATES, 
@@ -87,13 +87,18 @@ export const JobsPage: React.FC = () => {
     const q = searchParams.get('q') || '';
     const cat = searchParams.get('category') || '';
     const st = searchParams.get('state') || '';
-    const dist = searchParams.get('district') || '';
+    let dist = searchParams.get('district') || '';
     const ct = searchParams.get('city') || searchParams.get('location') || '';
     const pin = searchParams.get('pincode') || '';
     const ar = searchParams.get('area') || '';
     const ty = searchParams.get('type') || '';
     const sal = Number(searchParams.get('minSalary')) || 0;
     const sk = searchParams.get('skill') || '';
+
+    // Enforce that district belongs to state when both are present
+    if (st && dist && !isDistrictInState(st, dist)) {
+      dist = '';
+    }
 
     setSearchQuery(q);
     setSelectedCategory(cat);
@@ -155,7 +160,10 @@ export const JobsPage: React.FC = () => {
     const nextQ = updates.q !== undefined ? updates.q : searchQuery;
     const nextCat = updates.category !== undefined ? updates.category : selectedCategory;
     const nextSt = updates.state !== undefined ? updates.state : selectedState;
-    const nextDist = updates.district !== undefined ? updates.district : selectedDistrict;
+    let nextDist = updates.district !== undefined ? updates.district : selectedDistrict;
+    if (nextSt && nextDist && !isDistrictInState(nextSt, nextDist)) {
+      nextDist = '';
+    }
     const nextCt = updates.city !== undefined ? updates.city : selectedCity;
     const nextPin = updates.pincode !== undefined ? updates.pincode : selectedPincode;
     const nextAr = updates.area !== undefined ? updates.area : selectedArea;
@@ -704,10 +712,24 @@ export const JobsPage: React.FC = () => {
                 </span>
               )}
 
+              {selectedDistrict && (
+                <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
+                  🗺️ {selectedDistrict}
+                  <button onClick={() => { setSelectedDistrict(''); updateUrlParams({ district: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                </span>
+              )}
+
               {selectedCity && (
                 <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
                   📍 {selectedCity}
                   <button onClick={() => { setSelectedCity(''); updateUrlParams({ city: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
+                </span>
+              )}
+
+              {selectedPincode && (
+                <span className="inline-flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-800 shadow-xs">
+                  📮 PIN {selectedPincode}
+                  <button onClick={() => { setSelectedPincode(''); updateUrlParams({ pincode: '' }); }} className="cursor-pointer hover:text-red-500"><X className="w-3 h-3 text-slate-400" /></button>
                 </span>
               )}
 

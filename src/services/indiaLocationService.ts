@@ -672,6 +672,33 @@ export function getDistrictsForState(stateName: string): string[] {
 }
 
 /**
+ * Validates whether a district actually belongs to the given State / Union Territory.
+ */
+export function isDistrictInState(stateName: string, districtName: string): boolean {
+  if (!stateName || !districtName) return false;
+  const districts = getDistrictsForState(stateName);
+  const normDist = normalizeName(extractPrimaryName(districtName));
+  return districts.some(d => {
+    const nd = normalizeName(extractPrimaryName(d));
+    return nd === normDist || normalizeName(d) === normalizeName(districtName);
+  });
+}
+
+/**
+ * Finds the parent State / Union Territory for any official Indian district.
+ */
+export function findStateForDistrict(districtName: string): string | null {
+  if (!districtName) return null;
+  const normDist = normalizeName(extractPrimaryName(districtName));
+  for (const [st, meta] of Object.entries(STATE_DISTRICTS_DIRECTORY)) {
+    if (meta.districts.some(d => normalizeName(extractPrimaryName(d)) === normDist || normalizeName(d) === normalizeName(districtName))) {
+      return st;
+    }
+  }
+  return null;
+}
+
+/**
  * Returns immediate baseline towns/cities for a given State + District from our verified directory.
  */
 export function getBaselineTownsForDistrict(stateName: string, districtName: string): TownLocalityOption[] {
@@ -766,17 +793,23 @@ export async function fetchDistrictTownsAndPinsLive(
           const poDist = normalizeName(String(po.District || ''));
           const stateMatches =
             !poState ||
+            poState === normTargetState ||
             poState.includes(normTargetState) ||
             normTargetState.includes(poState) ||
             (normTargetState.includes('delhi') && poState.includes('delhi'));
 
+          // Exact word match for district, not arbitrary substring
+          // e.g. "thiruvananthapuram" must never match "ananthapur"
+          const primaryPoDist = extractPrimaryName(poDist);
           const distMatches =
             !poDist ||
-            poDist.includes(normTargetDist) ||
-            normTargetDist.includes(poDist) ||
-            (altQuery && poDist.includes(normalizeName(altQuery)));
+            poDist === normTargetDist ||
+            primaryPoDist === normTargetDist ||
+            (altQuery && (poDist === normalizeName(altQuery) || primaryPoDist === normalizeName(altQuery)));
 
-          if (!stateMatches && !distMatches) continue;
+          // Both state AND district MUST match if target is specified
+          if (normTargetState && !stateMatches) continue;
+          if (normTargetDist && !distMatches) continue;
 
           const pin = String(po.Pincode || '').trim();
           if (!/^\d{6}$/.test(pin)) continue;
@@ -862,11 +895,19 @@ export async function fetchPinsForTownLive(
     if (!first || first.Status !== 'Success' || !Array.isArray(first.PostOffice)) return [];
 
     const normState = normalizeName(stateName);
+    const normDistrict = normalizeName(extractPrimaryName(districtName));
     const pins: PinOption[] = [];
     for (const po of first.PostOffice) {
       const poState = normalizeName(String(po.State || ''));
+      const poDist = normalizeName(String(po.District || ''));
       if (normState && poState && !poState.includes(normState) && !normState.includes(poState)) {
         continue;
+      }
+      if (normDistrict && poDist) {
+        const poPrimaryDist = normalizeName(extractPrimaryName(poDist));
+        if (poDist !== normDistrict && poPrimaryDist !== normDistrict) {
+          continue;
+        }
       }
       const code = String(po.Pincode || '').trim();
       const officeName = String(po.Name || townName).trim();
@@ -1142,12 +1183,11 @@ export async function searchPanIndiaPlacesLive(
                   d.toLowerCase().includes(poDistRaw.toLowerCase())
               ) || poDistRaw;
 
-            if (
-              normDist &&
-              !normalizeName(matchedDist).includes(normDist) &&
-              !normDist.includes(normalizeName(extractPrimaryName(matchedDist)))
-            ) {
-              continue;
+            if (normDist) {
+              const matchedPrimary = normalizeName(extractPrimaryName(matchedDist));
+              if (matchedDist !== normDist && matchedPrimary !== normDist) {
+                continue;
+              }
             }
 
             const localityName = poNameRaw;

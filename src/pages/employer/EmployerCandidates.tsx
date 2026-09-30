@@ -18,7 +18,7 @@ import {
 } from '../../data/indiaLocations';
 import { useLanguage } from '../../services/i18n';
 import { PanIndiaLocationSelector, RADIUS_OPTIONS, PanIndiaLocationValue } from '../../components/common/PanIndiaLocationSelector';
-import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, resolveLocationCoordinates } from '../../services/indiaLocationService';
+import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, resolveLocationCoordinates, isDistrictInState } from '../../services/indiaLocationService';
 
 export const EmployerCandidates: React.FC = () => {
   const { t } = useLanguage();
@@ -129,7 +129,8 @@ export const EmployerCandidates: React.FC = () => {
 
     if (qCat !== null) setCategoryFilter(qCat);
     if (qCity !== null) setSelectedCities(qCity ? [qCity] : []);
-    if (qDistrict !== null) setSelectedDistrict(qDistrict);
+    const validDist = (qState && qDistrict && !isDistrictInState(qState, qDistrict)) ? '' : (qDistrict || '');
+    if (qDistrict !== null) setSelectedDistrict(validDist);
     if (qState !== null) setSelectedState(qState);
     if (qPincode !== null) setSelectedPincode(qPincode);
     if (qTerm !== null) setKeyword(qTerm);

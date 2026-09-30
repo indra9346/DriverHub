@@ -215,6 +215,8 @@ CREATE POLICY profile_read_owner_admin ON public.profiles FOR SELECT TO authenti
   ));
 CREATE POLICY profile_update_owner_admin ON public.profiles FOR UPDATE TO authenticated
   USING (id = auth.uid() OR public.is_driverhub_admin()) WITH CHECK (id = auth.uid() OR public.is_driverhub_admin());
+CREATE POLICY "profiles insert own" ON public.profiles FOR INSERT TO authenticated
+  WITH CHECK (id = auth.uid() AND role IN ('driver', 'employer'));
 
 CREATE POLICY company_public_verified ON public.companies FOR SELECT TO anon, authenticated
   USING (verified = true OR user_id = auth.uid() OR public.is_driverhub_admin());
@@ -340,4 +342,3 @@ CREATE POLICY entitlement_owner_admin_read ON public.job_entitlement_events FOR 
 -- Duplicate application and saved-job protection already exists in schema.
 CREATE UNIQUE INDEX IF NOT EXISTS applications_job_driver_unique ON public.applications(job_id, driver_id);
 CREATE UNIQUE INDEX IF NOT EXISTS favorites_driver_job_unique ON public.favorites(driver_id, job_id);
-

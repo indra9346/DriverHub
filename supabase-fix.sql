@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS public.driver_profiles (
   user_id UUID NOT NULL UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
   driver_category TEXT,
   years_experience INTEGER DEFAULT 0,
+  months_experience INTEGER NOT NULL DEFAULT 0,
   license_number TEXT,
   license_type TEXT,
   license_expiry DATE,
@@ -51,6 +52,21 @@ CREATE TABLE IF NOT EXISTS public.driver_profiles (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE public.driver_profiles
+  ADD COLUMN IF NOT EXISTS months_experience INTEGER NOT NULL DEFAULT 0;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'driver_profiles'
+      AND column_name = 'experience_months'
+  ) THEN
+    EXECUTE 'UPDATE public.driver_profiles
+      SET months_experience = experience_months
+      WHERE months_experience = 0 AND experience_months IS NOT NULL';
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.companies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

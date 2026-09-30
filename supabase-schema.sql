@@ -67,6 +67,22 @@ CREATE TABLE IF NOT EXISTS public.driver_profiles (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Keep reruns compatible with databases originally created from older schemas.
+ALTER TABLE public.driver_profiles
+  ADD COLUMN IF NOT EXISTS months_experience INTEGER NOT NULL DEFAULT 0;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'driver_profiles'
+      AND column_name = 'experience_months'
+  ) THEN
+    EXECUTE 'UPDATE public.driver_profiles
+      SET months_experience = experience_months
+      WHERE months_experience = 0 AND experience_months IS NOT NULL';
+  END IF;
+END $$;
+
 -- TABLE 3: DRIVER EXPERIENCES (Past work history)
 CREATE TABLE IF NOT EXISTS public.driver_experiences (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -450,11 +466,26 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_actions ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
+-- Remove any legacy permissive INSERT/ALL policy before installing the
+-- authenticated self-insert rule. SELECT and UPDATE policies remain intact.
+DO $$
+DECLARE p record;
+BEGIN
+  FOR p IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND cmd IN ('INSERT', 'ALL')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.profiles', p.policyname);
+  END LOOP;
+END $$;
 DROP POLICY IF EXISTS "profiles read own or admin" ON public.profiles;
 DROP POLICY IF EXISTS "profiles employers read drivers" ON public.profiles;
+DROP POLICY IF EXISTS "profiles insert own" ON public.profiles;
 DROP POLICY IF EXISTS "profiles update own" ON public.profiles;
 CREATE POLICY "profiles read own or admin" ON public.profiles FOR SELECT TO authenticated USING (id = auth.uid() OR public.is_admin(auth.uid()));
 CREATE POLICY "profiles employers read drivers" ON public.profiles FOR SELECT TO authenticated USING (role = 'driver');
+CREATE POLICY "profiles insert own" ON public.profiles FOR INSERT TO authenticated
+  WITH CHECK (id = auth.uid() AND role IN ('driver', 'employer'));
 CREATE POLICY "profiles update own" ON public.profiles FOR UPDATE TO authenticated USING (id = auth.uid() OR public.is_admin(auth.uid())) WITH CHECK (id = auth.uid() OR public.is_admin(auth.uid()));
 
 -- Driver Profiles Policies

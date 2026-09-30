@@ -58,6 +58,7 @@ export const EmployerCandidates: React.FC = () => {
     lat: searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : undefined,
     lng: searchParams.get('lng') ? parseFloat(searchParams.get('lng')!) : undefined
   });
+  const locationResolveVersionRef = useRef(0);
   const [minimumExperience, setMinimumExperience] = useState(0);
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState('');
   const [citySearch, setCitySearch] = useState<string>('');
@@ -140,8 +141,10 @@ export const EmployerCandidates: React.FC = () => {
     }
   }, [searchParams]);
 
-  // Automatically resolve GPS coordinates when location changes
+  // Re-resolve the radius center from the current hierarchy and keep URL state
+  // in sync. This also replaces stale coordinates from old saved/search URLs.
   useEffect(() => {
+    const version = ++locationResolveVersionRef.current;
     const city = selectedCities[0] || '';
     if (city || selectedDistrict || selectedState || selectedPincode) {
       resolveLocationCoordinates({
@@ -150,14 +153,26 @@ export const EmployerCandidates: React.FC = () => {
         state: selectedState,
         pincode: selectedPincode
       }).then(res => {
-        if (res) {
+        if (res && version === locationResolveVersionRef.current) {
           setSearchCoords({ lat: res.lat, lng: res.lng });
+          setSearchParams(current => {
+            const next = new URLSearchParams(current);
+            const lat = res.lat.toFixed(4);
+            const lng = res.lng.toFixed(4);
+            if (next.get('lat') === lat && next.get('lng') === lng) return current;
+            next.set('lat', lat);
+            next.set('lng', lng);
+            return next;
+          }, { replace: true });
         }
       }).catch(() => {});
     } else {
       setSearchCoords({});
     }
-  }, [selectedState, selectedDistrict, selectedCities, selectedPincode]);
+    return () => {
+      locationResolveVersionRef.current += 1;
+    };
+  }, [selectedState, selectedDistrict, selectedCities, selectedPincode, setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;

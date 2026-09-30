@@ -453,6 +453,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   const requestVersionRef = useRef(0);
   const liveSearchVersionRef = useRef(0);
   const pinRequestVersionRef = useRef(0);
+  const coordinateResolveVersionRef = useRef(0);
 
   // Load towns & PINs whenever State + District change
   const loadDistrictData = async (targetState: string, targetDistrict: string) => {
@@ -651,9 +652,17 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
     longitude?: number;
     radiusKm?: number;
   }) => {
+    const coordinateResolveVersion = ++coordinateResolveVersionRef.current;
     const formattedLocation = formatStructuredLocation(next);
-    const resolvedLat = next.latitude !== undefined ? next.latitude : value.latitude;
-    const resolvedLng = next.longitude !== undefined ? next.longitude : value.longitude;
+    const locationChanged =
+      next.state !== value.state ||
+      next.district !== value.district ||
+      next.city !== value.city ||
+      next.pincode !== value.pincode;
+    // Coordinates belong to the selected place. Never carry a previous town's
+    // coordinates into a newly selected district/city/PIN.
+    const resolvedLat = next.latitude !== undefined ? next.latitude : (locationChanged ? undefined : value.latitude);
+    const resolvedLng = next.longitude !== undefined ? next.longitude : (locationChanged ? undefined : value.longitude);
     const effectiveRadius = next.radiusKm !== undefined ? next.radiusKm : radiusKm;
 
     onChange({
@@ -674,7 +683,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           pincode: next.pincode
         })
           .then(coords => {
-            if (coords) {
+            if (coords && coordinateResolveVersion === coordinateResolveVersionRef.current) {
               onChange({
                 ...next,
                 formattedLocation,

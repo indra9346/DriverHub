@@ -79,7 +79,20 @@ ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS work_location_type TEXT DEFAULT
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS joining_fee_required BOOLEAN DEFAULT false;
 ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS screening_questions TEXT[] DEFAULT '{}';
 
-ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS experience_months INTEGER DEFAULT 0;
+ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS months_experience INTEGER NOT NULL DEFAULT 0;
+-- Migrate the typo used by an earlier version of this upgrade script, if present.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'driver_profiles'
+      AND column_name = 'experience_months'
+  ) THEN
+    EXECUTE 'UPDATE public.driver_profiles
+      SET months_experience = experience_months
+      WHERE months_experience = 0 AND experience_months IS NOT NULL';
+  END IF;
+END $$;
 ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS languages TEXT[] DEFAULT ARRAY['Kannada', 'Hindi', 'English'];
 ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS vehicle_types TEXT[] DEFAULT '{}';
 ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS "current_role" TEXT;

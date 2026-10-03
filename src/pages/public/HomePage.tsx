@@ -1112,32 +1112,22 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* SECTION 5: TRUSTED FLEETS SHOWCASE (Verified Partners auto-dropped when verified by Admin) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-wider border border-amber-200">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> {t('Verified Partner')}
-          </span>
-          <h2 className="text-2xl font-extrabold text-[#08233F] font-display">
-            {lang === 'kn' ? 'ಭಾರತದ ಪ್ರಮುಖ ಫ್ಲೀಟ್ ಮತ್ತು ಸಾರಿಗೆ ಸಂಸ್ಥೆಗಳು' : 'Trusted by Leading Fleets & Enterprises'}
-          </h2>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            {t('Explore verified transport companies, corporate fleets, and schools hiring drivers directly.')}
-          </p>
-        </div>
-
-        {trustedEmployersLoading && trustedEmployers.length === 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="p-5 bg-white rounded-2xl border border-slate-200/90 text-center space-y-3 animate-pulse">
-                <div className="w-12 h-12 rounded-xl bg-slate-200 mx-auto" />
-                <div className="h-4 bg-slate-200 rounded w-3/4 mx-auto" />
-                <div className="h-3 bg-slate-100 rounded w-1/2 mx-auto" />
-              </div>
-            ))}
+      {(isSupabaseConfigured ? trustedEmployers.length > 0 : DataStore.getEmployers().filter((e) => e.verified).length > 0) && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-wider border border-amber-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" /> {t('Verified Partner')}
+            </span>
+            <h2 className="text-2xl font-extrabold text-[#08233F] font-display">
+              {lang === 'kn' ? 'ಭಾರತದ ಪ್ರಮುಖ ಫ್ಲೀಟ್ ಮತ್ತು ಸಾರಿಗೆ ಸಂಸ್ಥೆಗಳು' : 'Trusted by Leading Fleets & Enterprises'}
+            </h2>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              {t('Explore verified transport companies, corporate fleets, and schools hiring drivers directly.')}
+            </p>
           </div>
-        ) : (
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {(trustedEmployers.length > 0
+            {(isSupabaseConfigured
               ? trustedEmployers.map((t) => t.employer)
               : DataStore.getEmployers().filter((e) => e.verified)
             ).map((emp) => (
@@ -1163,11 +1153,8 @@ export const HomePage: React.FC = () => {
               </Link>
             ))}
           </div>
-        )}
-        {!trustedEmployersLoading && trustedEmployersError && trustedEmployers.length === 0 && (
-          <p className="py-5 text-center text-sm text-slate-500">{t('Verified employers could not be loaded. Please try again.')}</p>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* SECTION 6: CTA BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

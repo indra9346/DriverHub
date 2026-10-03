@@ -1257,33 +1257,31 @@ export const SupabaseSync = {
 
       // Fetch all public & verified company profiles from Supabase so all devices (drivers, visitors, employers) sync verified partners
       const { data: allCompanies } = await supabase.from('companies').select('*');
-      if (allCompanies && allCompanies.length > 0) {
-        const publicEmployers: EmployerProfile[] = allCompanies.map((c: any) => {
-          const parsedLoc = parseStructuredLocation(c.location, c.state, c.district, c.city, c.pincode);
-          return {
-            id: c.user_id,
-            companyName: c.company_name || 'Verified Fleet Partner',
-            contactPerson: c.contact_person || '',
-            email: c.email || '',
-            phone: c.phone || '',
-            industry: c.industry || 'Logistics & Fleet Transport',
-            location: c.location || [c.city, c.state].filter(Boolean).join(', ') || 'India',
-            city: c.city || parsedLoc.city || '',
-            district: c.district || parsedLoc.district || undefined,
-            state: c.state || parsedLoc.state || '',
-            pincode: c.pincode || parsedLoc.pincode || undefined,
-            address: c.address || '',
-            website: c.website || '',
-            logoUrl: c.logo_url || '',
-            description: c.description || '',
-            gstin: c.gstin || '',
-            verified: Boolean(c.verified),
-            status: c.status === 'suspended' ? 'blocked' : (c.status || (c.verified ? 'active' : 'pending')),
-            createdAt: c.created_at?.slice(0, 10) || ''
-          };
-        });
-        dataStore.mergeRemoteEmployers(publicEmployers);
-      }
+      const publicEmployers: EmployerProfile[] = (allCompanies || []).map((c: any) => {
+        const parsedLoc = parseStructuredLocation(c.location, c.state, c.district, c.city, c.pincode);
+        return {
+          id: c.user_id,
+          companyName: c.company_name || 'Verified Fleet Partner',
+          contactPerson: c.contact_person || '',
+          email: c.email || '',
+          phone: c.phone || '',
+          industry: c.industry || 'Logistics & Fleet Transport',
+          location: c.location || [c.city, c.state].filter(Boolean).join(', ') || 'India',
+          city: c.city || parsedLoc.city || '',
+          district: c.district || parsedLoc.district || undefined,
+          state: c.state || parsedLoc.state || '',
+          pincode: c.pincode || parsedLoc.pincode || undefined,
+          address: c.address || '',
+          website: c.website || '',
+          logoUrl: c.logo_url || '',
+          description: c.description || '',
+          gstin: c.gstin || '',
+          verified: Boolean(c.verified),
+          status: c.status === 'suspended' ? 'blocked' : (c.status || (c.verified ? 'active' : 'pending')),
+          createdAt: c.created_at?.slice(0, 10) || ''
+        };
+      });
+      dataStore.mergeRemoteEmployers(publicEmployers);
 
       const { data: jobRows, error: jobError } = await supabase.from('jobs').select('*').order('posted_date', { ascending: false });
       if (jobError) throw jobError;

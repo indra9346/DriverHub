@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, MapPin, Truck, ShieldCheck, Briefcase, Users, Award, 
-  ArrowRight, CheckCircle2, Star, Sparkles, Building2, ChevronRight, 
+  ArrowRight, ArrowUpRight, CheckCircle2, Star, Sparkles, Building2, ChevronRight, 
   IndianRupee, Phone, Check, Clock, Zap, Shield, FileCheck, ChevronDown
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
@@ -979,22 +979,22 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* SECTION 3: POPULAR SPECIALIZATIONS (Picture 4 — Realistic Vehicle Background Cards) */}
+      {/* SECTION 3: POPULAR SPECIALIZATIONS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full uppercase tracking-wider mb-2 border border-amber-200/80">
-              <Briefcase className="w-3.5 h-3.5 text-amber-600" /> {t('Explore by Vehicle & License Category')}
+            <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1.5">
+              {t('Explore by Vehicle & License Category')}
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-[#08233F] font-display">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#08233F] font-display">
               {lang === 'kn' ? 'ಪ್ರಮುಖ ಚಾಲನಾ ವಿಭಾಗಗಳು' : 'Popular Driving Specializations'}
             </h2>
           </div>
           <Link
             to="/jobs"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-900 hover:text-emerald-700 transition-colors"
           >
-            {t('Browse All Jobs')} <ChevronRight className="w-4 h-4" />
+            {t('Browse All Jobs')} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
@@ -1006,41 +1006,48 @@ export const HomePage: React.FC = () => {
                 key={idx}
                 to={`/jobs?category=${encodeURIComponent(cat.filter)}`}
                 aria-label={`${cat.label} — ${cat.desc} (${count} Vacancies)`}
-                className="group relative min-h-[210px] rounded-2xl overflow-hidden border border-slate-800/80 hover:border-amber-400 shadow-card hover:shadow-2xl transition-all duration-300 flex flex-col justify-between p-5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-400"
+                className="group relative min-h-[220px] rounded-2xl overflow-hidden border border-slate-800/80 hover:border-slate-700 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 bg-slate-950"
               >
                 {/* Realistic Vehicle Photography Background */}
                 <img
                   src={cat.image}
                   alt={cat.alt}
                   loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-110"
+                  className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
                 />
                 {/* Multi-stop dark gradient overlay for crisp text legibility */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#04101E]/95 via-[#071C34]/75 to-[#08233F]/40 group-hover:from-[#04101E]/95 group-hover:via-[#071C34]/70 transition-colors" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/75 to-slate-950/40 transition-colors" />
 
                 <div className="relative z-10 flex items-center justify-between">
-                  <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-950/65 backdrop-blur-md border border-white/20 text-xl shadow-sm group-hover:scale-105 transition-transform">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 backdrop-blur-md text-base shadow-sm">
                     {cat.icon}
                   </span>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-400/95 text-slate-950 shadow-sm">
-                    {cat.filter}
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/20 text-slate-200">
+                    {cat.filter.toUpperCase()}
                   </span>
                 </div>
 
-                <div className="relative z-10 space-y-1.5 pt-8">
-                  <h3 className="text-base font-extrabold text-white group-hover:text-amber-300 transition-colors font-display drop-shadow-sm">
-                    {t(cat.label)}
-                  </h3>
-                  <p className="text-xs text-slate-200/95 leading-relaxed line-clamp-2 drop-shadow-xs">
-                    {t(cat.desc)}
-                  </p>
+                <div className="relative z-10 space-y-3 pt-6">
+                  <div>
+                    <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors font-display">
+                      {t(cat.label)}
+                    </h3>
+                    <p className="text-xs text-slate-300 leading-relaxed line-clamp-1 mt-0.5">
+                      {t(cat.desc)}
+                    </p>
+                  </div>
 
-                  <div className="pt-3 mt-2 border-t border-white/15 flex items-center justify-between text-xs">
-                    <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md text-white px-3 py-1 rounded-full text-[11px] font-bold border border-white/25 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:border-amber-300 transition-colors">
-                      {t('{count} Vacancies', { count })}
-                    </span>
-                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 group-hover:bg-amber-400 text-white group-hover:text-slate-950 transition-all">
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-extrabold text-emerald-400 leading-none tracking-tight">
+                        {count}
+                      </span>
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-wider uppercase leading-none">
+                        {lang === 'kn' ? 'ಖಾಲಿ ಹುದ್ದೆಗಳು' : 'VACANCIES'}
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white/90 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
+                      <ArrowUpRight className="w-4 h-4" />
                     </span>
                   </div>
                 </div>
@@ -1054,8 +1061,8 @@ export const HomePage: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-wider mb-2 border border-emerald-200">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> {t('Active & Verified')}
+            <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-1.5">
+              {t('Active & Verified')}
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#08233F] font-display">
               {t('Featured Driver Openings')}

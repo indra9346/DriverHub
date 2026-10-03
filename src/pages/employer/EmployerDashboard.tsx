@@ -10,7 +10,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { useLanguage } from '../../services/i18n';
 
 export const EmployerDashboard: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const [company, setCompany] = useState<EmployerProfile | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -179,7 +179,10 @@ export const EmployerDashboard: React.FC = () => {
                     <StatusBadge status={job.status} size="sm" />
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{job.vacancies} {t('Vacancies')}</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="font-extrabold text-emerald-600 text-sm leading-none">{job.vacancies}</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none">{lang === 'kn' ? 'ಖಾಲಿ ಹುದ್ದೆಗಳು' : 'VACANCIES'}</span>
+                    </div>
                     <span className="font-semibold text-emerald-700">₹{job.salaryMin.toLocaleString('en-IN')} - ₹{job.salaryMax.toLocaleString('en-IN')}</span>
                   </div>
                 </div>

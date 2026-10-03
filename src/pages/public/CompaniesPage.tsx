@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Building2, MapPin, ShieldCheck, Search, RefreshCw, Globe, ArrowRight, Sparkles 
+  Building2, MapPin, ShieldCheck, Search, RefreshCw, Globe, ArrowRight, ArrowUpRight, Sparkles 
 } from 'lucide-react';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { EmployerProfile } from '../../types';
@@ -247,98 +247,97 @@ export const CompaniesPage: React.FC = () => {
           return (
             <div
               key={company.id}
-              className="group bg-white rounded-2xl border border-slate-200/90 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all flex flex-col justify-between overflow-hidden"
+              className="group relative rounded-2xl overflow-hidden border border-slate-800/80 hover:border-slate-700 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-5 bg-slate-950 focus-within:ring-2 focus-within:ring-emerald-500"
             >
-              {/* 100% Realistic Logistics Hub / Transport Terminal Banner */}
-              <div className="relative h-32 w-full overflow-hidden bg-slate-900 shrink-0">
-                <img
-                  src={banner.url}
-                  alt={banner.alt}
-                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                
-                {company.verified && (
-                  <div className="absolute top-2.5 right-2.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-950/80 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-emerald-400/40 shadow-xs">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> {t('Verified Partner')}
-                    </span>
-                  </div>
-                )}
+              {/* Realistic Logistics Hub / Transport Terminal Banner Background */}
+              <img
+                src={banner.url}
+                alt={banner.alt}
+                className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
+                loading="lazy"
+              />
+              {/* Multi-stop dark gradient overlay for crisp text legibility */}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/85 to-slate-950/50 transition-colors" />
 
-                <div className="absolute bottom-2 right-2.5">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-200 bg-slate-950/70 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/15">
-                    {banner.tag}
+              {/* Top Row: Floating Logo & Badges */}
+              <div className="relative z-10 flex items-center justify-between gap-2">
+                <Link
+                  to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                  className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 p-1 flex items-center justify-center shrink-0 hover:border-emerald-400 transition-colors overflow-hidden"
+                >
+                  {company.logoUrl ? (
+                    <img src={company.logoUrl} alt={company.companyName} className="w-full h-full object-cover rounded-lg" />
+                  ) : (
+                    <Building2 className="w-5 h-5 text-slate-300" />
+                  )}
+                </Link>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {company.verified && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-md border border-emerald-400/40">
+                      <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" /> {t('Verified Partner')}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/20 text-slate-200 shadow-sm">
+                    {banner.tag.toUpperCase()}
                   </span>
                 </div>
               </div>
 
-              <div className="p-5 pt-0 flex-1 flex flex-col justify-between">
+              {/* Middle Section: Company Title, Industry, Metadata, Description */}
+              <div className="relative z-10 space-y-2.5 pt-5 pb-3">
                 <div>
-                  {/* Floating Logo Badge */}
-                  <div className="flex items-end justify-between -mt-7 mb-2.5">
-                    <Link
-                      to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
-                      className="w-14 h-14 rounded-2xl bg-white border-2 border-white shadow-md overflow-hidden flex items-center justify-center shrink-0 hover:border-amber-400 transition-colors cursor-pointer relative z-10"
-                    >
-                      {company.logoUrl ? (
-                        <img src={company.logoUrl} alt={company.companyName} className="w-full h-full object-cover" />
-                      ) : (
-                        <Building2 className="w-7 h-7 text-slate-400" />
-                      )}
-                    </Link>
-                  </div>
+                  <Link
+                    to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                    className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors truncate block"
+                  >
+                    {company.companyName}
+                  </Link>
+                  <p className="text-xs text-slate-400 font-medium truncate mt-0.5">{company.industry}</p>
+                </div>
 
-                  {/* Company Title and Category on clean white card surface */}
-                  <div className="mb-3">
-                    <Link
-                      to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
-                      className="text-base font-bold text-[#08233F] group-hover:text-blue-700 transition-colors truncate block cursor-pointer"
-                    >
-                      {company.companyName}
-                    </Link>
-                    <p className="text-xs text-slate-500 font-medium truncate mt-0.5">{company.industry}</p>
+                {/* Metadata */}
+                <div className="space-y-1.5 text-xs text-slate-300 py-2 border-t border-white/10">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{company.location || [company.city, company.state].filter(Boolean).join(', ') || 'Pan-India'}</span>
                   </div>
-
-                  {/* Metadata */}
-                  <div className="space-y-1.5 text-xs text-slate-600 py-2.5 border-t border-slate-100">
+                  {company.website && (
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{company.location || [company.city, company.state].filter(Boolean).join(', ') || 'Pan-India'}</span>
+                      <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <a href={company.website} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline truncate">
+                        {company.website.replace(/^https?:\/\//, '')}
+                      </a>
                     </div>
-                    {company.website && (
-                      <div className="flex items-center gap-2">
-                        <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <a href={company.website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">
-                          {company.website.replace(/^https?:\/\//, '')}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Description */}
-                  {company.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed mt-2">
-                      {company.description}
-                    </p>
                   )}
                 </div>
 
-                {/* Footer Action */}
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                    {t('{count} Open Vacancies', { count: openVacancies })}
-                  </span>
+                {company.description && (
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                    {company.description}
+                  </p>
+                )}
+              </div>
 
-                  <Link
-                    to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#08233F] hover:bg-amber-500 hover:text-slate-950 text-white text-xs font-bold rounded-xl shadow-subtle transition-all duration-150 cursor-pointer"
-                  >
-                    <span>{t('View Jobs')}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+              {/* Bottom Row: Vacancies Count & Arrow CTA */}
+              <div className="relative z-10 flex items-center justify-between pt-2 border-t border-white/10">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-emerald-400 leading-none tracking-tight">
+                    {openVacancies}
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-wider uppercase leading-none">
+                    {lang === 'kn' ? 'ಖಾಲಿ ಹುದ್ದೆಗಳು' : 'VACANCIES'}
+                  </span>
                 </div>
+
+                <Link
+                  to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white/90 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"
+                  title={t('View Jobs')}
+                  aria-label={`${t('View Jobs')} ${company.companyName}`}
+                >
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
               </div>
             </div>
           );

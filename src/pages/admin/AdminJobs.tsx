@@ -10,7 +10,7 @@ import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocati
 import { matchesPanIndiaLocationFilter, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
 
 export const AdminJobs: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filter, setFilter] = useState<string>('pending');
   const [locationFilter, setLocationFilter] = useState<StructuredPanIndiaLocation>({
@@ -135,7 +135,10 @@ export const AdminJobs: React.FC = () => {
                   <span className="font-semibold text-slate-900">🏢 {job.companyName}</span>
                   <span>📍 {job.location}</span>
                   <span className="font-bold text-emerald-700">💰 ₹{job.salaryMin.toLocaleString('en-IN')} - ₹{job.salaryMax.toLocaleString('en-IN')}</span>
-                  <span>👥 {job.vacancies} {t('openings')}</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-extrabold text-emerald-600 text-sm">{job.vacancies}</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{lang === 'kn' ? 'ಖಾಲಿ ಹುದ್ದೆಗಳು' : 'VACANCIES'}</span>
+                  </div>
                 </div>
               </div>
 

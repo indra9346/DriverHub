@@ -383,14 +383,14 @@ export const JobDetailPage: React.FC = () => {
               </div>
             </Link>
 
-            <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+            <div className="space-y-2.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
               <div className="flex items-center gap-2 font-medium">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>{t('Verified Employer')}</span>
               </div>
-              <div className="flex items-center gap-2 font-medium">
-                <Users className="w-4 h-4 text-blue-600" />
-                <span>{t('{count} Vacancies', { count: job.vacancies })}</span>
+              <div className="flex items-baseline gap-2 pt-1 border-t border-slate-100">
+                <span className="text-2xl font-extrabold text-emerald-600 leading-none">{job.vacancies || 1}</span>
+                <span className="text-[10px] font-bold text-slate-500 tracking-wider uppercase leading-none">{lang === 'kn' ? 'ಖಾಲಿ ಹುದ್ದೆಗಳು' : 'VACANCIES'}</span>
               </div>
             </div>
           </div>

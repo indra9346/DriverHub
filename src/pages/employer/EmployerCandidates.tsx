@@ -237,7 +237,7 @@ export const EmployerCandidates: React.FC = () => {
   const stateCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const d of drivers) {
-      const st = d.state || 'Karnataka';
+      const st = d.state || 'Other';
       counts[st] = (counts[st] || 0) + 1;
     }
     return counts;

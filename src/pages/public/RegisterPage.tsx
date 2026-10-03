@@ -31,11 +31,11 @@ export const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [locationSelection, setLocationSelection] = useState<StructuredPanIndiaLocation>({
-    state: 'Karnataka',
-    district: 'Bengaluru Urban',
-    city: 'Bengaluru (GPO / MG Road)',
-    pincode: '560001',
-    formattedLocation: 'Bengaluru (GPO / MG Road), Bengaluru Urban Dist., Karnataka - 560001'
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
+    formattedLocation: ''
   });
 
   // Driver fields

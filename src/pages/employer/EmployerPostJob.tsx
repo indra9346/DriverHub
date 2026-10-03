@@ -231,18 +231,18 @@ export const EmployerPostJob: React.FC = () => {
   const [workLocationType, setWorkLocationType] = useState<'Work From Depot / Office' | 'Client / Household Site' | 'Interstate / Field Route'>('Work From Depot / Office');
   const [locationSelection, setLocationSelection] = useState<StructuredPanIndiaLocation>(() =>
     parseStructuredLocation(
-      employer?.location || 'Electronic City, Bengaluru Urban Dist., Karnataka - 560100',
-      employer?.state || 'Karnataka',
-      employer?.district || 'Bengaluru Urban',
-      employer?.city || 'Electronic City',
-      employer?.pincode || '560100'
+      employer?.location || '',
+      employer?.state || '',
+      employer?.district || '',
+      employer?.city || '',
+      employer?.pincode || ''
     )
   );
-  const [state, setState] = useState(locationSelection.state || 'Karnataka');
-  const [district, setDistrict] = useState(locationSelection.district || 'Bengaluru Urban');
-  const [city, setCity] = useState(locationSelection.city || 'Electronic City');
-  const [pincode, setPincode] = useState(locationSelection.pincode || '560100');
-  const [location, setLocation] = useState(employer?.location || 'Electronic City Phase 1');
+  const [state, setState] = useState(locationSelection.state || '');
+  const [district, setDistrict] = useState(locationSelection.district || '');
+  const [city, setCity] = useState(locationSelection.city || '');
+  const [pincode, setPincode] = useState(locationSelection.pincode || '');
+  const [location, setLocation] = useState(employer?.location || '');
   const [vacancies, setVacancies] = useState<number>(1);
 
   // Compensation & Perks

@@ -12,8 +12,8 @@ export const EmployerCompanyProfile: React.FC = () => {
   const currentUser = DataStore.getCurrentUser();
   const [profile, setProfile] = useState<EmployerProfile | null>(null);
   const [locationSelection, setLocationSelection] = useState<StructuredPanIndiaLocation>({
-    state: 'Karnataka',
-    district: 'Bengaluru Urban',
+    state: '',
+    district: '',
     city: '',
     pincode: '',
     formattedLocation: ''

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Building2, Shield, Lock, Mail, ArrowRight, 
@@ -30,22 +30,12 @@ export const LoginPage: React.FC = () => {
   const [suggestedRole, setSuggestedRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const saved = DataStore.getLastUserByRole(roleTab);
-    if (saved?.email && !email) setEmail(saved.email);
-  }, []);
-
   const handleRoleChange = (newRole: UserRole) => {
     setRoleTab(newRole);
     setError(null);
     setSuggestedRole(null);
+    setEmail('');
     setPassword('');
-    const saved = DataStore.getLastUserByRole(newRole);
-    if (saved?.email) {
-      setEmail(saved.email);
-    } else {
-      setEmail('');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -246,7 +236,7 @@ export const LoginPage: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={roleTab === 'admin' ? 'admin@driverhub.in' : roleTab === 'employer' ? 'employer@fleet.com' : 'driver@example.com'}
+                    placeholder="name@example.com"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
                   />
                 </div>

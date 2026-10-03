@@ -29,6 +29,12 @@ const STORAGE_KEYS = {
   MESSAGES: 'driverhub_direct_messages_v2',
 };
 
+try {
+  localStorage.removeItem(STORAGE_KEYS.LAST_ROLE_USERS);
+} catch {
+  // ignore
+}
+
 // Helper for local storage
 function getStorage<T>(key: string, fallback: T): T {
   try {
@@ -80,19 +86,15 @@ export const DataStore = {
 
   setCurrentUser(user: User | null): void {
     setStorage(STORAGE_KEYS.CURRENT_USER, user);
-    if (user && user.role && user.email) {
-      const lastRoles = getStorage<Record<string, string>>(STORAGE_KEYS.LAST_ROLE_USERS, {});
-      lastRoles[user.role] = user.email.trim().toLowerCase();
-      setStorage(STORAGE_KEYS.LAST_ROLE_USERS, lastRoles);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.LAST_ROLE_USERS);
+    } catch {
+      // ignore
     }
   },
 
-  getLastUserByRole(role: UserRole): User | null {
-    const lastRoles = getStorage<Record<string, string>>(STORAGE_KEYS.LAST_ROLE_USERS, {});
-    const email = lastRoles[role];
-    if (!email) return null;
-    const users = this.getUsers();
-    return users.find(u => u.email.trim().toLowerCase() === email.trim().toLowerCase()) || null;
+  getLastUserByRole(_role: UserRole): User | null {
+    return null;
   },
 
   // Users

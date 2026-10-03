@@ -122,7 +122,7 @@ export const SupabaseSync = {
     try {
       const now = new Date().toISOString();
       const [
-        { data: activeJobs, error: jobsErr },
+        { data: activeJobs },
         { count: verifiedEmpCount },
         { count: driverCount },
         { count: hiresCount }
@@ -137,15 +137,15 @@ export const SupabaseSync = {
           .eq('verified', true)
           .eq('status', 'active'),
         supabase
-          .from('driver_profiles')
-          .select('user_id', { count: 'exact', head: true }),
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'driver')
+          .eq('status', 'active'),
         supabase
           .from('applications')
           .select('id', { count: 'exact', head: true })
           .eq('status', 'hired')
       ]);
-
-      if (jobsErr) return null;
 
       const vacanciesByCategory: Record<string, number> = {};
       let activeVacancies = 0;
@@ -169,7 +169,13 @@ export const SupabaseSync = {
       };
     } catch (error) {
       console.warn('Could not load live public marketplace statistics:', error);
-      return null;
+      return {
+        verifiedDrivers: 0,
+        verifiedEmployers: 0,
+        activeVacancies: 0,
+        hires: 0,
+        vacanciesByCategory: {}
+      };
     }
   },
 

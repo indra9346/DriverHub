@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
+import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { Job } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
 import { useLanguage } from '../../services/i18n';
@@ -344,9 +345,9 @@ export const HomePage: React.FC = () => {
 
   // Calculate live active vacancy count per category matching JobsPage.tsx filter semantics
   const getLiveCategoryVacancies = (catFilter: string, countKeys: string[]): number => {
-    const rpcCount = marketplaceStats
-      ? countKeys.reduce((acc, key) => acc + (marketplaceStats.vacanciesByCategory[key] || 0), 0)
-      : 0;
+    if (isSupabaseConfigured && marketplaceStats) {
+      return countKeys.reduce((acc, key) => acc + (marketplaceStats.vacanciesByCategory[key] || 0), 0);
+    }
 
     const matchingJobs = allActiveJobs.filter(job => {
       const jobCat = (job.category || '').toLowerCase();
@@ -358,22 +359,30 @@ export const HomePage: React.FC = () => {
       return false;
     });
 
-    const storeVacancies = matchingJobs.reduce((sum, j) => sum + Math.max(1, Number(j.vacancies) || 1), 0);
-    return Math.max(rpcCount, storeVacancies);
+    return matchingJobs.reduce((sum, j) => sum + Math.max(1, Number(j.vacancies) || 1), 0);
   };
 
-  // Resolved hero statistics (live database stats with active store fallback)
+  // Resolved hero statistics (live database stats with accurate store fallback only when Supabase is not configured)
   const resolvedStats = useMemo(() => {
+    if (isSupabaseConfigured && marketplaceStats) {
+      return {
+        verifiedDrivers: marketplaceStats.verifiedDrivers,
+        verifiedEmployers: marketplaceStats.verifiedEmployers,
+        activeVacancies: marketplaceStats.activeVacancies,
+        hires: marketplaceStats.hires,
+      };
+    }
+
     const storeDrivers = DataStore.getDrivers().filter(d => d.status === 'active').length;
     const storeEmps = DataStore.getEmployers().filter(e => e.verified).length;
     const storeVacancies = allActiveJobs.reduce((sum, j) => sum + Math.max(1, Number(j.vacancies) || 1), 0);
     const storeHires = DataStore.getApplications().filter(a => a.status === 'hired' || a.status === 'selected').length;
 
     return {
-      verifiedDrivers: Math.max(marketplaceStats?.verifiedDrivers || 0, storeDrivers),
-      verifiedEmployers: Math.max(marketplaceStats?.verifiedEmployers || 0, storeEmps),
-      activeVacancies: Math.max(marketplaceStats?.activeVacancies || 0, storeVacancies),
-      hires: Math.max(marketplaceStats?.hires || 0, storeHires),
+      verifiedDrivers: storeDrivers,
+      verifiedEmployers: storeEmps,
+      activeVacancies: storeVacancies,
+      hires: storeHires,
     };
   }, [marketplaceStats, allActiveJobs]);
 

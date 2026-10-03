@@ -33,13 +33,27 @@ const STORAGE_KEYS = {
 function getStorage<T>(key: string, fallback: T): T {
   try {
     const item = localStorage.getItem(key);
-    if (item) return JSON.parse(item);
+    if (item) {
+      const parsed = JSON.parse(item);
+      if (!DEMO_DATA_ENABLED && Array.isArray(parsed)) {
+        const isDemoId = (id: any) =>
+          typeof id === 'string' &&
+          (id.startsWith('job-') ||
+           id.startsWith('driver-') ||
+           id.startsWith('emp-') ||
+           id.startsWith('app-') ||
+           id.startsWith('user-') ||
+           id.startsWith('00000000-0000-4000-8000-'));
+        return parsed.filter((entry: any) => !isDemoId(entry?.id)) as T;
+      }
+      return parsed;
+    }
     if (DEMO_DATA_ENABLED) return fallback;
     if (Array.isArray(fallback)) return [] as T;
     if (fallback && typeof fallback === 'object') return {} as T;
     return fallback;
   } catch {
-    return fallback;
+    return DEMO_DATA_ENABLED ? fallback : (Array.isArray(fallback) ? [] as T : (fallback && typeof fallback === 'object' ? {} as T : fallback));
   }
 }
 
@@ -151,8 +165,8 @@ export const DataStore = {
 
   // Drivers
   getDrivers(): DriverProfile[] {
-    const list = getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers);
-    const raw = list && list.length > 0 ? list : allDefaultDrivers;
+    const list = getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, DEMO_DATA_ENABLED ? allDefaultDrivers : []);
+    const raw = list || (DEMO_DATA_ENABLED ? allDefaultDrivers : []);
     return raw.map(d => {
       const parsed = parseStructuredLocation(d);
       const isOutdated =
@@ -354,10 +368,10 @@ export const DataStore = {
   },
 
   mergeRemoteDrivers(remoteDrivers: DriverProfile[]): void {
-    const existing = getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers);
-    const remoteIds = new Set(remoteDrivers.map(driver => driver.id));
-    const combined = [...remoteDrivers, ...existing.filter(driver => !remoteIds.has(driver.id))];
-    const sanitized = combined.map(d => {
+    const listToMerge = !DEMO_DATA_ENABLED
+      ? remoteDrivers
+      : [...remoteDrivers, ...getStorage<DriverProfile[]>(STORAGE_KEYS.DRIVERS, allDefaultDrivers).filter(d => !new Set(remoteDrivers.map(r => r.id)).has(d.id))];
+    const sanitized = listToMerge.map(d => {
       const parsed = parseStructuredLocation(d);
       return {
         ...d,
@@ -405,8 +419,8 @@ export const DataStore = {
 
   // Employers
   getEmployers(): EmployerProfile[] {
-    const list = getStorage<EmployerProfile[]>(STORAGE_KEYS.EMPLOYERS, initialEmployers);
-    return list && list.length > 0 ? list : initialEmployers;
+    const list = getStorage<EmployerProfile[]>(STORAGE_KEYS.EMPLOYERS, DEMO_DATA_ENABLED ? initialEmployers : []);
+    return list || (DEMO_DATA_ENABLED ? initialEmployers : []);
   },
 
   getEmployerById(id: string): EmployerProfile | undefined {
@@ -436,6 +450,10 @@ export const DataStore = {
   },
 
   mergeRemoteEmployers(remoteEmployers: EmployerProfile[]): void {
+    if (!DEMO_DATA_ENABLED) {
+      setStorage(STORAGE_KEYS.EMPLOYERS, remoteEmployers);
+      return;
+    }
     const existing = getStorage<EmployerProfile[]>(STORAGE_KEYS.EMPLOYERS, initialEmployers);
     const remoteIds = new Set(remoteEmployers.map(employer => employer.id));
     setStorage(STORAGE_KEYS.EMPLOYERS, [...remoteEmployers, ...existing.filter(employer => !remoteIds.has(employer.id))]);
@@ -453,14 +471,8 @@ export const DataStore = {
 
   // Jobs
   getJobs(): Job[] {
-    const list = getStorage<Job[]>(STORAGE_KEYS.JOBS, initialJobs);
-    if (!list || list.length === 0) return initialJobs;
-    const hasActiveJobs = list.some(j => j.status === 'active');
-    if (!hasActiveJobs) {
-      const existingIds = new Set(list.map(j => j.id));
-      return [...list, ...initialJobs.filter(j => !existingIds.has(j.id))];
-    }
-    return list;
+    const list = getStorage<Job[]>(STORAGE_KEYS.JOBS, DEMO_DATA_ENABLED ? initialJobs : []);
+    return list || (DEMO_DATA_ENABLED ? initialJobs : []);
   },
 
   getJobById(id: string): Job | undefined {
@@ -495,6 +507,10 @@ export const DataStore = {
   },
 
   mergeRemoteJobs(remoteJobs: Job[]): void {
+    if (!DEMO_DATA_ENABLED) {
+      setStorage(STORAGE_KEYS.JOBS, remoteJobs);
+      return;
+    }
     const existing = getStorage<Job[]>(STORAGE_KEYS.JOBS, initialJobs);
     const baseList = existing && existing.length > 0 ? existing : initialJobs;
     const remoteIds = new Set(remoteJobs.map(job => job.id));
@@ -555,7 +571,7 @@ export const DataStore = {
 
   // Applications
   getApplications(): Application[] {
-    return getStorage<Application[]>(STORAGE_KEYS.APPLICATIONS, initialApplications);
+    return getStorage<Application[]>(STORAGE_KEYS.APPLICATIONS, DEMO_DATA_ENABLED ? initialApplications : []);
   },
 
   getApplicationById(id: string): Application | undefined {
@@ -600,6 +616,10 @@ export const DataStore = {
   },
 
   mergeRemoteApplications(remoteApps: Application[]): void {
+    if (!DEMO_DATA_ENABLED) {
+      setStorage(STORAGE_KEYS.APPLICATIONS, remoteApps);
+      return;
+    }
     const existing = getStorage<Application[]>(STORAGE_KEYS.APPLICATIONS, initialApplications);
     const remoteIds = new Set(remoteApps.map(app => app.id));
     setStorage(STORAGE_KEYS.APPLICATIONS, [...remoteApps, ...existing.filter(app => !remoteIds.has(app.id))]);

@@ -263,19 +263,21 @@ export const SupabaseSync = {
 
   async updateAdminJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
     const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) return false;
+    if (authError || !authData.user) return this.fail(authError, 'Your session has expired. Please sign in again.');
     const { data: actor, error: actorError } = await supabase.from('profiles').select('role')
       .eq('id', authData.user.id).maybeSingle();
-    if (actorError || actor?.role !== 'admin') return false;
+    if (actorError || actor?.role !== 'admin') return this.fail(actorError, 'Administrator access is required.');
 
     const { data: job, error: jobError } = await supabase.from('jobs').select('status')
       .eq('id', toUUID(jobId)).maybeSingle();
-    if (jobError || !job) return false;
+    if (jobError || !job) return this.fail(jobError, 'This job could not be found. Refresh and try again.');
     const allowed: Record<Job['status'], Job['status'][]> = {
       draft: ['pending', 'active', 'closed'], pending: ['active', 'rejected', 'closed'],
       active: ['closed'], closed: ['active'], rejected: []
     };
-    if (job.status !== status && !allowed[job.status as Job['status']]?.includes(status)) return false;
+    if (job.status !== status && !allowed[job.status as Job['status']]?.includes(status)) {
+      return this.fail(null, `A ${job.status} job cannot be moved to ${status}.`);
+    }
     if (job.status === status) return true;
 
     const { data, error } = await supabase.from('jobs').update({ status })
@@ -941,13 +943,28 @@ export const SupabaseSync = {
   async syncUserStatus(userId: string, status: 'active' | 'blocked' | 'pending' | 'suspended'): Promise<boolean> {
     try {
       const { data: current, error: authError } = await supabase.auth.getUser();
-      if (authError || !current.user) return false;
+      if (authError || !current.user) return this.fail(authError, 'Your session has expired. Please sign in again.');
       const { data: actor, error: actorError } = await supabase.from('profiles').select('role').eq('id', current.user.id).maybeSingle();
-      if (actorError || actor?.role !== 'admin') return false;
+      if (actorError || actor?.role !== 'admin') return this.fail(actorError, 'Administrator access is required.');
       const userUUID = toUUID(userId);
-      const { data, error } = await supabase.from('profiles').update({ status }).eq('id', userUUID).select('id').maybeSingle();
+      const { data, error } = await supabase.from('profiles').update({ status }).eq('id', userUUID).select('id,role').maybeSingle();
       if (error) throw error;
-      return Boolean(data?.id);
+      if (!data?.id) return this.fail(null, 'This account could not be found.');
+      if (data.role === 'employer') {
+        // Keep the company listing in step with the account: a blocked employer
+        // is suspended from the directory; unblocking restores it (listed only
+        // when verified).
+        const { data: company } = await supabase.from('companies').select('verified,status').eq('user_id', userUUID).maybeSingle();
+        if (company) {
+          const blocked = status === 'blocked' || status === 'suspended';
+          const companyStatus = blocked ? 'suspended' : (company.verified ? 'active' : 'pending');
+          if (company.status !== companyStatus) {
+            const { error: companyError } = await supabase.from('companies').update({ status: companyStatus }).eq('user_id', userUUID);
+            if (companyError) return this.fail(companyError, 'The account was updated, but the company listing could not be.');
+          }
+        }
+      }
+      return true;
     } catch (e) {
       return this.fail(e, 'Could not update this account.');
     }

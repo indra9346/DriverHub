@@ -65,6 +65,24 @@ Data note: the driver list contains three accounts that are not real drivers (an
 
 Also fixed: "Showing 1 active vacancies" now reads "1 active vacancy".
 
+The driver portal was then also tested live with a newly registered driver: all 9 pages load, profile save (completion 60% → 80%), document upload to the private bucket, save job, apply to the approved test job, and message the employer all work. The location button cannot be used inside the in-app browser pane (it does not grant location access); on phones and desktop browsers the browser asks for permission.
+
+## Full hiring flow across roles (local emulator, two signed-in sessions)
+
+| Step | Result |
+| --- | --- |
+| Verified employer publishes a job | Live immediately, 30-day expiry |
+| Driver applies | Employer pipeline shows the applicant (location, licence, experience) |
+| Employer opens the licence PDF | Short-lived private link (60 s) |
+| Employer saves notes, shortlists, schedules an interview | Saved; driver notified each time |
+| Employer replies in chat | Driver sees the reply and an unread badge |
+| Driver's My Applications | "Interview Scheduled", date/place and the employer's notes |
+| Admin verifies the document | Driver notified "document was verified" |
+| Admin blocks and unblocks a driver | Status changes; both recorded in the moderation log |
+| Admin applications log | Every application with its status |
+
+Also fixed in this round: status notifications now read as sentences ("has an interview scheduled", "is approved and live"; `supabase-notification-wording-2026-10.sql`), "(1 candidate)" and "1 year experience".
+
 ## Known limits
 
 - Online payment needs the Razorpay edge functions and secrets deployed.

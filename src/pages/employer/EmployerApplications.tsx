@@ -308,7 +308,7 @@ export const EmployerApplications: React.FC = () => {
               const jApps = applications.filter(a => a.jobId === j.id);
               return (
                 <option key={j.id} value={j.id}>
-                  {j.title} ({jApps.length} {t('candidates')})
+                  {j.title} ({jApps.length} {jApps.length === 1 ? t('candidate') : t('candidates')})
                 </option>
               );
             })}
@@ -380,7 +380,7 @@ export const EmployerApplications: React.FC = () => {
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                   <span>🚗 {t('category')}: {app.driverCategory ? t(app.driverCategory) : NOT_PROVIDED}</span>
-                  <span>⏱️ {t('experience')}: {typeof app.driverExperienceYears === 'number' ? `${app.driverExperienceYears} ${t('yearsExperience')}` : NOT_PROVIDED}</span>
+                  <span>⏱️ {t('experience')}: {typeof app.driverExperienceYears === 'number' ? `${app.driverExperienceYears} ${app.driverExperienceYears === 1 ? t('yearExperience') : t('yearsExperience')}` : NOT_PROVIDED}</span>
                   <span className="break-words">📍 {t('location')}: {app.driverLocation || NOT_PROVIDED}</span>
                 </div>
 
@@ -503,7 +503,7 @@ export const EmployerApplications: React.FC = () => {
               <div className="min-w-0">
                 <span className="text-slate-400 block">{t('experience')}</span>
                 <span className="font-bold text-slate-900">
-                  {typeof selectedApp.driverExperienceYears === 'number' ? `${selectedApp.driverExperienceYears} ${t('yearsExperience')}` : NOT_PROVIDED}
+                  {typeof selectedApp.driverExperienceYears === 'number' ? `${selectedApp.driverExperienceYears} ${selectedApp.driverExperienceYears === 1 ? t('yearExperience') : t('yearsExperience')}` : NOT_PROVIDED}
                 </span>
               </div>
               <div className="min-w-0">

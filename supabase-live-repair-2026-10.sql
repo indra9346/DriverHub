@@ -768,7 +768,12 @@ BEGIN
         WHEN 'rejected' THEN 'Job not approved'
         WHEN 'closed' THEN 'Job closed by DriverHub'
         ELSE 'Job status updated' END,
-      '"' || COALESCE(NEW.title, 'Your job') || '" is now ' || NEW.status::text ||
+      '"' || COALESCE(NEW.title, 'Your job') || '" ' ||
+        CASE NEW.status::text
+          WHEN 'active' THEN 'is approved and live. Drivers can apply now'
+          WHEN 'rejected' THEN 'was not approved'
+          WHEN 'closed' THEN 'was closed by DriverHub'
+          ELSE 'is now ' || replace(NEW.status::text, '_', ' ') END ||
         CASE WHEN NEW.status::text = 'rejected' AND OLD.credit_consumed THEN '. Your job credit was returned.' ELSE '.' END,
       'system', '/employer/jobs');
   END IF;
@@ -876,7 +881,18 @@ BEGIN
         VALUES (target_employer, 'Application withdrawn', 'A driver withdrew their application for ' || COALESCE(target_title, 'your job') || '.', 'new_application', '/employer/applications');
       ELSE
         INSERT INTO public.notifications(user_id, title, message, type, link)
-        VALUES (NEW.driver_id, 'Application status updated', 'Your application for ' || COALESCE(target_title, 'a driver job') || ' is now ' || replace(NEW.status::text, '_', ' ') || '.', 'application_status', '/driver/applications');
+        VALUES (NEW.driver_id, 'Application status updated', 'Your application for ' || COALESCE(target_title, 'a driver job') || ' ' ||
+          CASE NEW.status::text
+            WHEN 'viewed' THEN 'was viewed by the employer'
+            WHEN 'under_review' THEN 'is under review'
+            WHEN 'shortlisted' THEN 'has been shortlisted'
+            WHEN 'contacted' THEN 'is moving ahead: the employer will contact you'
+            WHEN 'interview' THEN 'has an interview scheduled. See the date and place in My Applications'
+            WHEN 'selected' THEN 'was selected'
+            WHEN 'hired' THEN 'was successful: you are hired'
+            WHEN 'rejected' THEN 'was not selected this time'
+            WHEN 'withdrawn' THEN 'was withdrawn'
+            ELSE 'is now ' || replace(NEW.status::text, '_', ' ') END || '.', 'application_status', '/driver/applications');
       END IF;
     END IF;
   ELSIF TG_TABLE_NAME = 'direct_messages' THEN

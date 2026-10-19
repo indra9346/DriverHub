@@ -26,9 +26,468 @@
 --     approves, rejects or closes their job, and when a driver withdraws.
 --  9. The district / PIN / location chosen at signup is stored even when email
 --     confirmation is on; saved searches keep district, PIN and radius.
+-- 10. Older live tables get every column the app uses (messaging and interview
+--     scheduling failed because direct_messages / applications lacked columns),
+--     the radius candidate search, the payment-order table, and live updates.
 -- =====================================================================
 
 BEGIN;
+
+-- ---------------------------------------------------------------------
+-- 0. Columns. Some live tables were created by older DriverHub scripts
+-- (CREATE TABLE IF NOT EXISTS then skipped the newer definition), e.g.
+-- direct_messages without sender_name/sender_role and applications without
+-- interview_mode. Add every column the app uses; safe defaults only
+-- (no credits, no verification). Existing columns are left untouched.
+-- ---------------------------------------------------------------------
+DO $cols$ BEGIN IF to_regclass('public.profiles') IS NOT NULL THEN
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role public.user_role DEFAULT 'driver';
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name text DEFAULT '';
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS location text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS city text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS state text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS district text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pincode text;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS latitude double precision;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS longitude double precision;
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status public.user_status DEFAULT 'active';
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+  ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.driver_profiles') IS NOT NULL THEN
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS driver_category text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS years_experience integer DEFAULT 0;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS months_experience integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS license_number text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS license_type text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS license_expiry date;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS skills text[] DEFAULT '{}';
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS languages text[] DEFAULT '{}';
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS vehicle_types text[] DEFAULT '{}';
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS "current_role" text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS previous_role text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS education text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS preferred_location text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS expected_salary integer;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS availability text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS night_shift_willing boolean;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS outstation_willing boolean;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS cv_attached boolean DEFAULT false;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS police_verified boolean DEFAULT false;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS unlock_count integer DEFAULT 0;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS bio text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS resume_url text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS latitude double precision;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS longitude double precision;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS district text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS pincode text;
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+  ALTER TABLE public.driver_profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.driver_experiences') IS NOT NULL THEN
+  ALTER TABLE public.driver_experiences ADD COLUMN IF NOT EXISTS vehicle_type text;
+  ALTER TABLE public.driver_experiences ADD COLUMN IF NOT EXISTS duration_years numeric(4,1) DEFAULT 0;
+  ALTER TABLE public.driver_experiences ADD COLUMN IF NOT EXISTS start_date date;
+  ALTER TABLE public.driver_experiences ADD COLUMN IF NOT EXISTS end_date date;
+  ALTER TABLE public.driver_experiences ADD COLUMN IF NOT EXISTS description text;
+  ALTER TABLE public.driver_experiences ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.driver_documents') IS NOT NULL THEN
+  ALTER TABLE public.driver_documents ADD COLUMN IF NOT EXISTS name text DEFAULT '';
+  ALTER TABLE public.driver_documents ADD COLUMN IF NOT EXISTS type public.document_type DEFAULT 'other';
+  ALTER TABLE public.driver_documents ADD COLUMN IF NOT EXISTS file_url text;
+  ALTER TABLE public.driver_documents ADD COLUMN IF NOT EXISTS file_size text;
+  ALTER TABLE public.driver_documents ADD COLUMN IF NOT EXISTS verification_status public.verification_status DEFAULT 'pending';
+  ALTER TABLE public.driver_documents ADD COLUMN IF NOT EXISTS upload_date timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.companies') IS NOT NULL THEN
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS company_name text DEFAULT '';
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS contact_person text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS email text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS phone text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS industry text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS location text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS city text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS district text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS state text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS pincode text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS address text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS website text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS logo_url text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS description text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS gstin text;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS verified boolean DEFAULT false;
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS status public.user_status DEFAULT 'pending';
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+  ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.employer_subscriptions') IS NOT NULL THEN
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS plan_name text DEFAULT 'No active hiring plan';
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS job_credits integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS db_unlock_credits integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS total_job_credits integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS total_db_unlock_credits integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS active_job_slots integer NOT NULL DEFAULT 0;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS gstin text;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS gstin_verified boolean DEFAULT false;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS billing_company_name text;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS billing_address text;
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS status text DEFAULT 'expired';
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS expires_at timestamptz DEFAULT now();
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+  ALTER TABLE public.employer_subscriptions ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.billing_transactions') IS NOT NULL THEN
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS plan_details text DEFAULT '';
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS applies_until timestamptz;
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS amount numeric(10,2) DEFAULT 0;
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS status text DEFAULT 'Pending';
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS invoice_id text;
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS job_credits_added integer DEFAULT 0;
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS db_credits_added integer DEFAULT 0;
+  ALTER TABLE public.billing_transactions ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.saved_searches') IS NOT NULL THEN
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS title text DEFAULT '';
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS category text;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS city text;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS district text;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS state text;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS pincode text;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS radius_km double precision;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS keyword text;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS vehicle_type text;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS active_in_days integer;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS min_exp integer DEFAULT 0;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS must_have_skills text[] DEFAULT '{}';
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS match_count integer DEFAULT 0;
+  ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.candidate_unlocks') IS NOT NULL THEN
+  ALTER TABLE public.candidate_unlocks ADD COLUMN IF NOT EXISTS downloaded_excel boolean DEFAULT false;
+  ALTER TABLE public.candidate_unlocks ADD COLUMN IF NOT EXISTS unlocked_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.jobs') IS NOT NULL THEN
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS company_name text DEFAULT '';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS company_logo text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS posted_by text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS category text DEFAULT 'HMV';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS location text DEFAULT '';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS city text DEFAULT '';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS district text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS state text DEFAULT '';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS pincode text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS work_location_type text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS experience_required text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS experience_min_years integer DEFAULT 0;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS salary_min integer DEFAULT 0;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS salary_max integer DEFAULT 0;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS salary_type text DEFAULT 'monthly';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS pay_type text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS perks text[] DEFAULT '{}';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS night_shift boolean DEFAULT false;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS vehicle_type text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS route_type text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS joining_fee_required boolean DEFAULT false;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS screening_questions text[] DEFAULT '{}';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS working_hours text;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS employment_type text DEFAULT 'Full-time';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS required_skills text[] DEFAULT '{}';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS required_docs text[] DEFAULT '{}';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS vacancies integer DEFAULT 1;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS status public.job_status DEFAULT 'pending';
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS credit_consumed boolean NOT NULL DEFAULT false;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS slot_consumed boolean NOT NULL DEFAULT false;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS entitlement_consumed_at timestamptz;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS posted_date timestamptz DEFAULT now();
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS application_deadline timestamptz;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS closed_at timestamptz;
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+  ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.applications') IS NOT NULL THEN
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS resume_url text;
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS cover_message text;
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS status public.application_status DEFAULT 'applied';
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS employer_notes text;
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS interview_date timestamptz;
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS interview_mode text;
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS interview_location text;
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS applied_date timestamptz DEFAULT now();
+  ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS updated_date timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.favorite_jobs') IS NOT NULL THEN
+  ALTER TABLE public.favorite_jobs ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.direct_messages') IS NOT NULL THEN
+  ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS sender_name text;
+  ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS sender_role public.user_role;
+  ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS receiver_name text;
+  ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS job_id uuid REFERENCES public.jobs(id) ON DELETE SET NULL;
+  ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS job_title text;
+  ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS read boolean DEFAULT false;
+  ALTER TABLE public.direct_messages ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.notifications') IS NOT NULL THEN
+  ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS type text DEFAULT 'system';
+  ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS link text;
+  ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS read boolean DEFAULT false;
+  ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+END IF; END $cols$;
+DO $cols$ BEGIN IF to_regclass('public.admin_actions') IS NOT NULL THEN
+  ALTER TABLE public.admin_actions ADD COLUMN IF NOT EXISTS reason text;
+  ALTER TABLE public.admin_actions ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+END IF; END $cols$;
+-- "Active any time" saved searches are stored as NULL.
+ALTER TABLE public.saved_searches ALTER COLUMN active_in_days DROP NOT NULL;
+
+-- ---------------------------------------------------------------------
+-- 0b. Candidate search with radius (same as supabase-radius-search.sql;
+-- live had an older signature). Also re-syncs driver location fields.
+-- ---------------------------------------------------------------------
+-- public.profiles is the canonical source for a driver's current location.
+-- Repair old denormalized driver rows that still contain an earlier district/PIN.
+UPDATE public.driver_profiles AS d
+SET district = COALESCE(NULLIF(BTRIM(p.district), ''), d.district),
+    pincode = COALESCE(NULLIF(BTRIM(p.pincode), ''), d.pincode),
+    preferred_location = COALESCE(NULLIF(BTRIM(p.location), ''), d.preferred_location),
+    latitude = COALESCE(p.latitude, d.latitude),
+    longitude = COALESCE(p.longitude, d.longitude),
+    updated_at = now()
+FROM public.profiles AS p
+WHERE p.id = d.user_id
+  AND p.role::text = 'driver'
+  AND (
+    (NULLIF(BTRIM(p.district), '') IS NOT NULL AND d.district IS DISTINCT FROM NULLIF(BTRIM(p.district), '')) OR
+    (NULLIF(BTRIM(p.pincode), '') IS NOT NULL AND d.pincode IS DISTINCT FROM NULLIF(BTRIM(p.pincode), '')) OR
+    (NULLIF(BTRIM(p.location), '') IS NOT NULL AND d.preferred_location IS DISTINCT FROM NULLIF(BTRIM(p.location), '')) OR
+    (p.latitude IS NOT NULL AND d.latitude IS DISTINCT FROM p.latitude) OR
+    (p.longitude IS NOT NULL AND d.longitude IS DISTINCT FROM p.longitude)
+  );
+
+-- 3. Replace search_driverhub_candidates RPC with Spatial Distance & Radius Filter
+DO $drop$ DECLARE r record; BEGIN
+  FOR r IN SELECT p.oid::regprocedure AS sig FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname = 'public' AND p.proname = 'search_driverhub_candidates' LOOP
+    EXECUTE 'DROP FUNCTION ' || r.sig;
+  END LOOP;
+END $drop$;
+
+CREATE OR REPLACE FUNCTION public.search_driverhub_candidates(
+  p_keyword text DEFAULT NULL,
+  p_category text DEFAULT NULL,
+  p_city text DEFAULT NULL,
+  p_district text DEFAULT NULL,
+  p_state text DEFAULT NULL,
+  p_pincode text DEFAULT NULL,
+  p_lat double precision DEFAULT NULL,
+  p_lng double precision DEFAULT NULL,
+  p_radius_km double precision DEFAULT NULL,
+  p_min_years integer DEFAULT 0,
+  p_skill text DEFAULT NULL,
+  p_vehicle_type text DEFAULT NULL,
+  p_user_id uuid DEFAULT NULL,
+  p_active_in_days integer DEFAULT NULL,
+  p_limit integer DEFAULT 100,
+  p_offset integer DEFAULT 0
+)
+RETURNS TABLE (
+  user_id uuid,
+  full_name text,
+  phone text,
+  email text,
+  city text,
+  district text,
+  state text,
+  pincode text,
+  latitude double precision,
+  longitude double precision,
+  distance_km double precision,
+  driver_category text,
+  years_experience integer,
+  months_experience integer,
+  license_number text,
+  license_type text,
+  license_expiry date,
+  skills text[],
+  languages text[],
+  vehicle_types text[],
+  "current_role" text,
+  education text,
+  preferred_location text,
+  expected_salary integer,
+  availability text,
+  cv_attached boolean,
+  police_verified boolean,
+  last_active timestamptz,
+  bio text,
+  resume_url text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Security check 1: Active authenticated employer profile
+  IF auth.uid() IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.profiles actor
+    WHERE actor.id = auth.uid() AND actor.role::text = 'employer' AND actor.status::text = 'active'
+  ) THEN
+    RAISE EXCEPTION 'Only active employer accounts can search the candidate database';
+  END IF;
+
+  -- Security check 2: Active paid hiring subscription
+  IF NOT EXISTS (
+    SELECT 1 FROM public.employer_subscriptions subscription
+    WHERE subscription.employer_id = auth.uid()
+      AND subscription.status::text = 'active'
+      AND subscription.expires_at > now()
+  ) THEN
+    RAISE EXCEPTION 'An active employer hiring plan is required to search candidate profiles';
+  END IF;
+
+  -- Security check 3: Verified employer company
+  IF NOT EXISTS (
+    SELECT 1 FROM public.companies company
+    WHERE company.user_id = auth.uid() AND company.verified = true AND company.status::text = 'active'
+  ) THEN
+    RAISE EXCEPTION 'Your company must be verified before searching driver contacts';
+  END IF;
+
+  RETURN QUERY
+  WITH candidate_candidates AS (
+    SELECT
+      p.id AS c_user_id,
+      p.full_name AS c_full_name,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM public.candidate_unlocks unlocked
+        WHERE unlocked.employer_id = auth.uid() AND unlocked.driver_id = p.id
+      ) THEN p.phone ELSE NULL END AS c_phone,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM public.candidate_unlocks unlocked
+        WHERE unlocked.employer_id = auth.uid() AND unlocked.driver_id = p.id
+      ) THEN p.email ELSE NULL END AS c_email,
+      COALESCE(p.city, '') AS c_city,
+      COALESCE(NULLIF(BTRIM(p.district), ''), NULLIF(BTRIM(d.district), ''), '') AS c_district,
+      COALESCE(p.state, '') AS c_state,
+      COALESCE(NULLIF(BTRIM(p.pincode), ''), NULLIF(BTRIM(d.pincode), ''), '') AS c_pincode,
+      COALESCE(p.latitude, d.latitude) AS c_lat,
+      COALESCE(p.longitude, d.longitude) AS c_lng,
+      CASE 
+        WHEN p_lat IS NOT NULL AND p_lng IS NOT NULL AND COALESCE(p.latitude, d.latitude) IS NOT NULL AND COALESCE(p.longitude, d.longitude) IS NOT NULL THEN
+          ROUND(
+            (6371 * 2 * ASIN(
+              SQRT(
+                POWER(SIN(RADIANS(COALESCE(p.latitude, d.latitude) - p_lat) / 2), 2) +
+                COS(RADIANS(p_lat)) * COS(RADIANS(COALESCE(p.latitude, d.latitude))) *
+                POWER(SIN(RADIANS(COALESCE(p.longitude, d.longitude) - p_lng) / 2), 2)
+              )
+            ))::numeric, 1
+          )::double precision
+        ELSE NULL
+      END AS c_distance_km,
+      d.driver_category AS c_driver_category,
+      COALESCE(d.years_experience, 0) AS c_years_experience,
+      COALESCE(d.months_experience, 0) AS c_months_experience,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM public.candidate_unlocks unlocked
+        WHERE unlocked.employer_id = auth.uid() AND unlocked.driver_id = p.id
+      ) THEN d.license_number ELSE NULL END AS c_license_number,
+      d.license_type AS c_license_type,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM public.candidate_unlocks unlocked
+        WHERE unlocked.employer_id = auth.uid() AND unlocked.driver_id = p.id
+      ) THEN d.license_expiry ELSE NULL END AS c_license_expiry,
+      COALESCE(d.skills, ARRAY[]::text[]) AS c_skills,
+      COALESCE(d.languages, ARRAY[]::text[]) AS c_languages,
+      COALESCE(d.vehicle_types, ARRAY[]::text[]) AS c_vehicle_types,
+      d."current_role" AS c_current_role,
+      d.education AS c_education,
+      COALESCE(NULLIF(BTRIM(p.location), ''), d.preferred_location) AS c_preferred_location,
+      d.expected_salary AS c_expected_salary,
+      d.availability AS c_availability,
+      COALESCE(d.cv_attached, false) AS c_cv_attached,
+      COALESCE(d.police_verified, false) AS c_police_verified,
+      d.updated_at AS c_updated_at,
+      d.bio AS c_bio,
+      CASE WHEN EXISTS (
+        SELECT 1 FROM public.candidate_unlocks unlocked
+        WHERE unlocked.employer_id = auth.uid() AND unlocked.driver_id = p.id
+      ) THEN d.resume_url ELSE NULL END AS c_resume_url
+    FROM public.profiles p
+    JOIN public.driver_profiles d ON d.user_id = p.id
+    WHERE p.role::text = 'driver'
+      AND p.status::text = 'active'
+      AND (p_user_id IS NULL OR p.id = p_user_id)
+      AND (p_keyword IS NULL OR concat_ws(' ', p.full_name, d.driver_category, d."current_role",
+        d.license_type, d.preferred_location, array_to_string(d.skills, ' '),
+        array_to_string(d.vehicle_types, ' ')) ILIKE '%' || p_keyword || '%')
+      AND (
+        p_category IS NULL OR d.driver_category ILIKE p_category
+        OR (p_category = 'HMV' AND (d.driver_category ILIKE '%truck%' OR d.driver_category ILIKE '%trailer%' OR d.driver_category ILIKE '%HMV%'))
+        OR (p_category = 'LMV' AND (d.driver_category ILIKE '%cab%' OR d.driver_category ILIKE '%personal%' OR d.driver_category ILIKE '%tempo%' OR d.driver_category ILIKE '%LMV%'))
+      )
+      AND (p_city IS NULL OR COALESCE(p.city, '') ILIKE '%' || p_city || '%')
+      AND (p_district IS NULL OR COALESCE(NULLIF(BTRIM(p.district), ''), NULLIF(BTRIM(d.district), ''), '') ILIKE '%' || p_district || '%')
+      AND (p_state IS NULL OR COALESCE(p.state, '') ILIKE '%' || p_state || '%')
+      AND (p_pincode IS NULL OR COALESCE(NULLIF(BTRIM(p.pincode), ''), NULLIF(BTRIM(d.pincode), ''), '') = p_pincode)
+      AND COALESCE(d.years_experience, 0) >= GREATEST(COALESCE(p_min_years, 0), 0)
+      AND (p_skill IS NULL OR array_to_string(d.skills, ' ') ILIKE '%' || p_skill || '%')
+      AND (
+        p_vehicle_type IS NULL OR array_to_string(d.vehicle_types, ' ') ILIKE '%' || p_vehicle_type || '%'
+        OR COALESCE(d.license_type, '') ILIKE '%' || p_vehicle_type || '%'
+        OR COALESCE(d.driver_category, '') ILIKE '%' || p_vehicle_type || '%'
+      )
+      AND (p_active_in_days IS NULL OR d.updated_at >= now() - make_interval(days => GREATEST(p_active_in_days, 1)))
+  )
+  SELECT
+    c_user_id,
+    c_full_name,
+    c_phone,
+    c_email,
+    c_city,
+    c_district,
+    c_state,
+    c_pincode,
+    c_lat,
+    c_lng,
+    c_distance_km,
+    c_driver_category,
+    c_years_experience,
+    c_months_experience,
+    c_license_number,
+    c_license_type,
+    c_license_expiry,
+    c_skills,
+    c_languages,
+    c_vehicle_types,
+    c_current_role,
+    c_education,
+    c_preferred_location,
+    c_expected_salary,
+    c_availability,
+    c_cv_attached,
+    c_police_verified,
+    c_updated_at,
+    c_bio,
+    c_resume_url
+  FROM candidate_candidates
+  WHERE (p_radius_km IS NULL OR p_radius_km <= 0 OR (c_distance_km IS NOT NULL AND c_distance_km <= p_radius_km))
+  ORDER BY
+    CASE WHEN p_lat IS NOT NULL AND p_lng IS NOT NULL AND c_distance_km IS NOT NULL THEN c_distance_km ELSE 999999 END ASC,
+    c_updated_at DESC NULLS LAST
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 100), 1), 250)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.search_driverhub_candidates(text,text,text,text,text,text,double precision,double precision,double precision,integer,text,text,uuid,integer,integer,integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.search_driverhub_candidates(text,text,text,text,text,text,double precision,double precision,double precision,integer,text,text,uuid,integer,integer,integer) TO authenticated;
 
 -- ---------------------------------------------------------------------
 -- 7. Remove legacy write policies on entitlement tables and notifications.
@@ -617,25 +1076,30 @@ $$;
 REVOKE ALL ON FUNCTION public.complete_driverhub_payment(uuid,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.complete_driverhub_payment(uuid,text) TO service_role;
 
--- Saved candidate searches keep every filter (district/PIN from the pan-India
--- migration, the search radius, and "active any time" as NULL).
-ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS state text;
-ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS keyword text;
-ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS vehicle_type text;
-ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS active_in_days integer DEFAULT 15;
-ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS district text;
-ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS pincode text;
-ALTER TABLE public.saved_searches ADD COLUMN IF NOT EXISTS radius_km double precision;
-ALTER TABLE public.saved_searches ALTER COLUMN active_in_days DROP NOT NULL;
 
--- The app subscribes to company changes (public directory, admin), but
--- companies was never added to the realtime publication.
+-- Driver licences and ID documents stay in a private bucket (uploads use
+-- <driver uid>/<file>; viewing goes through short-lived signed links).
+INSERT INTO storage.buckets (id, name, public) VALUES ('driver-documents', 'driver-documents', false)
+ON CONFLICT (id) DO UPDATE SET public = false;
+UPDATE storage.buckets SET public = false WHERE id = 'resumes';
+
+-- Live updates for every table the app subscribes to.
 DO $$
+DECLARE table_name text;
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') AND NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'companies'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.companies;
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    FOREACH table_name IN ARRAY ARRAY[
+      'jobs', 'applications', 'profiles', 'driver_profiles', 'driver_documents', 'driver_experiences',
+      'favorite_jobs', 'saved_searches', 'candidate_unlocks', 'direct_messages', 'notifications',
+      'employer_subscriptions', 'billing_transactions', 'companies'
+    ] LOOP
+      IF to_regclass('public.' || table_name) IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = table_name
+      ) THEN
+        EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', table_name);
+      END IF;
+    END LOOP;
   END IF;
 END $$;
 

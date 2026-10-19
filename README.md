@@ -65,7 +65,21 @@ The production app requires a configured Supabase project and the SQL files belo
 
 If the live site shows no jobs or companies (the browser console reports `permission denied for table jobs`, code 42501), run `supabase-live-repair-2026-10.sql` once in the Supabase SQL Editor. It restores the table privileges and fixes the moderation, credit and application rules. It is idempotent and only touches DriverHub objects, which matters because this Supabase project is shared with other apps.
 
-Then run `supabase-db-health-check.sql` (read-only). It returns one row per check; after the repair there should be no `FAIL` rows. Each `FAIL` names the SQL file that fixes it. The repair also creates the payment-order table and plan-activation function if `supabase-payment-checkout.sql` was never applied.
+Then run `supabase-db-health-check.sql` (read-only). It returns one row per check; after the repair there should be no `FAIL` rows. Each `FAIL` names the SQL file that fixes it. For databases created by older DriverHub scripts the repair also adds every column the app uses (with safe defaults: no credits, no verification), the radius candidate search, the payment-order table and plan-activation function, and the realtime tables.
+
+### Create an admin account
+
+Registration only creates driver and employer accounts. To make an administrator:
+
+1. Create the account: sign up on the site, or Supabase Dashboard → Authentication → Users → Add user.
+2. In the SQL Editor, with that account's email:
+
+   ```sql
+   UPDATE public.profiles SET role = 'admin', status = 'active' WHERE email = 'admin-email@example.com';
+   DELETE FROM public.driver_profiles WHERE user_id = (SELECT id FROM public.profiles WHERE email = 'admin-email@example.com');
+   ```
+
+3. Sign in on `/login?role=admin`. The health check row "admins are active" turns PASS.
 
 ### New project: apply in this order
 

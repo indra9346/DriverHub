@@ -60,25 +60,64 @@ column_checks AS (
               THEN 'PASS' ELSE 'FAIL' END AS status,
          'fix: run ' || fix_file AS detail
   FROM (VALUES
-    ('profiles','district','supabase-pan-india-locations.sql'), ('profiles','pincode','supabase-pan-india-locations.sql'),
-    ('profiles','latitude','supabase-radius-search.sql'), ('profiles','longitude','supabase-radius-search.sql'),
-    ('driver_profiles','months_experience','supabase-profile-sync-rls-fix.sql'),
-    ('driver_profiles','latitude','supabase-radius-search.sql'), ('driver_profiles','longitude','supabase-radius-search.sql'),
-    ('driver_profiles','district','supabase-radius-search.sql'), ('driver_profiles','pincode','supabase-radius-search.sql'),
-    ('driver_profiles','languages','supabase-apnahire-upgrade.sql'), ('driver_profiles','vehicle_types','supabase-apnahire-upgrade.sql'),
-    ('companies','district','supabase-pan-india-locations.sql'), ('companies','pincode','supabase-pan-india-locations.sql'),
-    ('jobs','expires_at','supabase-security-hardening.sql'), ('jobs','closed_at','supabase-security-hardening.sql'),
-    ('jobs','credit_consumed','supabase-security-hardening.sql'), ('jobs','slot_consumed','supabase-security-hardening.sql'),
-    ('jobs','entitlement_consumed_at','supabase-security-hardening.sql'), ('jobs','application_deadline','supabase-security-hardening.sql'),
-    ('jobs','district','supabase-pan-india-locations.sql'), ('jobs','pincode','supabase-pan-india-locations.sql'),
-    ('employer_subscriptions','active_job_slots','supabase-security-hardening.sql'), ('driver_documents','upload_date','supabase-admin-live-fix.sql'),
-    ('applications','interview_mode','supabase-schema.sql'), ('applications','interview_location','supabase-schema.sql'),
-    ('saved_searches','district','supabase-live-repair-2026-10.sql'), ('saved_searches','pincode','supabase-live-repair-2026-10.sql'),
-    ('saved_searches','radius_km','supabase-live-repair-2026-10.sql'), ('saved_searches','state','supabase-live-repair-2026-10.sql'),
-    ('saved_searches','keyword','supabase-live-repair-2026-10.sql'), ('saved_searches','vehicle_type','supabase-live-repair-2026-10.sql'),
-    ('saved_searches','active_in_days','supabase-live-repair-2026-10.sql'),
-    ('direct_messages','sender_name','supabase-schema.sql'), ('direct_messages','receiver_name','supabase-schema.sql'),
-    ('direct_messages','sender_role','supabase-schema.sql'), ('direct_messages','job_title','supabase-schema.sql')
+    ('profiles','role','supabase-live-repair-2026-10.sql'), ('profiles','full_name','supabase-live-repair-2026-10.sql'), ('profiles','email','supabase-live-repair-2026-10.sql'),
+    ('profiles','phone','supabase-live-repair-2026-10.sql'), ('profiles','avatar_url','supabase-live-repair-2026-10.sql'), ('profiles','location','supabase-live-repair-2026-10.sql'),
+    ('profiles','city','supabase-live-repair-2026-10.sql'), ('profiles','state','supabase-live-repair-2026-10.sql'), ('profiles','district','supabase-live-repair-2026-10.sql'),
+    ('profiles','pincode','supabase-live-repair-2026-10.sql'), ('profiles','latitude','supabase-live-repair-2026-10.sql'), ('profiles','longitude','supabase-live-repair-2026-10.sql'),
+    ('profiles','status','supabase-live-repair-2026-10.sql'), ('profiles','created_at','supabase-live-repair-2026-10.sql'), ('profiles','updated_at','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','driver_category','supabase-live-repair-2026-10.sql'), ('driver_profiles','years_experience','supabase-live-repair-2026-10.sql'), ('driver_profiles','months_experience','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','license_number','supabase-live-repair-2026-10.sql'), ('driver_profiles','license_type','supabase-live-repair-2026-10.sql'), ('driver_profiles','license_expiry','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','skills','supabase-live-repair-2026-10.sql'), ('driver_profiles','languages','supabase-live-repair-2026-10.sql'), ('driver_profiles','vehicle_types','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','current_role','supabase-live-repair-2026-10.sql'), ('driver_profiles','previous_role','supabase-live-repair-2026-10.sql'), ('driver_profiles','education','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','preferred_location','supabase-live-repair-2026-10.sql'), ('driver_profiles','expected_salary','supabase-live-repair-2026-10.sql'), ('driver_profiles','availability','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','night_shift_willing','supabase-live-repair-2026-10.sql'), ('driver_profiles','outstation_willing','supabase-live-repair-2026-10.sql'), ('driver_profiles','cv_attached','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','police_verified','supabase-live-repair-2026-10.sql'), ('driver_profiles','unlock_count','supabase-live-repair-2026-10.sql'), ('driver_profiles','bio','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','resume_url','supabase-live-repair-2026-10.sql'), ('driver_profiles','latitude','supabase-live-repair-2026-10.sql'), ('driver_profiles','longitude','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','district','supabase-live-repair-2026-10.sql'), ('driver_profiles','pincode','supabase-live-repair-2026-10.sql'), ('driver_profiles','created_at','supabase-live-repair-2026-10.sql'),
+    ('driver_profiles','updated_at','supabase-live-repair-2026-10.sql'), ('driver_experiences','vehicle_type','supabase-live-repair-2026-10.sql'), ('driver_experiences','duration_years','supabase-live-repair-2026-10.sql'),
+    ('driver_experiences','start_date','supabase-live-repair-2026-10.sql'), ('driver_experiences','end_date','supabase-live-repair-2026-10.sql'), ('driver_experiences','description','supabase-live-repair-2026-10.sql'),
+    ('driver_experiences','created_at','supabase-live-repair-2026-10.sql'), ('driver_documents','name','supabase-live-repair-2026-10.sql'), ('driver_documents','type','supabase-live-repair-2026-10.sql'),
+    ('driver_documents','file_url','supabase-live-repair-2026-10.sql'), ('driver_documents','file_size','supabase-live-repair-2026-10.sql'), ('driver_documents','verification_status','supabase-live-repair-2026-10.sql'),
+    ('driver_documents','upload_date','supabase-live-repair-2026-10.sql'), ('companies','company_name','supabase-live-repair-2026-10.sql'), ('companies','contact_person','supabase-live-repair-2026-10.sql'),
+    ('companies','email','supabase-live-repair-2026-10.sql'), ('companies','phone','supabase-live-repair-2026-10.sql'), ('companies','industry','supabase-live-repair-2026-10.sql'),
+    ('companies','location','supabase-live-repair-2026-10.sql'), ('companies','city','supabase-live-repair-2026-10.sql'), ('companies','district','supabase-live-repair-2026-10.sql'),
+    ('companies','state','supabase-live-repair-2026-10.sql'), ('companies','pincode','supabase-live-repair-2026-10.sql'), ('companies','address','supabase-live-repair-2026-10.sql'),
+    ('companies','website','supabase-live-repair-2026-10.sql'), ('companies','logo_url','supabase-live-repair-2026-10.sql'), ('companies','description','supabase-live-repair-2026-10.sql'),
+    ('companies','gstin','supabase-live-repair-2026-10.sql'), ('companies','verified','supabase-live-repair-2026-10.sql'), ('companies','status','supabase-live-repair-2026-10.sql'),
+    ('companies','created_at','supabase-live-repair-2026-10.sql'), ('companies','updated_at','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','plan_name','supabase-live-repair-2026-10.sql'),
+    ('employer_subscriptions','job_credits','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','db_unlock_credits','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','total_job_credits','supabase-live-repair-2026-10.sql'),
+    ('employer_subscriptions','total_db_unlock_credits','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','active_job_slots','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','gstin','supabase-live-repair-2026-10.sql'),
+    ('employer_subscriptions','gstin_verified','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','billing_company_name','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','billing_address','supabase-live-repair-2026-10.sql'),
+    ('employer_subscriptions','status','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','expires_at','supabase-live-repair-2026-10.sql'), ('employer_subscriptions','created_at','supabase-live-repair-2026-10.sql'),
+    ('employer_subscriptions','updated_at','supabase-live-repair-2026-10.sql'), ('billing_transactions','plan_details','supabase-live-repair-2026-10.sql'), ('billing_transactions','applies_until','supabase-live-repair-2026-10.sql'),
+    ('billing_transactions','amount','supabase-live-repair-2026-10.sql'), ('billing_transactions','status','supabase-live-repair-2026-10.sql'), ('billing_transactions','invoice_id','supabase-live-repair-2026-10.sql'),
+    ('billing_transactions','job_credits_added','supabase-live-repair-2026-10.sql'), ('billing_transactions','db_credits_added','supabase-live-repair-2026-10.sql'), ('billing_transactions','created_at','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','title','supabase-live-repair-2026-10.sql'), ('saved_searches','category','supabase-live-repair-2026-10.sql'), ('saved_searches','city','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','district','supabase-live-repair-2026-10.sql'), ('saved_searches','state','supabase-live-repair-2026-10.sql'), ('saved_searches','pincode','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','radius_km','supabase-live-repair-2026-10.sql'), ('saved_searches','keyword','supabase-live-repair-2026-10.sql'), ('saved_searches','vehicle_type','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','active_in_days','supabase-live-repair-2026-10.sql'), ('saved_searches','min_exp','supabase-live-repair-2026-10.sql'), ('saved_searches','must_have_skills','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','match_count','supabase-live-repair-2026-10.sql'), ('saved_searches','created_at','supabase-live-repair-2026-10.sql'), ('candidate_unlocks','downloaded_excel','supabase-live-repair-2026-10.sql'),
+    ('candidate_unlocks','unlocked_at','supabase-live-repair-2026-10.sql'), ('jobs','company_name','supabase-live-repair-2026-10.sql'), ('jobs','company_logo','supabase-live-repair-2026-10.sql'),
+    ('jobs','posted_by','supabase-live-repair-2026-10.sql'), ('jobs','category','supabase-live-repair-2026-10.sql'), ('jobs','location','supabase-live-repair-2026-10.sql'),
+    ('jobs','city','supabase-live-repair-2026-10.sql'), ('jobs','district','supabase-live-repair-2026-10.sql'), ('jobs','state','supabase-live-repair-2026-10.sql'),
+    ('jobs','pincode','supabase-live-repair-2026-10.sql'), ('jobs','work_location_type','supabase-live-repair-2026-10.sql'), ('jobs','experience_required','supabase-live-repair-2026-10.sql'),
+    ('jobs','experience_min_years','supabase-live-repair-2026-10.sql'), ('jobs','salary_min','supabase-live-repair-2026-10.sql'), ('jobs','salary_max','supabase-live-repair-2026-10.sql'),
+    ('jobs','salary_type','supabase-live-repair-2026-10.sql'), ('jobs','pay_type','supabase-live-repair-2026-10.sql'), ('jobs','perks','supabase-live-repair-2026-10.sql'),
+    ('jobs','night_shift','supabase-live-repair-2026-10.sql'), ('jobs','vehicle_type','supabase-live-repair-2026-10.sql'), ('jobs','route_type','supabase-live-repair-2026-10.sql'),
+    ('jobs','joining_fee_required','supabase-live-repair-2026-10.sql'), ('jobs','screening_questions','supabase-live-repair-2026-10.sql'), ('jobs','working_hours','supabase-live-repair-2026-10.sql'),
+    ('jobs','employment_type','supabase-live-repair-2026-10.sql'), ('jobs','required_skills','supabase-live-repair-2026-10.sql'), ('jobs','required_docs','supabase-live-repair-2026-10.sql'),
+    ('jobs','vacancies','supabase-live-repair-2026-10.sql'), ('jobs','status','supabase-live-repair-2026-10.sql'), ('jobs','credit_consumed','supabase-live-repair-2026-10.sql'),
+    ('jobs','slot_consumed','supabase-live-repair-2026-10.sql'), ('jobs','entitlement_consumed_at','supabase-live-repair-2026-10.sql'), ('jobs','posted_date','supabase-live-repair-2026-10.sql'),
+    ('jobs','application_deadline','supabase-live-repair-2026-10.sql'), ('jobs','expires_at','supabase-live-repair-2026-10.sql'), ('jobs','closed_at','supabase-live-repair-2026-10.sql'),
+    ('jobs','created_at','supabase-live-repair-2026-10.sql'), ('jobs','updated_at','supabase-live-repair-2026-10.sql'), ('applications','resume_url','supabase-live-repair-2026-10.sql'),
+    ('applications','cover_message','supabase-live-repair-2026-10.sql'), ('applications','status','supabase-live-repair-2026-10.sql'), ('applications','employer_notes','supabase-live-repair-2026-10.sql'),
+    ('applications','interview_date','supabase-live-repair-2026-10.sql'), ('applications','interview_mode','supabase-live-repair-2026-10.sql'), ('applications','interview_location','supabase-live-repair-2026-10.sql'),
+    ('applications','applied_date','supabase-live-repair-2026-10.sql'), ('applications','updated_date','supabase-live-repair-2026-10.sql'), ('favorite_jobs','created_at','supabase-live-repair-2026-10.sql'),
+    ('direct_messages','sender_name','supabase-live-repair-2026-10.sql'), ('direct_messages','sender_role','supabase-live-repair-2026-10.sql'), ('direct_messages','receiver_name','supabase-live-repair-2026-10.sql'),
+    ('direct_messages','job_id','supabase-live-repair-2026-10.sql'), ('direct_messages','job_title','supabase-live-repair-2026-10.sql'), ('direct_messages','read','supabase-live-repair-2026-10.sql'),
+    ('direct_messages','created_at','supabase-live-repair-2026-10.sql'), ('notifications','type','supabase-live-repair-2026-10.sql'), ('notifications','link','supabase-live-repair-2026-10.sql'),
+    ('notifications','read','supabase-live-repair-2026-10.sql'), ('notifications','created_at','supabase-live-repair-2026-10.sql'), ('admin_actions','reason','supabase-live-repair-2026-10.sql'),
+    ('admin_actions','created_at','supabase-live-repair-2026-10.sql')
   ) v(tbl, col, fix_file)
   UNION ALL
   SELECT 31, 'saved_searches.active_in_days allows "any time" (NULL)',
@@ -107,7 +146,7 @@ function_checks AS (
   SELECT 41, 'candidate search has radius signature (16 args)',
          CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
                            WHERE n.nspname = 'public' AND p.proname = 'search_driverhub_candidates' AND p.pronargs = 16)
-              THEN 'PASS' ELSE 'FAIL' END, 'fix: run supabase-radius-search.sql'
+              THEN 'PASS' ELSE 'FAIL' END, 'fix: run supabase-live-repair-2026-10.sql'
   UNION ALL
   SELECT 42, 'visitors can call public stats',
          CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -187,8 +226,11 @@ storage_checks AS (
          CASE WHEN EXISTS (SELECT 1 FROM storage.buckets b WHERE b.id = 'driver-documents' AND NOT b.public) THEN 'PASS'
               WHEN EXISTS (SELECT 1 FROM storage.buckets b WHERE b.id = 'driver-documents') THEN 'FAIL'
               ELSE 'FAIL' END AS status,
-         coalesce((SELECT CASE WHEN b.public THEN 'bucket is PUBLIC: licences/Aadhaar readable by anyone with the link' END
-                   FROM storage.buckets b WHERE b.id = 'driver-documents'), 'bucket missing: document uploads fail') AS detail
+         CASE WHEN NOT EXISTS (SELECT 1 FROM storage.buckets b WHERE b.id = 'driver-documents')
+                THEN 'bucket missing: document uploads fail (fix: run supabase-employer-driver-doc-access.sql)'
+              WHEN EXISTS (SELECT 1 FROM storage.buckets b WHERE b.id = 'driver-documents' AND b.public)
+                THEN 'bucket is PUBLIC: licences/Aadhaar readable by anyone with the link (fix: run supabase-live-repair-2026-10.sql)'
+              ELSE '' END AS detail
   UNION ALL
   SELECT 71, 'storage policy present: ' || pol,
          CASE WHEN EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'storage' AND p.tablename = 'objects' AND p.policyname = pol)
@@ -239,7 +281,7 @@ data_checks AS (
   FROM public.driver_documents WHERE file_url LIKE 'blob:%' OR file_url LIKE 'data:%' OR file_url LIKE '%/object/public/%'
   UNION ALL
   SELECT 97, 'admins are active', CASE WHEN count(*) FILTER (WHERE status::text = 'active') > 0 THEN 'PASS' ELSE 'FAIL' END,
-         count(*) FILTER (WHERE status::text = 'active')::text || ' active admin account(s); inactive admins have no admin rights'
+         count(*) FILTER (WHERE status::text = 'active')::text || ' active admin account(s); create one: see "Create an admin account" in README'
   FROM public.profiles WHERE role::text = 'admin'
   UNION ALL
   -- to_jsonb(...) ->> keeps this check working on databases without the radius-search columns.
@@ -263,7 +305,8 @@ info AS (
   SELECT 99, 'count: jobs (active / pending / all)', 'INFO',
          (SELECT count(*) FILTER (WHERE status::text = 'active') || ' / ' || count(*) FILTER (WHERE status::text = 'pending') || ' / ' || count(*) FROM public.jobs)
 )
-SELECT status, check_name, detail
+SELECT status, check_name,
+       CASE WHEN status = 'PASS' AND ord NOT IN (12, 90, 91, 92, 93, 94, 95, 96, 97, 98) THEN '' ELSE detail END AS detail
 FROM (
   SELECT * FROM table_checks UNION ALL SELECT * FROM grant_checks UNION ALL SELECT * FROM column_checks
   UNION ALL SELECT * FROM function_checks UNION ALL SELECT * FROM trigger_checks UNION ALL SELECT * FROM policy_checks

@@ -100,6 +100,18 @@ export default defineConfig({
       '@': path.resolve(configDir, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Libraries change rarely: in their own files they stay cached in the
+        // browser when only the app code changes in a new deploy.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     host: true,

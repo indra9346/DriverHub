@@ -250,8 +250,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         </div>
       </div>
 
-      {/* Main Content Layout with Responsive Sidebar */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      {/* Main Content Layout with Responsive Sidebar. At least one screen tall,
+          so the footer does not jump down once the page has loaded. */}
+      <div className="flex-1 flex max-w-7xl w-full mx-auto min-h-[calc(100vh-4rem)] supports-[height:100dvh]:min-h-[calc(100dvh-4rem)]">
         <Sidebar 
           role={currentUser.role} 
           unreadCount={unreadNotifs}

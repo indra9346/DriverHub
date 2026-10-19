@@ -45,6 +45,7 @@ import { SupabaseSync } from './services/supabaseSync';
 import { supabase } from './services/supabaseClient';
 import { DataStore } from './services/store';
 import { LanguageProvider } from './services/i18n';
+import { ADMIN_LOGIN_PATH } from './services/authRouting';
 
 export const App: React.FC = () => {
   React.useEffect(() => {
@@ -95,6 +96,7 @@ export const App: React.FC = () => {
           <Route path="/help" element={<ContactPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path={ADMIN_LOGIN_PATH} element={<LoginPage portal="admin" />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/register/driver" element={<RegisterPage />} />
           <Route path="/register/employer" element={<RegisterPage />} />

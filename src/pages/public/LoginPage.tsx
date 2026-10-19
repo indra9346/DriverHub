@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Building2, Shield, Lock, Mail, ArrowRight,
+  Building2, Lock, Mail, ArrowRight,
   AlertCircle, Truck, Eye, EyeOff
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
@@ -10,10 +10,18 @@ import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { useLanguage } from '../../services/i18n';
 import { UserRole, User as UserType } from '../../types';
-import { getDashboardPathForRole, getPostLoginPath, inferRoleFromPath, isUserRole } from '../../services/authRouting';
+import { getDashboardPathForRole, getPostLoginPath, inferRoleFromPath, isPublicRole, isUserRole } from '../../services/authRouting';
 
+interface LoginPageProps {
+  /**
+   * 'public' (/login) signs in drivers and employers only. 'admin' is the
+   * unlisted admin sign-in page (ADMIN_LOGIN_PATH) and accepts admins only.
+   */
+  portal?: 'public' | 'admin';
+}
 
-export const LoginPage: React.FC = () => {
+export const LoginPage: React.FC<LoginPageProps> = ({ portal = 'public' }) => {
+  const isAdminPortal = portal === 'admin';
   const { t, lang } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -23,9 +31,12 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const requestedRole = searchParams.get('role');
-  const initialRole: UserRole = isUserRole(requestedRole)
-    ? requestedRole
-    : inferRoleFromPath(redirect) || 'driver';
+  const redirectRole = inferRoleFromPath(redirect);
+  const initialRole: UserRole = isAdminPortal
+    ? 'admin'
+    : isPublicRole(requestedRole)
+      ? requestedRole
+      : isPublicRole(redirectRole) ? redirectRole : 'driver';
   const [roleTab, setRoleTab] = useState<UserRole>(initialRole);
   const [error, setError] = useState<string | null>(null);
   const [suggestedRole, setSuggestedRole] = useState<UserRole | null>(null);
@@ -121,9 +132,18 @@ export const LoginPage: React.FC = () => {
         throw new Error(lang === 'kn' ? 'ಈ ಖಾತೆಯನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ. ಬೆಂಬಲ ವಿಭಾಗವನ್ನು ಸಂಪರ್ಕಿಸಿ.' : 'This account is suspended. Contact DriverHub support.');
       }
       if (matched.role !== roleTab) {
-        setSuggestedRole(matched.role);
         DataStore.setCurrentUser(null);
         await supabase.auth.signOut({ scope: 'local' });
+        if (isAdminPortal) {
+          throw new Error(lang === 'kn' ? 'ಇದು ಅಡ್ಮಿನ್ ಖಾತೆ ಅಲ್ಲ.' : 'This is not an admin account.');
+        }
+        // Admin accounts sign in only on the admin page; never point to it here.
+        if (matched.role === 'admin') {
+          throw new Error(lang === 'kn'
+            ? 'ಈ ಖಾತೆ ಇಲ್ಲಿ ಸೈನ್ ಇನ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ. ಈ ಖಾತೆಗಾಗಿ ನಿಮಗೆ ನೀಡಿದ ಸೈನ್-ಇನ್ ಲಿಂಕ್ ಬಳಸಿ.'
+            : 'This account cannot sign in here. Use the sign-in link you were given for it.');
+        }
+        setSuggestedRole(matched.role);
         throw new Error(`This account is registered as ${matched.role}. Switch to that sign-in role.`);
       }
 
@@ -140,7 +160,7 @@ export const LoginPage: React.FC = () => {
   };
 
   const activeSignedInUser = signedInUser && signedInUser.status !== 'blocked' ? signedInUser : null;
-  const requestedRoleForSession = isUserRole(requestedRole) ? requestedRole : null;
+  const requestedRoleForSession = isAdminPortal ? 'admin' : isPublicRole(requestedRole) ? requestedRole : null;
   if (sessionChecked && activeSignedInUser && !loading && (!requestedRoleForSession || requestedRoleForSession === activeSignedInUser.role)) {
     return <Navigate to={getPostLoginPath(activeSignedInUser.role, redirect)} replace />;
   }
@@ -166,10 +186,10 @@ export const LoginPage: React.FC = () => {
           <div className="space-y-2">
             <Logo size="md" />
             <h1 className="text-2xl sm:text-3xl font-black text-[#08233F] font-display tracking-tight pt-2">
-              {roleTab === 'admin' ? t('Admin Portal Sign In') : t('Sign In to Driver Hub')}
+              {isAdminPortal ? t('Admin Portal Sign In') : t('Sign In to Driver Hub')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              {roleTab === 'admin'
+              {isAdminPortal
                 ? (lang === 'kn' ? 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಆಡಳಿತ, ಉದ್ಯೋಗ ಪರಿಶೀಲನೆ & ಅನುಮೋದನೆ.' : 'Authorized platform administration, job moderation & verification.')
                 : (lang === 'kn' ? 'ನಿಮ್ಮ ಚಾಲಕ ಖಾತೆ, ಉದ್ಯೋಗದಾತ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಅಥವಾ ಫ್ಲೀಟ್ ಪರಿಕರಗಳನ್ನು ಪ್ರವೇಶಿಸಿ.' : 'Access your driver account, employer dashboard, or fleet tools.')
               }
@@ -203,44 +223,34 @@ export const LoginPage: React.FC = () => {
 
           {/* Credentials Box */}
           <div className="space-y-4">
-            {/* 3 Prominent Role Selector Tabs */}
-            <div className="grid grid-cols-3 p-1 bg-slate-100 rounded-xl gap-1" role="tablist" aria-label="Sign-in role">
-              <button
-                type="button"
-                onClick={() => handleRoleChange('driver')}
-                className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
-                  roleTab === 'driver'
-                    ? 'bg-white text-[#08233F] shadow-sm'
-                    : 'text-slate-600 hover:text-slate-950'
-                }`}
-              >
-                <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {t('Driver')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleRoleChange('employer')}
-                className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
-                  roleTab === 'employer'
-                    ? 'bg-white text-[#08233F] shadow-sm'
-                    : 'text-slate-600 hover:text-slate-950'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" /> {t('Employer')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleRoleChange('admin')}
-                className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
-                  roleTab === 'admin'
-                    ? 'bg-[#08233F] text-amber-400 shadow-sm'
-                    : 'text-slate-600 hover:text-[#08233F]'
-                }`}
-              >
-                <Shield className="w-3.5 h-3.5 text-amber-400 shrink-0" /> {t('Admin')}
-              </button>
-            </div>
+            {/* Driver / Employer selector (the admin page has none) */}
+            {!isAdminPortal && (
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl gap-1" role="tablist" aria-label="Sign-in role">
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('driver')}
+                  className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
+                    roleTab === 'driver'
+                      ? 'bg-white text-[#08233F] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-950'
+                  }`}
+                >
+                  <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" /> {t('Driver')}
+                </button>
+  
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('employer')}
+                  className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
+                    roleTab === 'employer'
+                      ? 'bg-white text-[#08233F] shadow-sm'
+                      : 'text-slate-600 hover:text-slate-950'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" /> {t('Employer')}
+                </button>
+              </div>
+            )}
 
             {error && (
               <div className="p-3.5 bg-red-50 text-red-800 text-xs rounded-xl border border-red-200 animate-in fade-in space-y-2.5">
@@ -261,7 +271,7 @@ export const LoginPage: React.FC = () => {
                       }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#08233F] hover:bg-[#051626] text-amber-300 font-bold rounded-lg text-xs transition-all shadow-sm cursor-pointer hover:scale-[1.02]"
                     >
-                      <span>{t('Switch to {role} Sign In', { role: suggestedRole === 'driver' ? t('Driver') : suggestedRole === 'employer' ? t('Employer') : t('Admin') })}</span>
+                      <span>{t('Switch to {role} Sign In', { role: suggestedRole === 'driver' ? t('Driver') : t('Employer') })}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -325,12 +335,14 @@ export const LoginPage: React.FC = () => {
               </button>
             </form>
 
-            <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
-              {t("Don't have an account?")}{' '}
-              <Link to={`/register?role=${roleTab === 'admin' ? 'driver' : roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`} className="inline-flex items-center min-h-[40px] text-blue-700 font-bold hover:underline">
-                {t('Create an Account')}
-              </Link>
-            </div>
+            {!isAdminPortal && (
+              <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
+                {t("Don't have an account?")}{' '}
+                <Link to={`/register?role=${roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`} className="inline-flex items-center min-h-[40px] text-blue-700 font-bold hover:underline">
+                  {t('Create an Account')}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 

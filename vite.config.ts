@@ -23,6 +23,7 @@ function spaStaticFallbackPlugin(): Plugin {
     'help',
     'contact',
     'login',
+    'dh-admin-access', // ADMIN_LOGIN_PATH in src/services/authRouting.ts
     'register',
     'register/driver',
     'register/employer',

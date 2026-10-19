@@ -101,7 +101,9 @@ Registration only creates driver and employer accounts. To make an administrator
 
 1. Create the sign-in account if needed: Supabase Dashboard → Authentication → Users → Add user → Create new user (tick "Auto Confirm User").
 2. Open `supabase-make-admin.sql`, replace `CHANGE-ME@example.com` with that email, and run it in the SQL Editor. It works whether or not the account already has a DriverHub profile.
-3. Sign in on `/login?role=admin`. The health check row "admins are active" turns PASS.
+3. Sign in on the admin page `/dh-admin-access` (for example `https://driver-hub-xi.vercel.app/dh-admin-access`). The health check row "admins are active" turns PASS.
+
+The admin page is not linked anywhere on the site, the public `/login` page does not accept admin accounts, and `/admin/...` pages show "not found" to anyone who is not a signed-in admin. Give the admin link only to admins. Hiding the link is not the lock: only accounts made admin with `supabase-make-admin.sql` can sign in there or use admin features, and the database enforces that. To change the address, edit `ADMIN_LOGIN_PATH` in `src/services/authRouting.ts` and the matching entry in `vite.config.ts`.
 
 `supabase-list-accounts.sql` (read-only) lists every sign-in account in this shared project and its DriverHub role, which shows accounts that belong to other apps.
 

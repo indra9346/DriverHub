@@ -1844,6 +1844,17 @@ export function parseStructuredLocation(
     .filter(Boolean);
   const isDistSegment = (seg: string) => DIST_SUFFIX.test(seg);
   const isStateSegment = (seg: string) => Boolean(canonicalStateName(seg));
+  // Some towns share their State / UT's name ("Chandigarh", "Puducherry",
+  // "New Delhi"): the name is also a district of that State / UT.
+  const isStateNamedTown = (seg: string) => {
+    const state = canonicalStateName(seg);
+    return Boolean(state) && getDistrictsForState(state).some(d => normalizeName(extractPrimaryName(d)) === normalizeName(seg));
+  };
+  // The State / UT itself is the last segment that names one.
+  let stateSegmentIndex = -1;
+  segments.forEach((seg, index) => {
+    if (isStateSegment(seg)) stateSegmentIndex = index;
+  });
 
   let resolvedState = (record.state || '').trim();
   if (!resolvedState) {
@@ -1880,8 +1891,18 @@ export function parseStructuredLocation(
     if (withoutDistrictName.length > 0) cityCandidates = withoutDistrictName;
   }
 
+  // "Sector 17, Chandigarh, Chandigarh" / "Connaught Place, New Delhi, Delhi":
+  // a State-named town before the State segment, or the only segment there is.
+  const stateNamedTowns = segments.filter((seg, index) =>
+    !isDistSegment(seg) &&
+    isStateNamedTown(seg) &&
+    (index !== stateSegmentIndex || cityCandidates.length === 0)
+  );
+
   let resolvedCity = sanitizeLocalityName((record.city || '').trim());
-  if (!resolvedCity && cityCandidates.length > 0) {
+  if (!resolvedCity && stateNamedTowns.length > 0) {
+    resolvedCity = sanitizeLocalityName(stateNamedTowns[stateNamedTowns.length - 1]);
+  } else if (!resolvedCity && cityCandidates.length > 0) {
     // Our own format is "address, town, district Dist., state - PIN" and legacy
     // text is "locality, city": the town is the last remaining segment.
     resolvedCity = sanitizeLocalityName(cityCandidates[cityCandidates.length - 1]);

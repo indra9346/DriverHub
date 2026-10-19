@@ -675,6 +675,12 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'The job status was not saved. Confirm your administrator access and database connection, then retry.': 'ಉದ್ಯೋಗದ ಸ್ಥಿತಿಯನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಅಡ್ಮಿನ್ ಪ್ರವೇಶ ಮತ್ತು ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕವನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
   'Job approved and published.': 'ಉದ್ಯೋಗವನ್ನು ಅನುಮೋದಿಸಿ ಪ್ರಕಟಿಸಲಾಗಿದೆ.',
   'Job rejected.': 'ಉದ್ಯೋಗವನ್ನು ತಿರಸ್ಕರಿಸಲಾಗಿದೆ.',
+  'Remove from saved': 'ಉಳಿಸಿದ ಪಟ್ಟಿಯಿಂದ ತೆಗೆದುಹಾಕಿ',
+  '1 saved job is no longer accepting applications and is hidden.': 'ಉಳಿಸಿದ 1 ಉದ್ಯೋಗ ಈಗ ಅರ್ಜಿಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತಿಲ್ಲ, ಆದ್ದರಿಂದ ಮರೆಮಾಡಲಾಗಿದೆ.',
+  '{count} saved jobs are no longer accepting applications and are hidden.': 'ಉಳಿಸಿದ {count} ಉದ್ಯೋಗಗಳು ಈಗ ಅರ್ಜಿಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತಿಲ್ಲ, ಆದ್ದರಿಂದ ಮರೆಮಾಡಲಾಗಿದೆ.',
+  'Removing…': 'ತೆಗೆದುಹಾಕಲಾಗುತ್ತಿದೆ…',
+  'Job rejected, but the reason could not be saved in the moderation log.': 'ಉದ್ಯೋಗವನ್ನು ತಿರಸ್ಕರಿಸಲಾಗಿದೆ, ಆದರೆ ಕಾರಣವನ್ನು ಮಾಡರೇಶನ್ ಲಾಗ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಲಿಲ್ಲ.',
+  "We're Here to Help Drivers & Fleets": 'ಚಾಲಕರು ಮತ್ತು ಫ್ಲೀಟ್‌ಗಳಿಗೆ ಸಹಾಯ ಮಾಡಲು ನಾವಿದ್ದೇವೆ',
   'Job listing closed.': 'ಉದ್ಯೋಗ ಪಟ್ಟಿಯನ್ನು ಮುಚ್ಚಲಾಗಿದೆ.',
   // Admin: settings
   'Moderate job listings': 'ಉದ್ಯೋಗ ಪಟ್ಟಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ',
@@ -1036,6 +1042,7 @@ export const ENGLISH_CATALOG: Record<string, string> = {
   jobUpdateFailed: 'The job status was not saved. Confirm your administrator access and database connection, then retry.',
   jobApprovedNotice: 'Job approved and published.',
   jobRejectedNotice: 'Job rejected.',
+  jobRejectedReasonNotSaved: 'Job rejected, but the reason could not be saved in the moderation log.',
   jobClosedNotice: 'Job listing closed.',
 
   // Admin: access & system status

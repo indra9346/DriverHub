@@ -30,7 +30,21 @@ done
 [ "${1:-}" = "--missing-grants" ] && apply "$HERE/01_simulate_missing_grants.sql"
 apply "$ROOT/supabase-live-repair-2026-10.sql"
 
+# Exit status: 0 only when every business-flow check passed, the test script
+# itself raised no SQL error, and the health check has no FAIL row.
+status=0
 echo "--- business flows"
-"$PSQL" -d "$DB" -f "$HERE/business_flows.sql" 2>&1 | grep -E '^(FAIL|TOTAL)'
+flows=$("$PSQL" -d "$DB" -f "$HERE/business_flows.sql" 2>&1)
+echo "$flows" | grep -E '^(FAIL|TOTAL)'
+if echo "$flows" | grep -q 'ERROR:'; then
+  echo "FAIL test script errors:"; echo "$flows" | grep 'ERROR:' | head -5; status=1
+fi
+echo "$flows" | grep -qE '^TOTAL [0-9]+  PASS [0-9]+  FAIL 0$' || status=1
 echo "--- health check on the resulting data (expect no FAIL)"
-"$PSQL" -d "$DB" -tA -F ' | ' -f "$ROOT/supabase-db-health-check.sql" | grep -E '^(FAIL|WARN)' || echo "no FAIL/WARN rows"
+if ! health=$("$PSQL" -d "$DB" -tA -F ' | ' -f "$ROOT/supabase-db-health-check.sql" 2>&1); then
+  echo "FAIL health check did not run:"; echo "$health" | head -5; status=1
+fi
+echo "$health" | grep -E '^(FAIL|WARN)' || echo "no FAIL/WARN rows"
+echo "$health" | grep -qE '^FAIL' && status=1
+[ "$status" -eq 0 ] && echo "ALL PASSED" || echo "FAILED"
+exit "$status"

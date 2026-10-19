@@ -35,9 +35,18 @@ export const ContactPage: React.FC = () => {
     e.preventDefault();
     const subject = `[${formData.subject}] ${formData.name.trim()}`.trim();
     const fullText = buildMessage();
-    const body = fullText.length > MAX_MAILTO_BODY
-      ? `${fullText.slice(0, MAX_MAILTO_BODY)}\n\n(Message shortened. Please paste the rest here.)`
-      : fullText;
+    // Email apps cut long mailto: links, and the limit applies to the encoded
+    // text. Shorten by whole characters (Array.from keeps emoji intact).
+    let body = fullText;
+    if (encodeURIComponent(body).length > MAX_MAILTO_BODY) {
+      const chars = Array.from(fullText);
+      const note = '\n\n(Message shortened. Please paste the rest here.)';
+      let keep = chars.length;
+      while (keep > 0 && encodeURIComponent(chars.slice(0, keep).join('') + note).length > MAX_MAILTO_BODY) {
+        keep = Math.floor(keep * 0.9);
+      }
+      body = chars.slice(0, keep).join('') + note;
+    }
     const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setComposedText(`Subject: ${subject}\n\n${fullText}`);
     setComposedMailto(mailto);
@@ -62,7 +71,7 @@ export const ContactPage: React.FC = () => {
       <div className="text-center max-w-2xl mx-auto space-y-3">
         <span className="text-xs font-bold text-amber-500 uppercase tracking-wider">{t('Get in Touch')}</span>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-[#08233F] font-display tracking-tight">
-          We&apos;re Here to Help Drivers &amp; Fleets
+          {t("We're Here to Help Drivers & Fleets")}
         </h1>
         <p className="text-sm text-slate-600">
           {t('Have questions about job listings, RTO verification, or enterprise fleet hiring? Reach out to our dedicated support desk.')}

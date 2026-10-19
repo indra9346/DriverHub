@@ -103,7 +103,7 @@ Finish with `supabase-db-health-check.sql`.
 
 ### Database tests
 
-`supabase/tests/` holds 107 business-flow checks (driver, employer, admin and visitor permissions, credits, moderation, messaging, notifications) that run against a throwaway local Postgres with Supabase stubs: `PSQL=psql PGPORT=54329 bash supabase/tests/run-local.sh`. Never point it at the live project.
+`supabase/tests/` holds 112 business-flow checks (driver, employer, admin and visitor permissions, credits, moderation, messaging, notifications) that run against a throwaway local Postgres with Supabase stubs: `PSQL=psql PGPORT=54329 bash supabase/tests/run-local.sh` (exits non-zero if any check or the health check fails). Never point it at the live project.
 
 ### Password reset links
 

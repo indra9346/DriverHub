@@ -47,7 +47,7 @@ const urlLooksLikeAuthCallback = (): boolean => {
   if (typeof window === 'undefined') return false;
   const query = new URLSearchParams(window.location.search);
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  return query.has('code') || hash.has('access_token') || query.get('type') === 'recovery' || hash.get('type') === 'recovery';
+  return query.has('code') || hash.has('access_token');
 };
 
 export const ForgotPasswordPage: React.FC = () => {

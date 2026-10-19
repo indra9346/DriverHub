@@ -150,22 +150,27 @@ export const EmployerBilling: React.FC = () => {
     setGstinError('');
     setSavingBilling(true);
     clearLastError();
-    const saved = DataStore.isDemoMode()
-      ? (DataStore.updateSubscription(employerId, billing), true)
-      : await SupabaseSync.updateEmployerBillingProfile(employerId, billing);
-    if (!saved) {
+    let saved = false;
+    try {
+      saved = DataStore.isDemoMode()
+        ? (DataStore.updateSubscription(employerId, billing), true)
+        : await SupabaseSync.updateEmployerBillingProfile(employerId, billing);
+      if (saved && !DataStore.isDemoMode()) {
+        await SupabaseSync.fetchAndMergeRemoteData(DataStore);
+      }
+    } catch (err) {
+      console.warn('Billing profile save error:', err);
+    } finally {
       setSavingBilling(false);
+    }
+    if (!saved) {
       const reason = DataStore.getLastError('Billing profile could not be saved. Check your connection and try again.');
       setGstinError(reason);
       showToast(reason, 'error');
       return;
     }
-    if (!DataStore.isDemoMode()) {
-      await SupabaseSync.fetchAndMergeRemoteData(DataStore);
-    }
     setShowGstinModal(false);
     refreshData();
-    setSavingBilling(false);
     showToast('Billing profile saved. GSTIN verification is pending administrator review.');
   };
 

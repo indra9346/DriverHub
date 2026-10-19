@@ -87,8 +87,14 @@ export const EmployerCompanyProfile: React.FC = () => {
 
     setSaving(true);
     clearLastError();
-    const ok = await DataStore.updateEmployerProfile(updatedProfile);
-    setSaving(false);
+    let ok = false;
+    try {
+      ok = await DataStore.updateEmployerProfile(updatedProfile);
+    } catch (err) {
+      console.warn('Company profile save error:', err);
+    } finally {
+      setSaving(false);
+    }
     if (!ok) {
       setError(DataStore.getLastError('Your company profile could not be saved. Please try again.'));
       return;

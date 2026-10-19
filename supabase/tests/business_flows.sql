@@ -70,6 +70,15 @@ $$;
 CREATE FUNCTION tst.logout() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '{"role":"anon"}', false)
 $$;
+-- Run an attack whose outcome is checked afterwards (as postgres): it may be
+-- refused, filtered by RLS, or silently neutralised by a trigger.
+CREATE FUNCTION tst.attempt(p_sql text) RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE p_sql;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tst TO anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------- setup (postgres)
@@ -178,7 +187,6 @@ SELECT tst.expect_error('employer: cannot flip entitlement flags',
 SELECT tst.expect_error('employer: cannot self-reject a live job to get a credit back',
   $q$UPDATE public.jobs SET status = 'rejected' WHERE id = '30000000-0000-4000-8000-000000000003'$q$);
 SELECT tst.expect_ok('employer: edit live job details', $q$UPDATE public.jobs SET salary_max = 32000, description = 'Long-haul, updated' WHERE id = '10000000-0000-4000-8000-000000000001'$q$);
-SELECT tst.expect_rows('employer: cannot edit a job they do not own', $q$UPDATE public.jobs SET title = 'hijack' WHERE id = '10000000-0000-4000-8000-000000000001' AND employer_id <> auth.uid()$q$, 0);
 SELECT tst.expect_ok('employer: save a search with radius and "any time" activity',
   $q$INSERT INTO public.saved_searches (employer_id, title, category, city, district, pincode, radius_km, active_in_days, min_exp)
      VALUES (auth.uid(), 'Kolar 25km', '', '', 'Kolar', '563101', 25, NULL, 0)$q$);
@@ -207,7 +215,11 @@ SELECT tst.expect_error('unverified employer: cannot self-approve a pending job'
 SELECT tst.expect_error('unverified employer: cannot search the driver database', $q$SELECT * FROM public.search_driverhub_candidates()$q$, 'verified');
 SELECT tst.expect_error('unverified employer: cannot unlock a driver',
   $q$INSERT INTO public.candidate_unlocks (employer_id, driver_id) VALUES ('e2000000-0000-4000-8000-000000000002', 'd1000000-0000-4000-8000-000000000001')$q$);
+-- J1 belongs to E1 and is live, so E2 can see it.
+SELECT tst.attempt($q$UPDATE public.jobs SET title = 'hijack' WHERE id = '10000000-0000-4000-8000-000000000001'$q$);
 RESET ROLE;
+SELECT tst.check('employer: cannot edit a job they do not own',
+  (SELECT title <> 'hijack' FROM public.jobs WHERE id = :J1));
 SELECT tst.check('unverified employer: job still pending after bypass attempt',
   (SELECT status = 'pending' FROM public.jobs WHERE id = :J2));
 
@@ -230,7 +242,11 @@ SELECT tst.expect_rows('driver: unsave a job', $q$DELETE FROM public.favorite_jo
 SELECT tst.expect_ok('driver: update own driver profile',
   $q$UPDATE public.driver_profiles SET expected_salary = 28000, skills = ARRAY['Night driving'], police_verified = true WHERE user_id = auth.uid()$q$);
 SELECT tst.expect_rows('driver: cannot read other drivers profiles', $q$SELECT * FROM public.profiles WHERE id <> auth.uid()$q$, 0);
-SELECT tst.expect_rows('driver: cannot change own role', $q$UPDATE public.profiles SET role = 'admin', status = 'active' WHERE id = auth.uid() AND role = 'admin'$q$, 0);
+SELECT tst.attempt($q$UPDATE public.profiles SET role = 'admin' WHERE id = auth.uid()$q$);
+RESET ROLE;
+SELECT tst.check('driver: cannot change own role',
+  (SELECT role::text = 'driver' FROM public.profiles WHERE id = :D1));
+SET ROLE authenticated;
 SELECT tst.expect_ok('driver: upload document row',
   $q$INSERT INTO public.driver_documents (id, driver_id, name, type, file_url, verification_status) VALUES ('dd100000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'dl.pdf', 'driving_license', 'd1000000-0000-4000-8000-000000000001/dl.pdf', 'verified')$q$);
 SELECT tst.expect_error('driver: cannot self-verify a document',

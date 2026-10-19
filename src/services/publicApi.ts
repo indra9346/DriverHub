@@ -168,10 +168,15 @@ export async function fetchPublicJobById(id: string): Promise<PublicJobLookup | 
  * for the event, and remembers it for this tab until the recovery ends.
  */
 const RECOVERY_FLAG_KEY = 'driverhub_password_recovery';
+/** Supabase reset links are valid for an hour; an older marker is stale. */
+const RECOVERY_FLAG_MAX_AGE_MS = 60 * 60 * 1000;
 
 const readRecoveryFlag = (): boolean => {
   try {
-    return sessionStorage.getItem(RECOVERY_FLAG_KEY) === '1';
+    const startedAt = Number(sessionStorage.getItem(RECOVERY_FLAG_KEY));
+    const fresh = Number.isFinite(startedAt) && startedAt > 0 && Date.now() - startedAt < RECOVERY_FLAG_MAX_AGE_MS;
+    if (!fresh) sessionStorage.removeItem(RECOVERY_FLAG_KEY);
+    return fresh;
   } catch {
     return false;
   }
@@ -179,29 +184,31 @@ const readRecoveryFlag = (): boolean => {
 
 const writeRecoveryFlag = (active: boolean) => {
   try {
-    if (active) sessionStorage.setItem(RECOVERY_FLAG_KEY, '1');
+    if (active) sessionStorage.setItem(RECOVERY_FLAG_KEY, String(Date.now()));
     else sessionStorage.removeItem(RECOVERY_FLAG_KEY);
   } catch {
     // ignore
   }
 };
 
-const readUrlParams = (): { type: string; error: string } => {
-  if (typeof window === 'undefined') return { type: '', error: '' };
+const readUrlParams = (): { recoveryToken: boolean; error: string } => {
+  if (typeof window === 'undefined') return { recoveryToken: false, error: '' };
   try {
     const query = new URLSearchParams(window.location.search);
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     return {
-      type: hash.get('type') || query.get('type') || '',
+      // Only a link that carries the recovery token itself; "?code=" links are
+      // confirmed by Supabase's PASSWORD_RECOVERY event instead.
+      recoveryToken: hash.get('type') === 'recovery' && hash.has('access_token'),
       error: hash.get('error_description') || query.get('error_description') || ''
     };
   } catch {
-    return { type: '', error: '' };
+    return { recoveryToken: false, error: '' };
   }
 };
 
 const initialUrl = readUrlParams();
-let recoveryActive = readRecoveryFlag() || initialUrl.type === 'recovery';
+let recoveryActive = readRecoveryFlag() || initialUrl.recoveryToken;
 const initialRecoveryError = initialUrl.error;
 if (recoveryActive) writeRecoveryFlag(true);
 const recoveryListeners = new Set<(active: boolean) => void>();

@@ -114,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     : role === 'employer'
     ? employer?.verified
       ? { label: t('Verified Employer'), dot: 'bg-emerald-500', text: 'text-emerald-600' }
-      : { label: 'Verification pending', dot: 'bg-amber-500', text: 'text-amber-700' }
+      : { label: t('Verification pending'), dot: 'bg-amber-500', text: 'text-amber-700' }
     : { label: t('Driver'), dot: 'bg-slate-400', text: 'text-slate-500' };
 
   const sidebarContent = (

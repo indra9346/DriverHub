@@ -93,7 +93,7 @@ const walk = (dir: string) => {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full);
-    else if (/\.(tsx?|jsx?)$/.test(entry.name) && !full.includes(`${path.sep}test${path.sep}`)) sourceFiles.push(full);
+    else if (/\.(tsx?|jsx?)$/.test(entry.name) && path.relative(srcDir, full).split(path.sep)[0] !== 'test') sourceFiles.push(full);
   }
 };
 walk(srcDir);

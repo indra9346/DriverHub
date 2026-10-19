@@ -90,8 +90,14 @@ export const EmployerManageJobs: React.FC = () => {
     setOpenActionMenuId(null);
     setBusyJobId(job.id);
     clearLastError();
-    const ok = await DataStore.updateJobStatus(job.id, 'active');
-    setBusyJobId(null);
+    let ok = false;
+    try {
+      ok = await DataStore.updateJobStatus(job.id, 'active');
+    } catch (err) {
+      console.warn('Job publish error:', err);
+    } finally {
+      setBusyJobId(null);
+    }
     if (!ok) {
       showFailure('This job could not be published. Please try again.');
       return;
@@ -104,8 +110,14 @@ export const EmployerManageJobs: React.FC = () => {
     setOpenActionMenuId(null);
     setBusyJobId(job.id);
     clearLastError();
-    const ok = await DataStore.updateJobStatus(job.id, 'closed');
-    setBusyJobId(null);
+    let ok = false;
+    try {
+      ok = await DataStore.updateJobStatus(job.id, 'closed');
+    } catch (err) {
+      console.warn('Job close error:', err);
+    } finally {
+      setBusyJobId(null);
+    }
     if (!ok) {
       showFailure('This job could not be closed. Please try again.');
       return;
@@ -119,15 +131,26 @@ export const EmployerManageJobs: React.FC = () => {
     setOpenActionMenuId(null);
     setBusyJobId(job.id);
     clearLastError();
-    const closed = await DataStore.updateJobStatus(job.id, 'closed');
+    let closed = false;
+    try {
+      closed = await DataStore.updateJobStatus(job.id, 'closed');
+    } catch (err) {
+      console.warn('Job renew (close) error:', err);
+    }
     if (!closed) {
       setBusyJobId(null);
       showFailure('This job could not be renewed. Please try again.');
       return;
     }
     clearLastError();
-    const reopened = await DataStore.updateJobStatus(job.id, 'active');
-    setBusyJobId(null);
+    let reopened = false;
+    try {
+      reopened = await DataStore.updateJobStatus(job.id, 'active');
+    } catch (err) {
+      console.warn('Job renew (publish) error:', err);
+    } finally {
+      setBusyJobId(null);
+    }
     if (!reopened) {
       showFailure('The expired listing was closed but could not be renewed.');
       return;

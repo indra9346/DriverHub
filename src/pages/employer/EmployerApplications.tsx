@@ -164,8 +164,14 @@ export const EmployerApplications: React.FC = () => {
     }
     setSavingAction(status);
     clearLastError();
-    const saved = await DataStore.updateApplicationStatus(app.id, status, options);
-    setSavingAction(null);
+    let saved = false;
+    try {
+      saved = await DataStore.updateApplicationStatus(app.id, status, options);
+    } catch (err) {
+      console.warn('Application update error:', err);
+    } finally {
+      setSavingAction(null);
+    }
     if (!saved) {
       showToast(DataStore.getLastError('This application could not be updated. Refresh and try again.'), 'error');
       return;
@@ -178,8 +184,14 @@ export const EmployerApplications: React.FC = () => {
     if (savingAction) return;
     setSavingAction('notes');
     clearLastError();
-    const saved = await DataStore.updateApplicationStatus(app.id, app.status, { employerNotes: notesInput.trim() });
-    setSavingAction(null);
+    let saved = false;
+    try {
+      saved = await DataStore.updateApplicationStatus(app.id, app.status, { employerNotes: notesInput.trim() });
+    } catch (err) {
+      console.warn('Notes save error:', err);
+    } finally {
+      setSavingAction(null);
+    }
     if (!saved) {
       showToast(DataStore.getLastError('Your notes could not be saved. Please try again.'), 'error');
       return;
@@ -200,8 +212,10 @@ export const EmployerApplications: React.FC = () => {
     try {
       let url = doc.fileUrl;
       if (!DataStore.isDemoMode()) {
+        const requestId = docsRequestRef.current;
         const fresh = await SupabaseSync.getEmployerApplicantDocuments(selectedApp.driverId, selectedApp.jobId);
-        setDocs(fresh);
+        // The employer may have switched to another candidate meanwhile.
+        if (requestId === docsRequestRef.current) setDocs(fresh);
         const match = fresh.find(d => d.id === doc.id);
         if (!match) throw new Error('This document is no longer available.');
         url = match.fileUrl;

@@ -12,7 +12,8 @@ export const DriverSavedJobs: React.FC = () => {
   const currentUser = DataStore.getCurrentUser();
   const userId = currentUser?.id || '';
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
-  const [unavailableCount, setUnavailableCount] = useState(0);
+  const [unavailableIds, setUnavailableIds] = useState<string[]>([]);
+  const [clearingUnavailable, setClearingUnavailable] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [pendingJobId, setPendingJobId] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -24,7 +25,7 @@ export const DriverSavedJobs: React.FC = () => {
     // Closed, expired or past-deadline jobs can no longer be applied to.
     const open = saved.filter(job => isJobOpenForApplications(job));
     setSavedJobs(open);
-    setUnavailableCount(saved.length - open.length);
+    setUnavailableIds(saved.filter(job => !isJobOpenForApplications(job)).map(job => job.id));
   }, [userId]);
 
   useEffect(() => {
@@ -43,8 +44,30 @@ export const DriverSavedJobs: React.FC = () => {
     toastTimerRef.current = window.setTimeout(() => setToast(null), 5000);
   };
 
+  const handleRemoveUnavailable = async () => {
+    if (!userId || pendingJobId || clearingUnavailable) return;
+    setClearingUnavailable(true);
+    SupabaseSync.lastError = '';
+    let failed = 0;
+    try {
+      for (const jobId of unavailableIds) {
+        if (!DataStore.getFavorites(userId).includes(jobId)) continue;
+        const stillSaved = await DataStore.toggleFavorite(userId, jobId);
+        if (stillSaved) failed += 1;
+      }
+    } catch {
+      failed = Math.max(failed, 1);
+    } finally {
+      setClearingUnavailable(false);
+      loadSaved();
+    }
+    if (failed > 0) {
+      showToast(DataStore.getLastError('Some saved jobs could not be removed. Check your connection and try again.'));
+    }
+  };
+
   const handleToggleSave = async (jobId: string) => {
-    if (!userId || pendingJobId) return;
+    if (!userId || pendingJobId || clearingUnavailable) return;
     setPendingJobId(jobId);
     SupabaseSync.lastError = '';
     try {
@@ -74,12 +97,22 @@ export const DriverSavedJobs: React.FC = () => {
         </Link>
       </div>
 
-      {unavailableCount > 0 && (
-        <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3">
-          {unavailableCount === 1
-            ? '1 saved job is no longer accepting applications and is hidden.'
-            : `${unavailableCount} saved jobs are no longer accepting applications and are hidden.`}
-        </p>
+      {unavailableIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-3">
+          <p className="min-w-0 flex-1">
+            {unavailableIds.length === 1
+              ? t('1 saved job is no longer accepting applications and is hidden.')
+              : t('{count} saved jobs are no longer accepting applications and are hidden.', { count: unavailableIds.length })}
+          </p>
+          <button
+            type="button"
+            onClick={handleRemoveUnavailable}
+            disabled={clearingUnavailable || Boolean(pendingJobId)}
+            className="min-h-10 px-3 rounded-lg border border-slate-300 bg-white font-bold text-brand-navy hover:bg-slate-100 disabled:opacity-60"
+          >
+            {clearingUnavailable ? t('Removing…') : t('Remove from saved')}
+          </button>
+        </div>
       )}
 
       {savedJobs.length === 0 ? (

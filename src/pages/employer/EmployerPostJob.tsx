@@ -631,8 +631,14 @@ export const EmployerPostJob: React.FC = () => {
 
     setSubmittingJob(true);
     clearLastError();
-    const saved = await DataStore.addJob(newJob);
-    setSubmittingJob(false);
+    let saved = false;
+    try {
+      saved = await DataStore.addJob(newJob);
+    } catch (err) {
+      console.warn('Job save error:', err);
+    } finally {
+      setSubmittingJob(false);
+    }
 
     if (!saved) {
       if (creditUsed) DataStore.refundJobCredit(employerId);
@@ -658,7 +664,12 @@ export const EmployerPostJob: React.FC = () => {
 
     setSubmittingJob(true);
     clearLastError();
-    const saved = await DataStore.updateJob(updated);
+    let saved = false;
+    try {
+      saved = await DataStore.updateJob(updated);
+    } catch (err) {
+      console.warn('Job update error:', err);
+    }
     if (!saved) {
       setSubmittingJob(false);
       showSaveError('Your changes could not be saved. Please try again.');
@@ -666,8 +677,14 @@ export const EmployerPostJob: React.FC = () => {
     }
     if (publishAfterSave && latest.status === 'draft') {
       clearLastError();
-      const published = await DataStore.updateJobStatus(latest.id, 'active');
-      setSubmittingJob(false);
+      let published = false;
+      try {
+        published = await DataStore.updateJobStatus(latest.id, 'active');
+      } catch (err) {
+        console.warn('Job publish error:', err);
+      } finally {
+        setSubmittingJob(false);
+      }
       if (!published) {
         // The edits are saved; only publishing failed.
         setEditingJob(DataStore.getJobById(latest.id) || updated);

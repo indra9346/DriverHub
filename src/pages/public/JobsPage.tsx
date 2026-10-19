@@ -74,7 +74,8 @@ export const JobsPage: React.FC = () => {
 
     if (user && user.role === 'driver') {
       setSavedJobIds(DataStore.getFavorites(user.id));
-      const myApps = DataStore.getApplications().filter(a => a.driverId === user.id && a.status !== 'withdrawn');
+      // Withdrawn ones too: an application cannot be submitted again.
+      const myApps = DataStore.getApplications().filter(a => a.driverId === user.id);
       setAppliedJobIds(myApps.map(a => a.jobId));
     } else {
       setSavedJobIds([]);

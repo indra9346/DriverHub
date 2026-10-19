@@ -64,14 +64,19 @@ export const AdminJobs: React.FC = () => {
     try {
       const updated = await DataStore.updateJobStatus(job.id, status);
       if (!updated) return DataStore.getLastError(t('jobUpdateFailed'));
-      // The moderation is saved; a failed log entry is only reported to the console.
-      void logAdminAction({
+      // The moderation is saved either way. A rejection reason is only stored in
+      // the moderation log, so say so when that entry could not be written.
+      const logged = await logAdminAction({
         targetType: 'job',
         targetId: job.id,
         action: status === 'active' ? 'approve' : status === 'rejected' ? 'reject' : 'close',
         reason
       });
       loadJobs();
+      if (reason?.trim() && !logged) {
+        setNotice(t('jobRejectedReasonNotSaved'));
+        return '';
+      }
       setNotice(status === 'active' ? t('jobApprovedNotice') : status === 'rejected' ? t('jobRejectedNotice') : t('jobClosedNotice'));
       return '';
     } catch (cause) {

@@ -124,6 +124,7 @@ export const App: React.FC = () => {
           <Route path="jobs/new" element={<EmployerPostJob />} />
           <Route path="jobs" element={<EmployerManageJobs />} />
           <Route path="jobs/:jobId" element={<EmployerManageJobs />} />
+          <Route path="jobs/:jobId/edit" element={<EmployerPostJob />} />
           <Route path="jobs/:jobId/applications" element={<EmployerApplications />} />
           <Route path="applications" element={<EmployerApplications />} />
           <Route path="candidates" element={<EmployerCandidates />} />

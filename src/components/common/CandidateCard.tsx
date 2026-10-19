@@ -96,7 +96,7 @@ export const CandidateCard: React.FC<CandidateCardProps> = ({
               <Award className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="truncate">{driver.licenseType}</span>
             </div>
-            {driver.expectedSalary && (
+            {typeof driver.expectedSalary === 'number' && driver.expectedSalary > 0 && (
               <div className="flex items-center gap-2 text-[#08233F] font-bold">
                 <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>{t('Expected: ₹{amt}/mo', { amt: driver.expectedSalary.toLocaleString('en-IN') })}</span>

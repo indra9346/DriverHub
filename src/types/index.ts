@@ -246,6 +246,8 @@ export interface Application {
   driverCategory?: DriverCategory;
   driverExperienceYears?: number;
   driverLicenseType?: string;
+  driverLicenseNumber?: string;
+  driverLicenseExpiry?: string;
   driverSkills?: string[];
   driverPoliceVerified?: boolean;
   driverExpectedSalary?: number;

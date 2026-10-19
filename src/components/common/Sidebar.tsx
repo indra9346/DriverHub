@@ -90,8 +90,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const currentUser = DataStore.getCurrentUser();
-  const employer = role === 'employer' ? DataStore.getEmployerById(currentUser?.id || 'usr-employer-1') : null;
-  const subscription = role === 'employer' ? DataStore.getSubscription(currentUser?.id || 'usr-employer-1') : null;
+  const employer = role === 'employer' && currentUser ? DataStore.getEmployerById(currentUser.id) : null;
+  const subscription = role === 'employer' && currentUser ? DataStore.getSubscription(currentUser.id) : null;
 
   const [dbExpanded, setDbExpanded] = useState(true);
 
@@ -107,6 +107,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const links = getNavLinks(role, unreadCount, t);
   const roleTitle = role === 'admin' ? t('Admin Control') : role === 'employer' ? (employer?.companyName || t('Employer Desk')) : t('Driver Portal');
+  // Only claim verification where it is known: employers carry a verified flag
+  // set by administration; driver accounts are simply "Driver".
+  const roleStatus = role === 'admin'
+    ? { label: t('Superadmin'), dot: 'bg-emerald-500', text: 'text-emerald-600' }
+    : role === 'employer'
+    ? employer?.verified
+      ? { label: t('Verified Employer'), dot: 'bg-emerald-500', text: 'text-emerald-600' }
+      : { label: 'Verification pending', dot: 'bg-amber-500', text: 'text-amber-700' }
+    : { label: t('Driver'), dot: 'bg-slate-400', text: 'text-slate-500' };
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white">
@@ -120,16 +129,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="text-xs font-extrabold text-slate-900 block truncate">
               {roleTitle}
             </span>
-            <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              {role === 'employer' ? t('Verified Employer') : role === 'admin' ? t('Superadmin') : t('Verified Driver')}
+            <span className={`text-[10px] font-semibold ${roleStatus.text} flex items-center gap-1`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${roleStatus.dot} shrink-0`} />
+              <span className="truncate">{roleStatus.label}</span>
             </span>
           </div>
         </div>
         {onCloseMobile && (
           <button
+            type="button"
             onClick={onCloseMobile}
-            className="lg:hidden p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            className="lg:hidden min-h-10 min-w-10 inline-flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer shrink-0"
             aria-label={t('Close')}
           >
             <X className="w-5 h-5" />
@@ -153,7 +163,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     setDbExpanded(!dbExpanded);
                     navigate(link.to);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full min-h-10 flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isParentActive
                       ? 'bg-emerald-50 text-emerald-900'
                       : 'text-slate-700 hover:bg-slate-50'
@@ -180,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           onClick={() => {
                             if (onCloseMobile) onCloseMobile();
                           }}
-                          className={`block px-3 py-2 rounded-lg text-xs transition-all ${
+                          className={`flex items-center min-h-10 px-3 py-2 rounded-lg text-xs transition-all ${
                             isSubActive
                               ? 'bg-[#E6F6F2] text-emerald-900 font-bold'
                               : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
@@ -205,7 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
               end={link.to === '/driver/dashboard' || link.to === '/employer/dashboard' || link.to === '/admin/dashboard'}
               className={({ isActive }) => `
-                flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group
+                flex items-center justify-between min-h-10 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group
                 ${
                   isActive
                     ? 'bg-[#E6F6F2] text-emerald-900 font-bold border-l-3 border-emerald-600'
@@ -287,8 +297,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer Sign out */}
       <div className="p-3 border-t border-slate-100">
         <button
+          type="button"
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+          className="w-full min-h-10 flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
         >
           <LogOut className="w-4 h-4 shrink-0" />
           <span>{t('Sign Out')}</span>
@@ -306,12 +317,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Mobile Drawer Overlay */}
       {isOpenMobile && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
           <div 
             className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
             onClick={onCloseMobile}
           />
-          <div className="fixed inset-y-0 left-0 max-w-[280px] w-full z-50 shadow-2xl animate-in slide-in-from-left duration-200">
+          <div className="fixed inset-y-0 left-0 max-w-[280px] w-[85vw] z-50 shadow-2xl animate-in slide-in-from-left duration-200 bg-white pb-[env(safe-area-inset-bottom)] overflow-hidden">
             {sidebarContent}
           </div>
         </div>

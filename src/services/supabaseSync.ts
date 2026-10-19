@@ -1,6 +1,7 @@
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 import { Job, Application, DriverProfile, EmployerProfile, User, DriverDocument, DirectMessage, SavedSearch, DriverExperience } from '../types';
 import { parseStructuredLocation, calculateHaversineDistanceKm, matchesPanIndiaLocationFilter } from './indiaLocationService';
+import { newId } from '../lib/ids';
 
 // Helper to convert any string ID to a valid deterministic UUID
 export function toUUID(id: string): string {
@@ -561,7 +562,7 @@ export const SupabaseSync = {
   async syncFavorite(driverId: string, jobId: string, saved: boolean): Promise<boolean> {
     try {
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user || authData.user.id !== toUUID(driverId)) return false;
+      if (!authData.user || authData.user.id !== toUUID(driverId)) return this.fail(null, 'Your session has expired. Please sign in again.');
       const query = supabase.from('favorite_jobs');
       const { error } = saved
         ? await query.upsert({ driver_id: authData.user.id, job_id: toUUID(jobId) }, { onConflict: 'driver_id,job_id' })
@@ -578,7 +579,7 @@ export const SupabaseSync = {
     if (authError || !authData.user || authData.user.id !== toUUID(driverId)) {
       throw new Error('Sign in to your driver account before uploading documents.');
     }
-    const id = crypto.randomUUID();
+    const id = newId();
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `${authData.user.id}/${id}_${safeName}`;
     const { error: uploadError } = await supabase.storage.from('driver-documents').upload(path, file, {
@@ -862,10 +863,6 @@ export const SupabaseSync = {
           driverError = await saveDriver(legacy);
         }
         if (driverError) return this.fail(driverError, 'Could not save your driver details.');
-        if (!locationColumns) {
-          // Core details were saved but not the structured location/coordinates.
-          return this.fail(null, 'Profile saved, but your exact location could not be stored yet. Please contact support.');
-        }
 
         if (driver.experiences !== undefined) {
           const experienceRows = driver.experiences.map((experience: DriverExperience) => ({
@@ -878,6 +875,10 @@ export const SupabaseSync = {
             const { error: experienceError } = await supabase.from('driver_experiences').upsert(experienceRows, { onConflict: 'id' });
             if (experienceError) return this.fail(experienceError, 'Could not save your work experience.');
           }
+        }
+        if (!locationColumns) {
+          // Core details were saved but not the structured location/coordinates.
+          return this.fail(null, 'Profile saved, but your exact location could not be stored yet. Please contact support.');
         }
       } else if (employer) {
         const companyPayload = definedOnly({
@@ -1108,21 +1109,35 @@ export const SupabaseSync = {
   async syncSavedSearch(search: SavedSearch): Promise<boolean> {
     try {
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user || authData.user.id !== toUUID(search.employerId)) return false;
-      const { error } = await supabase.from('saved_searches').upsert({
+      if (!authData.user || authData.user.id !== toUUID(search.employerId)) return this.fail(null, 'Your session has expired. Please sign in again.');
+      let payload: Record<string, unknown> = {
         id: toUUID(search.id),
         employer_id: authData.user.id,
         title: search.title,
         category: search.category,
         city: search.city,
+        district: search.district || null,
         state: search.state || null,
+        pincode: search.pincode || null,
+        radius_km: typeof search.radiusKm === 'number' && search.radiusKm > 0 ? search.radiusKm : null,
         keyword: search.keyword || null,
         vehicle_type: search.vehicleType || null,
-        active_in_days: search.activeInDays || 15,
+        // null = any time (allowed once supabase-live-repair-2026-10.sql is applied)
+        active_in_days: search.activeInDays || null,
         min_exp: search.minExp,
         must_have_skills: search.mustHaveSkills || [],
         match_count: search.matchCount ?? 0
-      }, { onConflict: 'id' });
+      };
+      let { error } = await supabase.from('saved_searches').upsert(payload, { onConflict: 'id' });
+      // Databases without the latest migrations: drop the newer columns / use the old default.
+      if (error && isMissingColumnError(error)) {
+        const { district: _d, pincode: _p, radius_km: _r, ...legacy } = payload;
+        payload = legacy;
+        ({ error } = await supabase.from('saved_searches').upsert(payload, { onConflict: 'id' }));
+      }
+      if (error && error.code === '23502' && payload.active_in_days === null) {
+        ({ error } = await supabase.from('saved_searches').upsert({ ...payload, active_in_days: 15 }, { onConflict: 'id' }));
+      }
       if (error) return this.fail(error, 'Could not save this search.');
       return true;
     } catch (e) {
@@ -1146,7 +1161,7 @@ export const SupabaseSync = {
   async syncDirectMessage(msg: DirectMessage): Promise<boolean> {
     try {
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user || authData.user.id !== toUUID(msg.senderId)) return false;
+      if (!authData.user || authData.user.id !== toUUID(msg.senderId)) return this.fail(null, 'Your session has expired. Please sign in again.');
       const { error } = await supabase.from('direct_messages').insert({
         id: toUUID(msg.id),
         sender_id: authData.user.id,
@@ -1480,7 +1495,7 @@ export const SupabaseSync = {
           const [{ data: profileBatch }, { data: detailBatch }] = await Promise.all([
             supabase.from('profiles').select('id,full_name,email,phone,city,state,location').in('id', ids),
             role === 'employer'
-              ? supabase.from('driver_profiles').select('user_id,driver_category,years_experience,license_type,skills,police_verified,expected_salary').in('user_id', ids)
+              ? supabase.from('driver_profiles').select('user_id,driver_category,years_experience,license_type,license_number,license_expiry,skills,police_verified,expected_salary').in('user_id', ids)
               : Promise.resolve({ data: [] as any[] })
           ]);
           driverRows.push(...(profileBatch || []));
@@ -1500,6 +1515,8 @@ export const SupabaseSync = {
             driverCategory: detail?.driver_category || undefined,
             driverExperienceYears: typeof detail?.years_experience === 'number' ? detail.years_experience : undefined,
             driverLicenseType: detail?.license_type || undefined,
+            driverLicenseNumber: detail?.license_number || undefined,
+            driverLicenseExpiry: detail?.license_expiry || undefined,
             driverSkills: detail?.skills || undefined,
             driverPoliceVerified: detail ? Boolean(detail.police_verified) : undefined,
             driverExpectedSalary: detail?.expected_salary || undefined,

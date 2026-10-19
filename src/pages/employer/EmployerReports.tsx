@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { 
-  Users, ArrowLeft, ArrowRight, Download, FileText, CheckCircle2, Unlock 
+import {
+  Users, ArrowLeft, ArrowRight, Download, FileText, CheckCircle2, Unlock
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { useLanguage } from '../../services/i18n';
+import { downloadCsv } from '../../services/employerApi';
 
 export const EmployerReports: React.FC = () => {
   const { t } = useLanguage();
@@ -19,6 +20,13 @@ export const EmployerReports: React.FC = () => {
 
   const [daysRange, setDaysRange] = useState<'7' | '30' | 'all'>('7');
   const [downloadedMsg, setDownloadedMsg] = useState<string | null>(null);
+  // Re-render when the cached applications / unlocks change (realtime refresh).
+  const [, setStorageVersion] = useState(0);
+  useEffect(() => {
+    const onStorage = () => setStorageVersion(version => version + 1);
+    window.addEventListener('driverhub_storage_updated', onStorage);
+    return () => window.removeEventListener('driverhub_storage_updated', onStorage);
+  }, []);
 
   const ownJobIds = new Set(DataStore.getJobs().filter(job => job.employerId === employerId).map(job => job.id));
   const allApplications = DataStore.getApplications().filter(app => ownJobIds.has(app.jobId));
@@ -45,25 +53,25 @@ export const EmployerReports: React.FC = () => {
     ];
 
     const rows = applications.map(app => [
-      `"${app.id}"`,
-      `"${app.jobTitle || 'Commercial Driver'}"`,
-      `"${app.companyName || ''}"`,
-      `"${app.driverName || 'Driver Candidate'}"`,
-      `"${app.driverCategory || ''}"`,
-      `"${app.driverExperienceYears ?? ''}${app.driverExperienceYears == null ? '' : ' Years'}"`,
-      `"${app.driverPhone || ''}"`,
-      `"${app.driverLocation || ''}"`,
-      `"${app.status.toUpperCase()}"`,
-      `"${app.appliedDate}"`
-    ].join(','));
+      app.id,
+      app.jobTitle || '',
+      app.companyName || '',
+      app.driverName || '',
+      app.driverCategory || '',
+      typeof app.driverExperienceYears === 'number' ? `${app.driverExperienceYears} Years` : '',
+      app.driverPhone || '',
+      app.driverLocation || '',
+      app.status.replace(/_/g, ' ').toUpperCase(),
+      app.appliedDate
+    ]);
 
-    const csv = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
-    const link = document.createElement('a');
-    link.setAttribute('href', encodeURI(csv));
-    link.setAttribute('download', `DriverHub_Applications_Report_Last_${daysRange}_Days.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(
+      daysRange === 'all'
+        ? 'DriverHub_Applications_Report_All_Time.csv'
+        : `DriverHub_Applications_Report_Last_${daysRange}_Days.csv`,
+      headers,
+      rows
+    );
 
     setDownloadedMsg(`Downloaded ${applications.length} driver applications report (.csv) successfully!`);
     setTimeout(() => setDownloadedMsg(null), 4000);
@@ -73,9 +81,9 @@ export const EmployerReports: React.FC = () => {
     return (
       <div className="space-y-6">
         {downloadedMsg && (
-          <div className="fixed top-20 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-[#08233F] text-white rounded-2xl shadow-xl text-xs font-bold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{downloadedMsg}</span>
+          <div role="status" className="fixed top-20 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[60] flex items-center gap-2 px-4 py-3 bg-[#08233F] text-white rounded-2xl shadow-xl text-xs font-bold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="min-w-0 break-words">{downloadedMsg}</span>
           </div>
         )}
 
@@ -90,7 +98,7 @@ export const EmployerReports: React.FC = () => {
 
         <h1 className="text-xl font-extrabold text-slate-900 font-display">{t('downloadApplications')}</h1>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-10 sm:p-16 text-center max-w-4xl">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-6 sm:p-16 text-center max-w-4xl">
           <div className="max-w-md mx-auto space-y-5">
             <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto relative">
               <FileText className="w-10 h-10 text-slate-700" />
@@ -108,12 +116,12 @@ export const EmployerReports: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {(['7', '30', 'all'] as const).map(rng => (
                 <button
                   key={rng}
                   onClick={() => setDaysRange(rng)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border cursor-pointer ${
+                  className={`min-h-10 px-3 py-1 rounded-full text-xs font-semibold border cursor-pointer ${
                     daysRange === rng
                       ? 'bg-emerald-50 text-emerald-800 border-emerald-500 font-bold'
                       : 'bg-white text-slate-600 border-slate-200'

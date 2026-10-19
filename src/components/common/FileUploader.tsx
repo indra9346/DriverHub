@@ -3,6 +3,7 @@ import { UploadCloud, FileText, X, AlertCircle, Loader2 } from 'lucide-react';
 import { DocumentType, DriverDocument } from '../../types';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { useLanguage } from '../../services/i18n';
+import { newId } from '../../lib/ids';
 
 interface FileUploaderProps {
   driverId: string;
@@ -51,7 +52,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
       let document: DriverDocument;
       if (isDemo) {
         document = {
-          id: crypto.randomUUID(), driverId, name: file.name, type: docType,
+          id: newId(), driverId, name: file.name, type: docType,
           fileUrl: URL.createObjectURL(file), fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
           uploadDate: new Date().toISOString().slice(0, 10), verificationStatus: 'pending'
         };
@@ -79,7 +80,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
 
   return (
     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-1">
         <h4 className="text-sm font-bold text-slate-900">{t('Upload New Document')}</h4>
         <span className="text-[11px] text-slate-500">PDF, JPG, PNG up to 5 MB</span>
       </div>
@@ -90,7 +91,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
           <select
             value={docType}
             onChange={e => setDocType(e.target.value as DocumentType)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
+            className="w-full min-h-10 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:ring-2 focus:ring-amber-400 focus:outline-none"
           >
             {documentTypes.filter(option => !allowedTypes || allowedTypes.includes(option.value)).map(option => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -104,28 +105,28 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
             onChange={handleFileChange}
-            className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            className="w-full min-w-0 text-xs text-slate-500 file:mr-2 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
         </div>
       </div>
 
       {error && (
-        <div role="alert" className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 p-2 rounded-lg">
+        <div role="alert" className="flex items-start gap-1.5 text-xs text-red-700 bg-red-50 p-2 rounded-lg">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+          <span className="min-w-0 break-words">{error}</span>
         </div>
       )}
 
       {file && (
-        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <div className="flex items-center justify-between gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="w-5 h-5 text-blue-600 shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-800 truncate max-w-xs">{file.name}</p>
+              <p className="text-xs font-semibold text-slate-800 break-all">{file.name}</p>
               <p className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)} KB</p>
             </div>
           </div>
-          <button type="button" onClick={() => setFile(null)} aria-label="Remove selected file" className="text-slate-400 hover:text-red-500 p-1 rounded-md">
+          <button type="button" onClick={() => setFile(null)} aria-label="Remove selected file" className="shrink-0 min-h-10 min-w-10 inline-flex items-center justify-center text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -135,7 +136,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
         type="button"
         onClick={() => void handleUpload()}
         disabled={!file || uploading}
-        className="w-full flex items-center justify-center gap-2 bg-[#0A2540] hover:bg-[#06182B] disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all"
+        className="w-full min-h-10 flex items-center justify-center gap-2 bg-[#0A2540] hover:bg-[#06182B] disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all"
       >
         {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> {t('Uploading securely…')}</> : <><UploadCloud className="w-4 h-4 text-amber-400" /> {t('Upload Document')}</>}
       </button>

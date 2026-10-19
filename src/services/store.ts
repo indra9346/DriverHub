@@ -584,9 +584,14 @@ export const DataStore = {
   async updateJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
     const original = this.getJobs().find(job => job.id === jobId);
     const actor = this.getCurrentUser();
-    if (!original || !actor) return false;
-    if (actor.role === 'employer' && original.employerId !== actor.id) return false;
-    if (actor.role === 'driver') return false;
+    if (!original || !actor) {
+      SupabaseSync.lastError = actor ? 'This job could not be found. Refresh and try again.' : 'Your session has expired. Please sign in again.';
+      return false;
+    }
+    if ((actor.role === 'employer' && original.employerId !== actor.id) || actor.role === 'driver') {
+      SupabaseSync.lastError = 'You can only change your own company jobs.';
+      return false;
+    }
     // Employers publish, close and re-open; only administration approves or rejects.
     const allowed: Record<Job['status'], Job['status'][]> = actor.role === 'admin'
       ? { draft: ['pending', 'active', 'closed'], pending: ['active', 'rejected', 'closed'], active: ['closed'], closed: ['active'], rejected: [] }
@@ -705,10 +710,19 @@ export const DataStore = {
   ): Promise<boolean> {
     const actor = this.getCurrentUser();
     const existing = this.getApplicationById(appId);
-    if (!actor || !existing) return false;
+    if (!actor || !existing) {
+      SupabaseSync.lastError = actor ? 'This application could not be found. Refresh and try again.' : 'Your session has expired. Please sign in again.';
+      return false;
+    }
     const jobForApplication = this.getJobById(existing.jobId);
-    if (actor.role === 'driver' && (actor.id !== existing.driverId || status !== 'withdrawn')) return false;
-    if (actor.role === 'employer' && (!jobForApplication || jobForApplication.employerId !== actor.id)) return false;
+    if (actor.role === 'driver' && (actor.id !== existing.driverId || status !== 'withdrawn')) {
+      SupabaseSync.lastError = 'Drivers can only withdraw their own applications.';
+      return false;
+    }
+    if (actor.role === 'employer' && (!jobForApplication || jobForApplication.employerId !== actor.id)) {
+      SupabaseSync.lastError = 'You can only update applications for your own jobs.';
+      return false;
+    }
     const transitions: Record<Application['status'], Application['status'][]> = {
       applied: ['viewed', 'under_review', 'shortlisted', 'rejected', 'withdrawn'],
       viewed: ['under_review', 'shortlisted', 'contacted', 'interview', 'rejected', 'withdrawn'],
@@ -719,7 +733,10 @@ export const DataStore = {
       selected: ['hired', 'rejected'],
       hired: [], rejected: [], withdrawn: []
     };
-    if (existing.status !== status && !transitions[existing.status].includes(status)) return false;
+    if (existing.status !== status && !transitions[existing.status].includes(status)) {
+      SupabaseSync.lastError = `An application that is ${existing.status.replace('_', ' ')} cannot be moved to ${status.replace('_', ' ')}.`;
+      return false;
+    }
 
     const updatedApplication = { ...existing, status };
     if (!DEMO_DATA_ENABLED && updatedApplication) {
@@ -1086,9 +1103,11 @@ export const DataStore = {
     const keep = existing.filter(search => search.employerId !== employerId);
     const remote = rows.map((row): SavedSearch => ({
       id: row.id, employerId: row.employer_id, title: row.title || '', category: row.category || '',
-      city: row.city || '', minExp: row.min_exp || 0, mustHaveSkills: row.must_have_skills || [],
+      city: row.city || '', district: row.district || '', pincode: row.pincode || '',
+      radiusKm: typeof row.radius_km === 'number' ? row.radius_km : (row.radius_km ? Number(row.radius_km) : undefined),
+      minExp: row.min_exp || 0, mustHaveSkills: row.must_have_skills || [],
       state: row.state || '', keyword: row.keyword || '', vehicleType: row.vehicle_type || '',
-      activeInDays: row.active_in_days || 15,
+      activeInDays: row.active_in_days ?? undefined,
       createdAt: row.created_at?.slice(0, 10) || '', matchCount: row.match_count || 0
     }));
     setStorage(STORAGE_KEYS.SAVED_SEARCHES, [...remote, ...keep]);
@@ -1127,6 +1146,20 @@ export const DataStore = {
       timestamp: row.created_at || '', read: Boolean(row.read)
     }));
     setStorage(STORAGE_KEYS.MESSAGES, [...remote, ...keep]);
+  },
+
+  /** Mark cached incoming messages from one partner as read (no network). */
+  markMessagesReadLocally(userId: string, partnerId: string): void {
+    const msgs = getStorage<DirectMessage[]>(STORAGE_KEYS.MESSAGES, []);
+    let changed = false;
+    const next = msgs.map(message => {
+      if (message.receiverId === userId && message.senderId === partnerId && !message.read) {
+        changed = true;
+        return { ...message, read: true };
+      }
+      return message;
+    });
+    if (changed) setStorage(STORAGE_KEYS.MESSAGES, next);
   },
 
   async sendMessage(msg: DirectMessage): Promise<boolean> {

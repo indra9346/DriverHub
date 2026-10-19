@@ -15,7 +15,9 @@ export const PublicLayout: React.FC = () => {
     // without breaking the sticky header.
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] overflow-x-clip">
       <Navbar />
-      <main className="flex-1">
+      {/* At least one screen tall, so the footer never shows mid-screen while
+          a page loads and then jumps down (layout shift). */}
+      <main className="flex-1 min-h-[calc(100vh-4rem)] supports-[height:100dvh]:min-h-[calc(100dvh-4rem)]">
         <RoutePageBoundary key={location.pathname}>
           <Outlet />
         </RoutePageBoundary>

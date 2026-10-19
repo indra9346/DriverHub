@@ -59,6 +59,26 @@ A driver recruitment and job portal connecting **Drivers / Candidates**, **Emplo
 
 The app requires a configured Supabase project and the SQL files below. It has no built-in sample data or demo accounts: every account, job and application lives in Supabase.
 
+## Hosting
+
+The site is a static build: `npm ci && npm run build` writes everything to `dist/`.
+
+- `VITE_SUPABASE_URL` (an `https://` address) and `VITE_SUPABASE_ANON_KEY` must be set **when building**; they are compiled into the files. A build without them shows no data.
+- Serve the site over **HTTPS**. Sign-in, "Download App" (install on phones) and the offline page need it.
+- Every address that is not a file must return `index.html` (the app's pages), while missing files under `/assets/` should stay 404.
+- `index.html`, `sw.js` and `manifest.webmanifest` must not be cached long; files under `/assets/` can be cached for a year (their names change with every build).
+
+Ready-made settings for these rules:
+
+| Host | Settings |
+| --- | --- |
+| Vercel | `vercel.json` (used automatically) |
+| Apache / LiteSpeed / cPanel | `public/.htaccess`, copied into `dist/`: upload all of `dist/`, including `.htaccess`, to the web root |
+| IIS (Windows Server) | `public/web.config`, copied into `dist/` (needs the IIS URL Rewrite module) |
+| Nginx | add `location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; try_files $uri =404; }`, `location / { try_files $uri /index.html; }` and `types { application/manifest+json webmanifest; }` |
+
+After moving to a new domain, add it in Supabase → Authentication → URL Configuration (see "Password reset links" below).
+
 ## Production Database and Hiring Plans
 
 ### Existing project: repair first

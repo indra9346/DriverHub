@@ -581,6 +581,23 @@ export const DataStore = {
     return true;
   },
 
+  /** Remove one of the employer's own drafts. Published jobs are closed instead. */
+  async deleteDraftJob(jobId: string): Promise<boolean> {
+    const original = this.getJobs().find(job => job.id === jobId);
+    const actor = this.getCurrentUser();
+    if (!original || !actor) {
+      SupabaseSync.lastError = actor ? 'This job could not be found. Refresh and try again.' : 'Your session has expired. Please sign in again.';
+      return false;
+    }
+    if (actor.role !== 'employer' || original.employerId !== actor.id || original.status !== 'draft') {
+      SupabaseSync.lastError = 'Only your own drafts can be deleted. Close a published job instead.';
+      return false;
+    }
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.deleteEmployerDraftJob(jobId))) return false;
+    setStorage(STORAGE_KEYS.JOBS, this.getJobs().filter(job => job.id !== jobId));
+    return true;
+  },
+
   async updateJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
     const original = this.getJobs().find(job => job.id === jobId);
     const actor = this.getCurrentUser();

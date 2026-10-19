@@ -72,6 +72,9 @@ function formatAppliesUntil(value: string): string {
   return value;
 }
 
+/** Plan name of an employer who has never bought a plan. */
+const NO_ACTIVE_PLAN = 'No active hiring plan';
+
 export const EmployerBilling: React.FC = () => {
   const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
@@ -417,7 +420,11 @@ export const EmployerBilling: React.FC = () => {
             <span className="text-xs text-slate-500 break-words">
               {t('activePlan')}:{' '}
               <strong className={planIsActive ? 'text-emerald-700' : 'text-slate-700'}>{subscription.planName}</strong>
-              {planIsActive && planExpiry ? ` · valid until ${planExpiry}` : !planIsActive && planExpiry ? ` · expired ${planExpiry}` : ''}
+              {planIsActive && planExpiry
+                ? ` · valid until ${planExpiry}`
+                : !planIsActive && planExpiry && subscription.planName !== NO_ACTIVE_PLAN
+                  ? ` · expired ${planExpiry}`
+                  : ''}
             </span>
           </div>
 

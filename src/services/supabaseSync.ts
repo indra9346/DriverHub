@@ -303,6 +303,22 @@ export const SupabaseSync = {
     }
   },
 
+  /** Employers may delete only their own drafts (never published, no credit used). */
+  async deleteEmployerDraftJob(jobId: string): Promise<boolean> {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) { this.fail(null, 'Your session has expired. Please sign in again.'); return false; }
+      const { data, error } = await supabase.from('jobs').delete()
+        .eq('id', toUUID(jobId)).eq('employer_id', authData.user.id).eq('status', 'draft').select('id');
+      if (error) { this.fail(error, 'Could not delete this draft.'); return false; }
+      if (!data?.length) { this.fail(null, 'This draft could not be found in your account.'); return false; }
+      return true;
+    } catch (e) {
+      this.fail(e, 'Could not delete this draft.');
+      return false;
+    }
+  },
+
   async getAdminJobs(): Promise<Job[]> {
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user) throw new Error('Sign in with an administrator account to review jobs.');

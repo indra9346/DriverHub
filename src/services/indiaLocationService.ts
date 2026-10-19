@@ -2557,6 +2557,63 @@ export async function resolveLocationCoordinates(loc: {
  * Reverse-geocodes GPS coordinates (latitude, longitude) into structured
  * Indian State, District, City/Town, and PIN code.
  */
+/** "Hindupur Mandal", "Kolar taluk" -> "Hindupur", "Kolar". */
+const SUB_DISTRICT_SUFFIX = /\s+(mandal|taluk|taluka|tehsil|tahsil|block|sub[- ]?division|circle)$/i;
+
+/**
+ * The directory town for place names from the map service. OpenStreetMap
+ * sometimes uses a regional form ("Hindupuram" for Hindupur).
+ */
+function matchDirectoryTown(stateName: string, districtName: string, names: string[]): TownLocalityOption | null {
+  const towns = getBaselineTownsForDistrict(stateName, districtName);
+  if (towns.length === 0) return null;
+  for (const raw of names) {
+    const name = normalizeName(raw);
+    if (!name) continue;
+    const exact = towns.find(t => [t.name, ...(t.aliases || [])].some(alias => normalizeName(alias) === name));
+    if (exact) return exact;
+    const variant = towns.find(t => {
+      const town = normalizeName(t.name);
+      return town.length >= 4 && name.startsWith(town) && name.length - town.length <= 3;
+    });
+    if (variant) return variant;
+  }
+  return null;
+}
+
+/**
+ * PIN for a detected position. OpenStreetMap postcodes are sometimes wrong
+ * (515200 for Hindupur, whose PIN is 515201), so one is kept only when India
+ * Post knows it for that State; otherwise the town's own PIN is used.
+ */
+async function resolveDetectedPincode(
+  mapPin: string,
+  stateName: string,
+  districtName: string,
+  townName: string,
+  knownTown: TownLocalityOption | null
+): Promise<string> {
+  const townPin = knownTown
+    ? (knownTown.pins.find(p => p.deliveryStatus !== 'Non-Delivery') || knownTown.pins[0])?.code || ''
+    : '';
+  if (/^\d{6}$/.test(mapPin)) {
+    const check = await verifyPinCodeLive(mapPin).catch(() => null);
+    const sameState = !check?.state || !stateName ||
+      (canonicalStateName(check.state) || check.state) === (canonicalStateName(stateName) || stateName);
+    if (check?.valid && sameState) return mapPin;
+    const unreachable = !check || (!check.valid && !/not found/i.test(check.error || ''));
+    // India Post could not be asked: the map's PIN is the best guess left.
+    if (unreachable && !townPin) return mapPin;
+  }
+  if (townPin) return townPin;
+  if (townName && stateName) {
+    const live = await fetchPinsForTownLive(stateName, districtName, townName).catch(() => [] as PinOption[]);
+    const best = live.find(p => p.deliveryStatus === 'Delivery') || live[0];
+    if (best) return best.code;
+  }
+  return '';
+}
+
 export async function reverseGeocodeCoordinates(
   lat: number,
   lng: number
@@ -2565,6 +2622,7 @@ export async function reverseGeocodeCoordinates(
   district: string;
   city: string;
   pincode: string;
+  addressLine: string;
   formattedLocation: string;
 } | null> {
   try {
@@ -2579,9 +2637,12 @@ export async function reverseGeocodeCoordinates(
     const rawDistrict = String(
       addr.state_district || addr.county || addr.district || ''
     ).trim();
-    const rawCity = String(
-      addr.city || addr.town || addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || ''
-    ).trim();
+    // Town candidates, most specific settlement first; the sub-district
+    // ("Hindupur Mandal") names the town when the point is outside it.
+    const townNames = [
+      addr.city, addr.town, addr.municipality, addr.village, addr.hamlet,
+      String(addr.county || '').replace(SUB_DISTRICT_SUFFIX, ''), addr.suburb
+    ].map(v => String(v || '').trim()).filter(Boolean);
     const rawPin = String(addr.postcode || '').trim().replace(/\D/g, '').slice(0, 6);
 
     // Match against canonical State & District names. Empty values are kept
@@ -2589,21 +2650,34 @@ export async function reverseGeocodeCoordinates(
     const matchedState = canonicalStateName(rawState) || rawState;
     const matchedDistrict =
       (rawDistrict && matchDirectoryDistrict(matchedState, rawDistrict)) ||
-      (!rawDistrict && rawCity ? matchDirectoryDistrict(matchedState, rawCity) : '') ||
-      rawDistrict;
+      (!rawDistrict && townNames[0] ? matchDirectoryDistrict(matchedState, townNames[0]) : '') ||
+      rawDistrict.replace(/\s+district$/i, '');
+
+    const knownTown = matchedState && matchedDistrict ? matchDirectoryTown(matchedState, matchedDistrict, townNames) : null;
+    const city = knownTown?.name || townNames[0] || extractPrimaryName(matchedDistrict);
+    const pincode = await resolveDetectedPincode(rawPin, matchedState, matchedDistrict, city, knownTown);
+
+    // Street / locality for forms with an address line.
+    const cityKey = normalizeName(city);
+    const addressLine = Array.from(new Set(
+      [addr.road, addr.neighbourhood, addr.suburb, addr.residential]
+        .map(v => String(v || '').trim())
+        .filter(v => v && normalizeName(v) !== cityKey)
+    )).slice(0, 2).join(', ');
 
     const formattedLocation = formatStructuredLocation({
-      city: rawCity,
+      city,
       district: matchedDistrict,
       state: matchedState,
-      pincode: rawPin
+      pincode
     });
 
     return {
       state: matchedState,
       district: matchedDistrict,
-      city: rawCity || extractPrimaryName(matchedDistrict),
-      pincode: rawPin,
+      city,
+      pincode,
+      addressLine,
       formattedLocation
     };
   } catch (err) {

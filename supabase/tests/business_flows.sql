@@ -14,6 +14,9 @@
 \set J3  '''30000000-0000-4000-8000-000000000003'''
 \set J4  '''40000000-0000-4000-8000-000000000004'''
 \set J5  '''50000000-0000-4000-8000-000000000005'''
+\set E3  '''e3000000-0000-4000-8000-000000000003'''
+\set E4  '''e4000000-0000-4000-8000-000000000004'''
+\set O1  '''0a000000-0000-4000-8000-000000000001'''
 
 DROP SCHEMA IF EXISTS tst CASCADE;
 CREATE SCHEMA tst;
@@ -89,8 +92,51 @@ INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
   (:D1, 'drv1@test.local', '{"role":"driver","full_name":"Driver One","phone":"9100000001","driver_category":"HMV","experience_years":"5","city":"Bengaluru","state":"Karnataka","district":"Bengaluru Urban","pincode":"560058","location":"Peenya, Bengaluru Urban, Karnataka - 560058"}'),
   (:D2, 'drv2@test.local', '{"role":"driver","full_name":"Driver Two","phone":"9100000002","driver_category":"LMV","experience_years":"1","city":"Mysuru","state":"Karnataka"}'),
   (:D3, 'drv3@test.local', '{"role":"driver","full_name":"Driver Three","phone":"9100000003","driver_category":"HMV","experience_years":"8","city":"Chennai","state":"Tamil Nadu"}');
-UPDATE public.profiles SET role = 'admin' WHERE id = :ADM;
+-- Like supabase-make-admin.sql: a dashboard-created account has no DriverHub role.
+INSERT INTO public.profiles (id, role, full_name, email, status) VALUES (:ADM, 'admin', 'Test Admin', 'admin@test.local', 'active')
+  ON CONFLICT (id) DO UPDATE SET role = 'admin', status = 'active';
 DELETE FROM public.driver_profiles WHERE user_id = :ADM;
+
+-- Shared project: another app's trigger creates the profile row first (column
+-- default role 'driver'), or a guard forces new profiles to 'driver'.
+CREATE FUNCTION tst.foreign_profile_insert() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email) VALUES (NEW.id, NEW.email) ON CONFLICT DO NOTHING;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION tst.foreign_profile_insert();
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  (:E3, 'emp3@test.local', '{"role":"employer","full_name":"Emp Three","company_name":"Three Fleet"}');
+DROP TRIGGER on_auth_user_created ON auth.users;
+CREATE FUNCTION tst.force_driver_role() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.role := 'driver';
+  RETURN NEW;
+END $$;
+CREATE TRIGGER aa_force_driver_role BEFORE INSERT ON public.profiles FOR EACH ROW EXECUTE FUNCTION tst.force_driver_role();
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
+  (:E4, 'emp4@test.local', '{"role":"employer","full_name":"Emp Four","company_name":"Four Fleet"}');
+DROP TRIGGER aa_force_driver_role ON public.profiles;
+INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES (:O1, 'other-app@test.local', '{"full_name":"Other App User"}');
+
+SELECT tst.check('signup: employer keeps the employer role when another app created the profile first',
+  (SELECT role::text = 'employer' FROM public.profiles WHERE id = :E3)
+  AND NOT EXISTS (SELECT 1 FROM public.driver_profiles WHERE user_id = :E3));
+SELECT tst.check('signup: employer role restored when a guard forced "driver"',
+  (SELECT role::text = 'employer' FROM public.profiles WHERE id = :E4)
+  AND NOT EXISTS (SELECT 1 FROM public.driver_profiles WHERE user_id = :E4));
+SELECT tst.check('signup: no free plan, sample GSTIN or auto-verification for new employers',
+  (SELECT bool_and(s.job_credits = 0 AND s.db_unlock_credits = 0 AND s.active_job_slots = 0 AND s.status = 'expired'
+                   AND s.gstin IS NULL AND NOT s.gstin_verified AND NOT c.verified AND c.status::text = 'pending')
+     FROM public.employer_subscriptions s JOIN public.companies c ON c.user_id = s.employer_id
+    WHERE s.employer_id IN (:E1, :E2, :E3, :E4)));
+SELECT tst.check('signup: an account of another app gets no DriverHub profile',
+  NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = :O1));
+-- These accounts are only for the sign-up checks.
+DELETE FROM public.employer_subscriptions WHERE employer_id IN (:E3, :E4);
+DELETE FROM public.companies WHERE user_id IN (:E3, :E4);
+DELETE FROM public.profiles WHERE id IN (:E3, :E4, :O1);
+DELETE FROM auth.users WHERE id IN (:E3, :E4, :O1);
 
 SELECT tst.check('signup: employer starts unverified + pending',
   (SELECT NOT verified AND status = 'pending' FROM public.companies WHERE user_id = :E1));

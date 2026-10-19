@@ -67,6 +67,10 @@ If the live site shows no jobs or companies (the browser console reports `permis
 
 Then run `supabase-db-health-check.sql` (read-only). It returns one row per check; after the repair there should be no `FAIL` rows. Each `FAIL` names the SQL file that fixes it. For databases created by older DriverHub scripts the repair also adds every column the app uses (with safe defaults: no credits, no verification), the radius candidate search, the payment-order table and plan-activation function, and the realtime tables.
 
+### Sign-up fix (run after the repair)
+
+`supabase-signup-fix-2026-10.sql` makes new accounts keep the role chosen at registration (employers were being saved as drivers), stops the free "Starter" plan and sample GSTIN that sign-up used to grant, and repairs accounts that were already affected. It also runs a test sign-up that is rolled back, and its result table lists every trigger that runs when an account is created in this shared project.
+
 ### Create an admin account
 
 Registration only creates driver and employer accounts. To make an administrator:
@@ -98,12 +102,13 @@ Apply these SQL files in order using the Supabase SQL Editor (this exact order i
 11. `supabase-radius-search.sql`
 12. `supabase-profile-sync-rls-fix.sql`
 13. `supabase-live-repair-2026-10.sql`
+14. `supabase-signup-fix-2026-10.sql`
 
 Finish with `supabase-db-health-check.sql`.
 
 ### Database tests
 
-`supabase/tests/` holds 112 business-flow checks (driver, employer, admin and visitor permissions, credits, moderation, messaging, notifications) that run against a throwaway local Postgres with Supabase stubs: `PSQL=psql PGPORT=54329 bash supabase/tests/run-local.sh` (exits non-zero if any check or the health check fails). Never point it at the live project.
+`supabase/tests/` holds 116 business-flow checks (driver, employer, admin and visitor permissions, credits, moderation, messaging, notifications) that run against a throwaway local Postgres with Supabase stubs: `PSQL=psql PGPORT=54329 bash supabase/tests/run-local.sh` (exits non-zero if any check or the health check fails). Never point it at the live project.
 
 ### Password reset links
 

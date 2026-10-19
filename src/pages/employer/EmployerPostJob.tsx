@@ -1101,6 +1101,7 @@ export const EmployerPostJob: React.FC = () => {
             {/* Pan-India Dependent Hierarchy: State/UT -> District -> Town/City -> PIN Code */}
             <PanIndiaLocationSelector
               value={locationSelection}
+              showCurrentLocation
               onChange={(next) => {
                 setLocationSelection(next);
                 setState(next.state);

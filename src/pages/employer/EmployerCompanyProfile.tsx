@@ -217,6 +217,7 @@ export const EmployerCompanyProfile: React.FC = () => {
           <div className="pt-2 border-t border-slate-100">
             <PanIndiaLocationSelector
               value={locationSelection}
+              showCurrentLocation
               onChange={(next) => {
                 setLocationSelection(next);
                 update({

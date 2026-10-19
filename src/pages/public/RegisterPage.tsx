@@ -201,6 +201,13 @@ export const RegisterPage: React.FC = () => {
       await SupabaseSync.fetchAndMergeRemoteData(DataStore);
       setLoading(false);
 
+      // The database decides the account type. Never open the other portal silently.
+      const savedRole = DataStore.getUsers().find(u => u.id === userId)?.role;
+      if (savedRole && savedRole !== role) {
+        setError(`Your account was created, but it was saved as a ${savedRole} account instead of ${role}. Please contact DriverHub support before using it.`);
+        return;
+      }
+
       navigate(getPostLoginPath(role, searchParams.get('redirect')), { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : (lang === 'kn' ? 'ನೋಂದಣಿ ವಿಫಲವಾಗಿದೆ.' : 'Registration failed. Please try again.');
@@ -443,6 +450,7 @@ export const RegisterPage: React.FC = () => {
                 layout="grid-2"
                 required
                 idPrefix="register-loc"
+                showCurrentLocation
               />
             </div>
 

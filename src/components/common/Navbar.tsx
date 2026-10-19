@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
+import { InstallAppButton } from './InstallAppButton';
 import { DataStore } from '../../services/store';
 import { supabase } from '../../services/supabaseClient';
 import { useLanguage } from '../../services/i18n';
@@ -547,6 +548,8 @@ export const Navbar: React.FC = () => {
                 </Link>
               </div>
             )}
+
+            <InstallAppButton />
 
             {/* Public Navigation Links */}
             <div className="pt-2 border-t border-slate-100">

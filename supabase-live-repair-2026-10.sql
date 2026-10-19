@@ -22,8 +22,10 @@
 --     supabase-fix.sql) would let an employer write their own credits once
 --     grants are restored; credit/billing tables now accept writes only from
 --     trusted database functions.
---  8. Employers are notified when their company is verified and when an admin
---     approves, rejects or closes their job.
+--  8. Employers are notified when their company is verified, when an admin
+--     approves, rejects or closes their job, and when a driver withdraws.
+--  9. The district / PIN / location chosen at signup is stored even when email
+--     confirmation is on; saved searches keep district, PIN and radius.
 -- =====================================================================
 
 BEGIN;
@@ -351,6 +353,45 @@ BEGIN
     ) THEN RAISE EXCEPTION 'Invalid application status transition'; END IF;
   END IF;
   NEW.updated_date := now();
+  RETURN NEW;
+END;
+$$;
+
+-- Application, message and unlock notifications. A driver withdrawing now
+-- notifies the employer (not the driver who just did it).
+CREATE OR REPLACE FUNCTION public.notify_driverhub_marketplace_event()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  target_employer uuid;
+  target_title text;
+  receiver_role text;
+BEGIN
+  IF TG_TABLE_NAME = 'applications' THEN
+    SELECT jobs.employer_id, jobs.title INTO target_employer, target_title
+      FROM public.jobs WHERE jobs.id = NEW.job_id;
+    IF TG_OP = 'INSERT' THEN
+      INSERT INTO public.notifications(user_id, title, message, type, link)
+      VALUES (target_employer, 'New driver application', 'A driver applied for ' || COALESCE(target_title, 'your job') || '.', 'new_application', '/employer/applications');
+    ELSIF NEW.status IS DISTINCT FROM OLD.status THEN
+      IF NEW.status::text = 'withdrawn' AND auth.uid() IS NOT DISTINCT FROM NEW.driver_id THEN
+        INSERT INTO public.notifications(user_id, title, message, type, link)
+        VALUES (target_employer, 'Application withdrawn', 'A driver withdrew their application for ' || COALESCE(target_title, 'your job') || '.', 'new_application', '/employer/applications');
+      ELSE
+        INSERT INTO public.notifications(user_id, title, message, type, link)
+        VALUES (NEW.driver_id, 'Application status updated', 'Your application for ' || COALESCE(target_title, 'a driver job') || ' is now ' || replace(NEW.status::text, '_', ' ') || '.', 'application_status', '/driver/applications');
+      END IF;
+    END IF;
+  ELSIF TG_TABLE_NAME = 'direct_messages' THEN
+    SELECT role::text INTO receiver_role FROM public.profiles WHERE id = NEW.receiver_id;
+    INSERT INTO public.notifications(user_id, title, message, type, link)
+    VALUES (NEW.receiver_id, 'New message from ' || COALESCE(NEW.sender_name, 'DriverHub user'), left(NEW.text, 120), 'system',
+      CASE WHEN receiver_role = 'employer' THEN '/employer/messages' ELSE '/driver/messages' END);
+  ELSIF TG_TABLE_NAME = 'candidate_unlocks' THEN
+    SELECT companies.company_name INTO target_title FROM public.companies WHERE companies.user_id = NEW.employer_id;
+    INSERT INTO public.notifications(user_id, title, message, type, link)
+    VALUES (NEW.driver_id, 'An employer viewed your contact', COALESCE(target_title, 'An employer') || ' unlocked your driver profile.', 'application_status', '/driver/profile');
+  END IF;
   RETURN NEW;
 END;
 $$;

@@ -492,7 +492,7 @@ export const EmployerManageJobs: React.FC = () => {
                               disabled={isBusy}
                               className="w-full text-left px-3.5 py-2.5 text-emerald-700 hover:bg-emerald-50 cursor-pointer font-bold transition-colors"
                             >
-                              🚀 {t('publishReopenJob')} (1 credit)
+                              🚀 {t('publishReopenJob')}
                             </button>
                           )}
                         </div>

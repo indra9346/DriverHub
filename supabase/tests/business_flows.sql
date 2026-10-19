@@ -305,6 +305,10 @@ SELECT tst.expect_error('driver: cannot rewrite notification text', $q$UPDATE pu
 SELECT tst.expect_ok('driver: withdraw application', $q$UPDATE public.applications SET status = 'withdrawn' WHERE id = 'a1000000-0000-4000-8000-000000000001'$q$);
 SELECT tst.expect_error('driver: cannot reopen a withdrawn application', $q$UPDATE public.applications SET status = 'applied' WHERE id = 'a1000000-0000-4000-8000-000000000001'$q$);
 RESET ROLE;
+SELECT tst.check('withdrawal: employer is told the driver withdrew',
+  EXISTS (SELECT 1 FROM public.notifications WHERE user_id = :E1 AND title = 'Application withdrawn'));
+SELECT tst.check('withdrawal: driver is not notified about their own action',
+  NOT EXISTS (SELECT 1 FROM public.notifications WHERE user_id = :D1 AND message LIKE '%is now withdrawn%'));
 
 -- ---------------------------------------------------------------- admin moderation
 SELECT tst.login(:ADM);

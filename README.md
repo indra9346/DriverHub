@@ -71,15 +71,11 @@ Then run `supabase-db-health-check.sql` (read-only). It returns one row per chec
 
 Registration only creates driver and employer accounts. To make an administrator:
 
-1. Create the account: sign up on the site, or Supabase Dashboard → Authentication → Users → Add user.
-2. In the SQL Editor, with that account's email:
-
-   ```sql
-   UPDATE public.profiles SET role = 'admin', status = 'active' WHERE email = 'admin-email@example.com';
-   DELETE FROM public.driver_profiles WHERE user_id = (SELECT id FROM public.profiles WHERE email = 'admin-email@example.com');
-   ```
-
+1. Create the sign-in account if needed: Supabase Dashboard → Authentication → Users → Add user → Create new user (tick "Auto Confirm User").
+2. Open `supabase-make-admin.sql`, replace `CHANGE-ME@example.com` with that email, and run it in the SQL Editor. It works whether or not the account already has a DriverHub profile.
 3. Sign in on `/login?role=admin`. The health check row "admins are active" turns PASS.
+
+`supabase-list-accounts.sql` (read-only) lists every sign-in account in this shared project and its DriverHub role, which shows accounts that belong to other apps.
 
 ### New project: apply in this order
 

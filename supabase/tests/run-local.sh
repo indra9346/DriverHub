@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Run the DriverHub database business-flow tests on a LOCAL scratch Postgres.
+# Never point this at the live Supabase project: it creates and drops a database.
+#
+#   PGHOST=127.0.0.1 PGPORT=54329 PGUSER=postgres bash supabase/tests/run-local.sh
+#   bash supabase/tests/run-local.sh --missing-grants   # simulate the 2026-10 live state first
+#
+# Needs a superuser on a throwaway cluster (e.g. `initdb -A trust` + `pg_ctl start -o "-p 54329"`).
+set -u
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$HERE/../.." && pwd)"
+PSQL="${PSQL:-psql}"
+DB="${DB:-driverhub_test}"
+export PGHOST="${PGHOST:-127.0.0.1}" PGPORT="${PGPORT:-54329}" PGUSER="${PGUSER:-postgres}"
+
+"$PSQL" -qtA -d postgres -c "DROP DATABASE IF EXISTS $DB WITH (FORCE);" -c "CREATE DATABASE $DB;" >/dev/null || exit 1
+apply() {
+  if ! out=$("$PSQL" -d "$DB" -v ON_ERROR_STOP=1 -q -f "$1" 2>&1); then
+    echo "FAIL applying $(basename "$1"):"; echo "$out" | grep -E 'ERROR' | head -3; exit 1
+  fi
+  echo "ok   $(basename "$1")"
+}
+apply "$HERE/00_supabase_stub.sql"
+for f in supabase-schema.sql supabase-apnahire-upgrade.sql supabase-security-hardening.sql \
+         supabase-marketplace-flows.sql supabase-fix-rls-recursion.sql supabase-payment-checkout.sql \
+         supabase-employer-driver-doc-access.sql supabase-homepage-public-stats.sql supabase-admin-live-fix.sql \
+         supabase-pan-india-locations.sql supabase-radius-search.sql supabase-profile-sync-rls-fix.sql; do
+  apply "$ROOT/$f"
+done
+[ "${1:-}" = "--missing-grants" ] && apply "$HERE/01_simulate_missing_grants.sql"
+apply "$ROOT/supabase-live-repair-2026-10.sql"
+
+echo "--- business flows"
+"$PSQL" -d "$DB" -f "$HERE/business_flows.sql" 2>&1 | grep -E '^(FAIL|TOTAL)'
+echo "--- health check on the resulting data (expect no FAIL)"
+"$PSQL" -d "$DB" -tA -F ' | ' -f "$ROOT/supabase-db-health-check.sql" | grep -E '^(FAIL|WARN)' || echo "no FAIL/WARN rows"

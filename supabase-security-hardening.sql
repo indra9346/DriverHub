@@ -192,13 +192,16 @@ END $$;
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.driver_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.driver_experience ENABLE ROW LEVEL SECURITY;
+-- Legacy table: present only in databases created from older DriverHub versions.
+DO $$ BEGIN IF to_regclass('public.driver_experience') IS NOT NULL THEN EXECUTE 'ALTER TABLE public.driver_experience ENABLE ROW LEVEL SECURITY'; END IF; END $$;
 ALTER TABLE public.driver_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.shortlists ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+-- Legacy table: present only in databases created from older DriverHub versions.
+DO $$ BEGIN IF to_regclass('public.shortlists') IS NOT NULL THEN EXECUTE 'ALTER TABLE public.shortlists ENABLE ROW LEVEL SECURITY'; END IF; END $$;
+-- Legacy table: present only in databases created from older DriverHub versions.
+DO $$ BEGIN IF to_regclass('public.favorites') IS NOT NULL THEN EXECUTE 'ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY'; END IF; END $$;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.employer_subscriptions ENABLE ROW LEVEL SECURITY;
@@ -206,7 +209,8 @@ ALTER TABLE public.billing_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.candidate_unlocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.saved_searches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.direct_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.password_resets ENABLE ROW LEVEL SECURITY;
+-- Legacy table: present only in databases created from older DriverHub versions.
+DO $$ BEGIN IF to_regclass('public.password_resets') IS NOT NULL THEN EXECUTE 'ALTER TABLE public.password_resets ENABLE ROW LEVEL SECURITY'; END IF; END $$;
 
 CREATE POLICY profile_read_owner_admin ON public.profiles FOR SELECT TO authenticated
   USING (id = auth.uid() OR public.is_driverhub_admin() OR EXISTS (
@@ -248,9 +252,13 @@ CREATE POLICY driver_profile_private_read ON public.driver_profiles FOR SELECT T
 CREATE POLICY driver_profile_owner_write ON public.driver_profiles FOR ALL TO authenticated
   USING (user_id = auth.uid() OR public.is_driverhub_admin())
   WITH CHECK (user_id = auth.uid() OR public.is_driverhub_admin());
-CREATE POLICY experience_owner_read_write ON public.driver_experience FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.driver_profiles d WHERE d.id = driver_id AND d.user_id = auth.uid()) OR public.is_driverhub_admin())
-  WITH CHECK (EXISTS (SELECT 1 FROM public.driver_profiles d WHERE d.id = driver_id AND d.user_id = auth.uid()) OR public.is_driverhub_admin());
+DO $legacy$ BEGIN
+  IF to_regclass('public.driver_experience') IS NOT NULL THEN
+    EXECUTE $p$CREATE POLICY experience_owner_read_write ON public.driver_experience FOR ALL TO authenticated
+      USING (EXISTS (SELECT 1 FROM public.driver_profiles d WHERE d.id = driver_id AND d.user_id = auth.uid()) OR public.is_driverhub_admin())
+      WITH CHECK (EXISTS (SELECT 1 FROM public.driver_profiles d WHERE d.id = driver_id AND d.user_id = auth.uid()) OR public.is_driverhub_admin())$p$;
+  END IF;
+END $legacy$;
 CREATE POLICY documents_owner_read_write ON public.driver_documents FOR ALL TO authenticated
   USING (EXISTS (SELECT 1 FROM public.driver_profiles d WHERE d.id = driver_id AND d.user_id = auth.uid()) OR public.is_driverhub_admin())
   WITH CHECK (EXISTS (SELECT 1 FROM public.driver_profiles d WHERE d.id = driver_id AND d.user_id = auth.uid()) OR public.is_driverhub_admin());
@@ -304,13 +312,21 @@ DROP TRIGGER IF EXISTS enforce_driverhub_application_update ON public.applicatio
 CREATE TRIGGER enforce_driverhub_application_update BEFORE UPDATE ON public.applications
 FOR EACH ROW EXECUTE FUNCTION public.enforce_driverhub_application_update();
 
-CREATE POLICY favorites_owner ON public.favorites FOR ALL TO authenticated
-  USING (driver_id = auth.uid() OR public.is_driverhub_admin()) WITH CHECK (driver_id = auth.uid() OR public.is_driverhub_admin());
+DO $legacy$ BEGIN
+  IF to_regclass('public.favorites') IS NOT NULL THEN
+    EXECUTE $p$CREATE POLICY favorites_owner ON public.favorites FOR ALL TO authenticated
+      USING (driver_id = auth.uid() OR public.is_driverhub_admin()) WITH CHECK (driver_id = auth.uid() OR public.is_driverhub_admin())$p$;
+  END IF;
+END $legacy$;
 CREATE POLICY notifications_owner ON public.notifications FOR ALL TO authenticated
   USING (user_id = auth.uid() OR public.is_driverhub_admin()) WITH CHECK (user_id = auth.uid() OR public.is_driverhub_admin());
-CREATE POLICY shortlists_participant ON public.shortlists FOR ALL TO authenticated
-  USING (employer_id = auth.uid() OR driver_id = auth.uid() OR public.is_driverhub_admin())
-  WITH CHECK (employer_id = auth.uid() OR public.is_driverhub_admin());
+DO $legacy$ BEGIN
+  IF to_regclass('public.shortlists') IS NOT NULL THEN
+    EXECUTE $p$CREATE POLICY shortlists_participant ON public.shortlists FOR ALL TO authenticated
+      USING (employer_id = auth.uid() OR driver_id = auth.uid() OR public.is_driverhub_admin())
+      WITH CHECK (employer_id = auth.uid() OR public.is_driverhub_admin())$p$;
+  END IF;
+END $legacy$;
 CREATE POLICY admin_actions_admin_read ON public.admin_actions FOR SELECT TO authenticated
   USING (public.is_driverhub_admin());
 CREATE POLICY admin_actions_admin_insert ON public.admin_actions FOR INSERT TO authenticated
@@ -341,4 +357,8 @@ CREATE POLICY entitlement_owner_admin_read ON public.job_entitlement_events FOR 
 
 -- Duplicate application and saved-job protection already exists in schema.
 CREATE UNIQUE INDEX IF NOT EXISTS applications_job_driver_unique ON public.applications(job_id, driver_id);
-CREATE UNIQUE INDEX IF NOT EXISTS favorites_driver_job_unique ON public.favorites(driver_id, job_id);
+DO $$ BEGIN
+  IF to_regclass('public.favorites') IS NOT NULL THEN
+    EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS favorites_driver_job_unique ON public.favorites(driver_id, job_id)';
+  END IF;
+END $$;

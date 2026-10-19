@@ -77,6 +77,10 @@ Registration only creates driver and employer accounts. To make an administrator
 
 `supabase-list-accounts.sql` (read-only) lists every sign-in account in this shared project and its DriverHub role, which shows accounts that belong to other apps.
 
+### Activate a plan without online payment
+
+Until the Razorpay functions are deployed, `supabase-activate-plan.sql` activates a hiring plan for an employer by email (for offline payments or test employers). It records a payment order and billing transaction and grants credits through the same trusted function as a verified online payment.
+
 ### New project: apply in this order
 
 Apply these SQL files in order using the Supabase SQL Editor (this exact order is what `supabase/tests/run-local.sh` verifies):

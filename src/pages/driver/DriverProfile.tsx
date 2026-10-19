@@ -122,7 +122,7 @@ export const DriverProfilePage: React.FC = () => {
   const [salaryText, setSalaryText] = useState(() => salaryToText(profile.expectedSalary));
   // False until this account's saved profile has been loaded, so an empty form
   // can never be saved over real data on a fresh tab.
-  const [hydrated, setHydrated] = useState(() => DataStore.isDemoMode() || DataStore.getDrivers().some(d => d.id === userId));
+  const [hydrated, setHydrated] = useState(() => DataStore.getDrivers().some(d => d.id === userId));
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
   // The form unlocks only once this driver's saved row is in the cache, so a
@@ -172,29 +172,25 @@ export const DriverProfilePage: React.FC = () => {
       if (!dirtyRef.current) applyFromCache();
     };
     window.addEventListener('driverhub_storage_updated', handleStorage);
-    if (DataStore.isDemoMode()) {
-      setHydrated(true);
-    } else {
-      setLoadFailed(false);
-      void SupabaseSync.fetchAndMergeRemoteData(DataStore)
-        .catch(err => console.warn('Profile load error:', err))
-        .finally(async () => {
+    setLoadFailed(false);
+    void SupabaseSync.fetchAndMergeRemoteData(DataStore)
+      .catch(err => console.warn('Profile load error:', err))
+      .finally(async () => {
+        if (!live) return;
+        if (!DataStore.getDrivers().some(d => d.id === userId)) {
+          // No cached row: either a brand-new driver (nothing saved yet, safe
+          // to start the profile) or the load failed (keep editing locked).
+          const saved = await hasSavedDriverProfile(userId);
           if (!live) return;
-          if (!DataStore.getDrivers().some(d => d.id === userId)) {
-            // No cached row: either a brand-new driver (nothing saved yet, safe
-            // to start the profile) or the load failed (keep editing locked).
-            const saved = await hasSavedDriverProfile(userId);
-            if (!live) return;
-            if (saved !== false) {
-              setHydrated(false);
-              setLoadFailed(true);
-              return;
-            }
+          if (saved !== false) {
+            setHydrated(false);
+            setLoadFailed(true);
+            return;
           }
-          setHydrated(true);
-          if (!dirtyRef.current) applyFromCache();
-        });
-    }
+        }
+        setHydrated(true);
+        if (!dirtyRef.current) applyFromCache();
+      });
     return () => {
       live = false;
       window.removeEventListener('driverhub_storage_updated', handleStorage);
@@ -448,7 +444,7 @@ export const DriverProfilePage: React.FC = () => {
     setDeletingExpId(exp.id);
     setSaveError('');
     try {
-      const deleted = DataStore.isDemoMode() || await SupabaseSync.deleteDriverExperience(userId, exp.id);
+      const deleted = await SupabaseSync.deleteDriverExperience(userId, exp.id);
       if (!deleted) {
         setSaveError('Experience could not be deleted. Check your connection and try again.');
         return;

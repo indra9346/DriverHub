@@ -49,7 +49,7 @@ import { LanguageProvider } from './services/i18n';
 export const App: React.FC = () => {
   React.useEffect(() => {
     const notify = () => window.dispatchEvent(new Event('driverhub_storage_updated'));
-    // Fetch role-scoped authenticated data. Never upload local/demo records on startup.
+    // Fetch role-scoped authenticated data. Never upload locally cached records on startup.
     void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(notify);
 
     // Database changes arrive in bursts; refresh once per burst, one fetch at a time.

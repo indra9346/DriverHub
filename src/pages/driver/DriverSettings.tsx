@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Lock, Bell, Shield, Save, CheckCircle2, RotateCcw, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, Bell, Shield, Save, CheckCircle2, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { supabase } from '../../services/supabaseClient';
 import { loadAlertPreferences, saveAlertPreferences } from '../../services/driverApi';
@@ -10,7 +10,6 @@ export const DriverSettings: React.FC = () => {
   const { t } = useLanguage();
   const currentUser = DataStore.getCurrentUser();
   const userId = currentUser?.id || '';
-  const isDemo = DataStore.isDemoMode();
   const isEmployer = currentUser?.role === 'employer';
   const [prefsMessage, setPrefsMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [smsAlerts, setSmsAlerts] = useState(() => loadAlertPreferences(userId).sms);
@@ -77,11 +76,9 @@ export const DriverSettings: React.FC = () => {
         // Passwords live only in Supabase Auth.
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) throw error;
-      } else if (!isDemo) {
+      } else {
         throw new Error('Your session has expired. Please sign in again to change your password.');
       }
-      // Demo accounts keep a local copy of the password (no-op outside demo mode).
-      if (isDemo && currentUser?.email) DataStore.updateUserPassword(currentUser.email, newPassword);
       setPasswordSuccess('Your password has been updated.');
       setNewPassword('');
       setConfirmPassword('');
@@ -272,25 +269,6 @@ export const DriverSettings: React.FC = () => {
         </form>
       </div>
 
-      {/* Demo reset option: development demo mode only */}
-      {isDemo && (
-        <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-slate-900">{t('Reset Demo Database State')}</p>
-            <p className="text-[11px] text-slate-500">{t('Reverts all jobs, applications, and drivers to default seed')}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (!confirm('Reset all demo data on this device? The page will reload.')) return;
-              DataStore.resetDemoData();
-            }}
-            className="min-h-10 px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs shrink-0"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> {t('Reset Demo Data')}
-          </button>
-        </div>
-      )}
     </div>
   );
 };

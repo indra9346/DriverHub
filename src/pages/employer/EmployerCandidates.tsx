@@ -164,8 +164,8 @@ export const EmployerCandidates: React.FC = () => {
     return POPULAR_INDIAN_SKILLS.filter(s => s.toLowerCase().includes(q)).slice(0, 6);
   }, [mustHaveSkill]);
 
-  // Search results come only from the secured search (or the local demo
-  // search); the cached driver list is never used as results in production.
+  // Search results come only from the secured database search; the cached
+  // driver list is never used as results.
   const loadAll = () => {
     setSubscription(DataStore.getSubscription(employerId));
     setUnlocks(DataStore.getCandidateUnlocks(employerId));
@@ -259,21 +259,12 @@ export const EmployerCandidates: React.FC = () => {
 
       try {
         const results = await SupabaseSync.searchDriverCandidates(searchCriteria);
-        if (!cancelled) {
-          // Local sample data is a development-only fallback.
-          setDrivers(results.length === 0 && DataStore.isDemoMode()
-            ? DataStore.searchDriversLocally(searchCriteria)
-            : results);
-        }
+        if (!cancelled) setDrivers(results);
       } catch (e) {
         if (!cancelled) {
-          if (DataStore.isDemoMode()) {
-            setDrivers(DataStore.searchDriversLocally(searchCriteria));
-          } else {
-            // No plan, company not verified, signed out: say why instead of showing nothing.
-            setDrivers([]);
-            setSearchError(e instanceof Error && e.message ? e.message : 'The driver database could not be searched. Please try again.');
-          }
+          // No plan, company not verified, signed out: say why instead of showing nothing.
+          setDrivers([]);
+          setSearchError(e instanceof Error && e.message ? e.message : 'The driver database could not be searched. Please try again.');
         }
       } finally {
         if (!cancelled) setSearchLoading(false);

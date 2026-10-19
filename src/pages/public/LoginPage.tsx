@@ -12,7 +12,6 @@ import { useLanguage } from '../../services/i18n';
 import { UserRole, User as UserType } from '../../types';
 import { getDashboardPathForRole, getPostLoginPath, inferRoleFromPath, isUserRole } from '../../services/authRouting';
 
-const DEMO_AUTH = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
 
 export const LoginPage: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -41,7 +40,7 @@ export const LoginPage: React.FC = () => {
   useEffect(() => {
     let live = true;
     const cached = DataStore.getCurrentUser();
-    if (!cached || DEMO_AUTH || !isSupabaseConfigured) {
+    if (!cached || !isSupabaseConfigured) {
       setSessionChecked(true);
       return () => { live = false; };
     }
@@ -62,7 +61,7 @@ export const LoginPage: React.FC = () => {
   const handleSignOutToSwitch = async () => {
     setSigningOut(true);
     try {
-      if (!DEMO_AUTH) await supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut({ scope: 'local' });
     } catch {
       // Finish the local sign-out even if the network call fails.
     } finally {
@@ -90,56 +89,47 @@ export const LoginPage: React.FC = () => {
 
     try {
       const cleanEmail = email.trim().toLowerCase();
-      let matched: UserType | undefined;
-      const demoAuth = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
-      if (demoAuth) {
-        matched = DataStore.getUsers().find(u => u.email.trim().toLowerCase() === cleanEmail);
-        if (!matched || password !== '123456') throw new Error(lang === 'kn' ? 'ಡೆಮೊ ಲಾಗಿನ್‌ಗೆ ಸ್ಥಳೀಯ ಪಾಸ್‌ವರ್ಡ್ ಅಗತ್ಯವಿದೆ.' : 'Demo sign-in requires a seeded account and the local demo password.');
-      } else {
-        if (!isSupabaseConfigured) throw new Error('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-        if (authError || !authData.user) throw new Error(authError?.message || (lang === 'kn' ? 'ಲಾಗಿನ್ ವಿಫಲವಾಗಿದೆ. ಇಮೇಲ್ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್ ಪರಿಶೀಲಿಸಿ.' : 'Sign-in failed. Check your email and password.'));
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .maybeSingle();
-        if (profileError || !profile || !isUserRole(profile.role)) {
-          DataStore.setCurrentUser(null);
-          await supabase.auth.signOut({ scope: 'local' });
-          throw new Error(profileError
-            ? 'We could not verify your DriverHub role. Please try again or contact support.'
-            : 'This account has no valid DriverHub profile. Contact support to complete account setup.');
-        }
-        matched = {
-          id: authData.user.id, email: authData.user.email || cleanEmail,
-          role: profile.role as UserRole,
-          status: profile.status === 'blocked' || profile.status === 'suspended' ? 'blocked' : profile.status || 'active',
-          phone: profile.phone || '', createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)
-        };
-        DataStore.addUser(matched);
-        // Profile details are loaded by fetchAndMergeRemoteData after the role
-        // checks below. Never write a partial profile back to the database here.
+      if (!isSupabaseConfigured) throw new Error('Supabase is not configured for this deployment. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel, then redeploy.');
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+      if (authError || !authData.user) throw new Error(authError?.message || (lang === 'kn' ? 'ಲಾಗಿನ್ ವಿಫಲವಾಗಿದೆ. ಇಮೇಲ್ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್ ಪರಿಶೀಲಿಸಿ.' : 'Sign-in failed. Check your email and password.'));
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .maybeSingle();
+      if (profileError || !profile || !isUserRole(profile.role)) {
+        DataStore.setCurrentUser(null);
+        await supabase.auth.signOut({ scope: 'local' });
+        throw new Error(profileError
+          ? 'We could not verify your DriverHub role. Please try again or contact support.'
+          : 'This account has no valid DriverHub profile. Contact support to complete account setup.');
       }
+      const matched: UserType = {
+        id: authData.user.id, email: authData.user.email || cleanEmail,
+        role: profile.role as UserRole,
+        status: profile.status === 'blocked' || profile.status === 'suspended' ? 'blocked' : profile.status || 'active',
+        phone: profile.phone || '', createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)
+      };
+      DataStore.addUser(matched);
+      // Profile details are loaded by fetchAndMergeRemoteData after the role
+      // checks below. Never write a partial profile back to the database here.
 
       if (!matched) throw new Error(lang === 'kn' ? 'ಖಾತೆ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನೋಂದಾಯಿಸಿ.' : 'No account found. Please sign up first.');
       if (matched.status === 'blocked') {
         DataStore.setCurrentUser(null);
-        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut({ scope: 'local' });
+        await supabase.auth.signOut({ scope: 'local' });
         throw new Error(lang === 'kn' ? 'ಈ ಖಾತೆಯನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ. ಬೆಂಬಲ ವಿಭಾಗವನ್ನು ಸಂಪರ್ಕಿಸಿ.' : 'This account is suspended. Contact DriverHub support.');
       }
       if (matched.role !== roleTab) {
         setSuggestedRole(matched.role);
         DataStore.setCurrentUser(null);
-        if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) await supabase.auth.signOut({ scope: 'local' });
+        await supabase.auth.signOut({ scope: 'local' });
         throw new Error(`This account is registered as ${matched.role}. Switch to that sign-in role.`);
       }
 
       if (previousUserId && previousUserId !== matched.id) DataStore.clearSessionCaches();
       DataStore.setCurrentUser(matched);
-      if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
-        await SupabaseSync.fetchAndMergeRemoteData(DataStore);
-      }
+      await SupabaseSync.fetchAndMergeRemoteData(DataStore);
       setLoading(false);
 
       navigate(getPostLoginPath(matched.role, redirect), { replace: true });

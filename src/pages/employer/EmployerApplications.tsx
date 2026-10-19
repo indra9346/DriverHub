@@ -114,9 +114,7 @@ export const EmployerApplications: React.FC = () => {
     setDocFallback(null);
     setDocsLoading(true);
     try {
-      const result = DataStore.isDemoMode()
-        ? DataStore.getDriverDocuments(app.driverId)
-        : await SupabaseSync.getEmployerApplicantDocuments(app.driverId, app.jobId);
+      const result = await SupabaseSync.getEmployerApplicantDocuments(app.driverId, app.jobId);
       if (requestId === docsRequestRef.current) setDocs(result);
     } catch (e) {
       if (requestId === docsRequestRef.current) {
@@ -210,16 +208,13 @@ export const EmployerApplications: React.FC = () => {
     setOpeningDocId(doc.id);
     setDocFallback(null);
     try {
-      let url = doc.fileUrl;
-      if (!DataStore.isDemoMode()) {
-        const requestId = docsRequestRef.current;
-        const fresh = await SupabaseSync.getEmployerApplicantDocuments(selectedApp.driverId, selectedApp.jobId);
-        // The employer may have switched to another candidate meanwhile.
-        if (requestId === docsRequestRef.current) setDocs(fresh);
-        const match = fresh.find(d => d.id === doc.id);
-        if (!match) throw new Error('This document is no longer available.');
-        url = match.fileUrl;
-      }
+      const requestId = docsRequestRef.current;
+      const fresh = await SupabaseSync.getEmployerApplicantDocuments(selectedApp.driverId, selectedApp.jobId);
+      // The employer may have switched to another candidate meanwhile.
+      if (requestId === docsRequestRef.current) setDocs(fresh);
+      const match = fresh.find(d => d.id === doc.id);
+      if (!match) throw new Error('This document is no longer available.');
+      let url = match.fileUrl;
       if (!/^https?:\/\//i.test(url) && !url.startsWith('blob:')) throw new Error('This document cannot be opened.');
       if (download && url.includes('/storage/v1/object/sign/')) {
         url += `${url.includes('?') ? '&' : '?'}download=${encodeURIComponent(doc.name)}`;

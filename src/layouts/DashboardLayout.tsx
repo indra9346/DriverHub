@@ -30,11 +30,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
 
   useEffect(() => {
     let live = true;
-    const demoAuth = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
-    if (demoAuth) {
-      setSessionReady(true);
-      return () => { live = false; };
-    }
     const signOutLocally = async () => {
       try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* local sign-out only */ }
       DataStore.clearSessionCaches();

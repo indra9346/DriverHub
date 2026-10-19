@@ -44,10 +44,6 @@ export const JobDetailPage: React.FC = () => {
   const fetchVersionRef = useRef(0);
 
   const fetchFromServer = useCallback(async (jobId: string) => {
-    if (DataStore.isDemoMode()) {
-      setLoadState('missing');
-      return;
-    }
     const version = ++fetchVersionRef.current;
     setLoadState('loading');
     try {
@@ -256,7 +252,7 @@ export const JobDetailPage: React.FC = () => {
     setApplyError('');
     try {
       // A job opened from a shared link may not be in the local cache yet.
-      if (!DataStore.getJobById(job.id) && !DataStore.isDemoMode()) {
+      if (!DataStore.getJobById(job.id)) {
         await SupabaseSync.fetchAndMergeRemoteData(DataStore);
       }
 

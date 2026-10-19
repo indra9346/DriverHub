@@ -36,9 +36,34 @@ The account is unverified and has no hiring plan, so it covers the "new employer
 
 All verified on the local emulator; `run-local.sh` 116/116, build and i18n checks pass.
 
-## Driver and admin portals
+## Admin portal (tested live, signed in as the site owner's admin account)
 
-Not yet tested live: they need a signed-in driver account and an admin account (created by the site owner; see README "Create an admin account").
+| Page / action | Result |
+| --- | --- |
+| Dashboard, Jobs, Drivers, Employers, Applications, Documents, Settings | All load; no failed API calls |
+| Phone width (375 px), all 7 pages | No sideways scrolling |
+| Moderation queue | Both submitted test jobs listed as Pending |
+| Approve & publish (job A) | "Job approved and published"; job appears on the public /jobs page |
+| Reject without a reason | Refused: "Enter a reason for rejecting this job." |
+| Reject with a reason (job B) | "Job rejected"; reason saved to the moderation log; job B never public |
+| Approve & verify company | "Company verified and listed"; employer shows Verified |
+| Employer credits | 3 → 1 after submitting two jobs (rejection refunds one; checked in the DB tests) |
+
+Data note: the driver list contains three accounts that are not real drivers (an unnamed row created by another app's sign-up trigger, an old account and a demo account).
+
+## Driver portal (tested on the local emulator with the same code; live run needs a driver account)
+
+| Page / action | Result |
+| --- | --- |
+| Dashboard, Jobs, Applications, Saved, Messages, Profile, Documents, Notifications, Settings | All load; no failed API calls |
+| Profile: GPS location + licence + bio, Save | Saved: Kolar / 563101, licence, expiry, bio, map coordinates |
+| Document upload (PDF) | Listed as Pending Review; stored in the driver's private folder |
+| Apply with cover note | "Application Submitted"; employer notified |
+| Message employer | Delivered; sender role, name and job title set by the server |
+| Withdraw | Status Withdrawn; job shows "Applied" (cannot re-apply) |
+| Phone width (375 px), 11 pages | No sideways scrolling |
+
+Also fixed: "Showing 1 active vacancies" now reads "1 active vacancy".
 
 ## Known limits
 

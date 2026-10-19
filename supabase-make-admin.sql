@@ -12,7 +12,9 @@ BEGIN
   INSERT INTO public.profiles (id, role, full_name, email, status)
   SELECT u.id, 'admin', COALESCE(NULLIF(u.raw_user_meta_data ->> 'full_name', ''), split_part(u.email, '@', 1)), lower(u.email), 'active'
   FROM auth.users u WHERE u.id = admin_id
-  ON CONFLICT (id) DO UPDATE SET role = 'admin', status = 'active';
+  -- A row made by another app's sign-up trigger may lack the email and name.
+  ON CONFLICT (id) DO UPDATE SET role = 'admin', status = 'active', email = EXCLUDED.email,
+    full_name = COALESCE(NULLIF(public.profiles.full_name, ''), EXCLUDED.full_name);
   DELETE FROM public.driver_profiles WHERE user_id = admin_id;
   RAISE NOTICE '% is now a DriverHub administrator. Sign in at /login?role=admin', admin_email;
 END $$;

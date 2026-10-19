@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { 
-  Briefcase, Plus, CheckCircle2, ArrowLeft, MapPin, IndianRupee, 
+import { useNavigate, useSearchParams, useParams, Link } from 'react-router-dom';
+import {
+  Briefcase, Plus, CheckCircle2, ArrowLeft, MapPin, IndianRupee,
   ShieldCheck, Sparkles, FileText, Info, Check, X, Truck, Wallet,
-  HelpCircle, Trash2, Edit3, Send, Clock
+  HelpCircle, Trash2, Edit3, Send, Clock, AlertCircle, Loader2
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
-import { DriverCategory, Job } from '../../types';
+import { DriverCategory, Job, EmployerProfile, EmployerSubscription } from '../../types';
+import { newId } from '../../lib/ids';
+import { clearLastError, isPlanOrCreditError } from '../../services/employerApi';
 import { ALL_INDIAN_STATES, getCitiesForState, getAreasForCity, searchIndianLocations, CITY_AREAS_MAP } from '../../data/indiaLocations';
 import { useLanguage } from '../../services/i18n';
 import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
@@ -187,6 +189,19 @@ const VEHICLE_SUGGESTIONS = [
   'Force Traveller 12-26 Seater Corporate Shuttle'
 ];
 
+/** Minimum years for each experience option (explicit; substring guessing mis-mapped "2-4 Years"). */
+const EXPERIENCE_MIN_YEARS: Record<string, number> = {
+  'Fresher / 0-1 Year': 0,
+  '1-2 Years': 1,
+  '2-4 Years': 2,
+  '3-5 Years': 3,
+  '5+ Years': 5,
+  '8+ Years (Heavy Multi-Axle)': 8
+};
+
+const DEFAULT_WORK_LOCATION_TYPE = 'Work From Depot / Office' as const;
+const DEFAULT_LICENSE_TYPE = 'Commercial / Transport License';
+
 const SKILLS_SUGGESTIONS = [
   'Interstate Highway Freight, Night Driving, FASTag Handling',
   'VIP Etiquette, Automatic Transmission, City Traffic Navigation',
@@ -199,11 +214,17 @@ const SKILLS_SUGGESTIONS = [
 export const EmployerPostJob: React.FC = () => {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
+  const { jobId: editJobId } = useParams<{ jobId?: string }>();
+  const isEditMode = Boolean(editJobId);
   const navigate = useNavigate();
   const currentUser = DataStore.getCurrentUser();
   const employerId = currentUser?.id || '';
-  const employer = DataStore.getEmployerById(employerId);
-  const subscription = DataStore.getSubscription(employerId);
+  const [employer, setEmployer] = useState<EmployerProfile | undefined>(() => DataStore.getEmployerById(employerId));
+  const [subscription, setSubscription] = useState<EmployerSubscription>(() => DataStore.getSubscription(employerId));
+  // Edit mode: the job being edited (null = not found / not yours).
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [editLoadState, setEditLoadState] = useState<'loading' | 'ready' | 'missing' | 'forbidden'>(isEditMode ? 'loading' : 'ready');
+  const prefilledRef = useRef(false);
 
   const [step, setStep] = useState<number>(1);
   const [showTemplateModal, setShowTemplateModal] = useState<boolean>(searchParams.get('template') === 'open');
@@ -275,15 +296,106 @@ export const EmployerPostJob: React.FC = () => {
   const [customQuestionInput, setCustomQuestionInput] = useState('');
 
   const [submitted, setSubmitted] = useState(false);
-  const [submissionType, setSubmissionType] = useState<'draft' | 'pending' | 'active'>('active');
+  const [submissionType, setSubmissionType] = useState<'draft' | 'pending' | 'active' | 'updated'>('active');
   const [entitlementError, setEntitlementError] = useState('');
+  // The refusal is about a missing plan / credits: offer "View plans" and "Save as draft".
+  const [entitlementIsPlan, setEntitlementIsPlan] = useState(false);
   const [submittingJob, setSubmittingJob] = useState(false);
+  const companyEditedRef = useRef(false);
 
   useEffect(() => {
-    if (searchParams.get('template') === 'open') {
+    if (searchParams.get('template') === 'open' && !isEditMode) {
       setShowTemplateModal(true);
     }
-  }, [searchParams]);
+  }, [searchParams, isEditMode]);
+
+  // Keep the credit chip, company details and (in edit mode) the job in sync with the cache.
+  useEffect(() => {
+    if (!employerId) return;
+    // A different job id (same route element) must be loaded again.
+    prefilledRef.current = false;
+    const refresh = () => {
+      const nextEmployer = DataStore.getEmployerById(employerId);
+      setEmployer(nextEmployer);
+      setSubscription(DataStore.getSubscription(employerId));
+      if (nextEmployer?.companyName && !companyEditedRef.current && !isEditMode) {
+        setHiringForCompany(current => current || nextEmployer.companyName);
+      }
+      if (editJobId && !prefilledRef.current) {
+        const job = DataStore.getJobById(editJobId);
+        if (!job) {
+          setEditLoadState(DataStore.getJobs().length > 0 ? 'missing' : 'loading');
+          return;
+        }
+        if (job.employerId !== employerId) {
+          setEditLoadState('forbidden');
+          return;
+        }
+        prefilledRef.current = true;
+        prefillFromJob(job);
+        setEditingJob(job);
+        setEditLoadState('ready');
+      }
+    };
+    refresh();
+    window.addEventListener('driverhub_storage_updated', refresh);
+    return () => window.removeEventListener('driverhub_storage_updated', refresh);
+    // prefillFromJob only uses state setters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employerId, editJobId, isEditMode]);
+
+  /** Load an existing job into the form (edit mode). */
+  function prefillFromJob(job: Job) {
+    const parsed = parseStructuredLocation(job.location || '', job.state || '', job.district || '', job.city || '', job.pincode || '');
+    const structured = formatStructuredLocation({
+      state: parsed.state || job.state || '',
+      district: parsed.district || job.district || '',
+      city: parsed.city || job.city || '',
+      pincode: parsed.pincode || job.pincode || ''
+    });
+    const suffix = structured ? `, ${structured}` : '';
+    const locality = suffix && job.location?.endsWith(suffix)
+      ? job.location.slice(0, -suffix.length)
+      : (job.location && job.location !== structured ? job.location.split(',')[0].trim() : (parsed.city || job.city || ''));
+
+    setHiringForCompany(job.companyName || '');
+    setTitle(job.title || '');
+    setCategory(job.category);
+    setJobTypePill(
+      (job.workingHours || '').startsWith('Both') ? 'Both (Full-Time And Part-Time)'
+        : job.employmentType === 'Part-time' ? 'Part Time' : 'Full Time'
+    );
+    setNightShift(Boolean(job.nightShift));
+    setWorkLocationType(job.workLocationType || DEFAULT_WORK_LOCATION_TYPE);
+    setLocationSelection(parsed);
+    setState(parsed.state || job.state || '');
+    setDistrict(parsed.district || job.district || '');
+    setCity(parsed.city || job.city || '');
+    setPincode(parsed.pincode || job.pincode || '');
+    setLocation(locality);
+    setVacancies(job.vacancies || 1);
+    setPayType(job.payType || 'Fixed + Incentive');
+    setSalaryMin(job.salaryMin || 0);
+    setSalaryMax(job.salaryMax || 0);
+    setSelectedPerks(job.perks || []);
+    setJoiningFeeRequired(Boolean(job.joiningFeeRequired));
+    setExperienceRequired(job.experienceRequired || '');
+    setExperienceMinYears(job.experienceMinYears ?? EXPERIENCE_MIN_YEARS[job.experienceRequired] ?? 0);
+    setVehicleType(job.vehicleType || '');
+    setSkillsText((job.requiredSkills || []).join(', '));
+    setDrivingLicenseRequired(job.drivingLicenseRequired ?? true);
+    setLicenseTypeRequired(job.licenseTypeRequired || DEFAULT_LICENSE_TYPE);
+    setDescription(job.description || '');
+    setDocsSelected(job.requiredDocs || []);
+    setSelectedQuestions(job.screeningQuestions || []);
+  }
+
+  // A job that never appears in the cache is reported as missing instead of loading forever.
+  useEffect(() => {
+    if (editLoadState !== 'loading') return;
+    const timer = window.setTimeout(() => setEditLoadState(current => (current === 'loading' ? 'missing' : current)), 8000);
+    return () => window.clearTimeout(timer);
+  }, [editLoadState]);
 
   // Click outside to dismiss suggestion popups
   useEffect(() => {
@@ -415,51 +527,49 @@ export const EmployerPostJob: React.FC = () => {
     setSelectedQuestions(selectedQuestions.filter(q => q !== question));
   };
 
-  const handlePublishJob = async (targetStatus: 'draft' | 'pending' | 'active') => {
-    setEntitlementError('');
+  const validateForm = (): boolean => {
     if (!hiringForCompany.trim() || !title.trim() || !description.trim() || !city.trim() || !location.trim() || !experienceRequired.trim() || !vehicleType.trim() || salaryMin <= 0 || salaryMax < salaryMin || vacancies <= 0) {
+      setEntitlementIsPlan(false);
       setEntitlementError('Complete the job title, description, location and valid salary/opening details before publishing.');
-      return;
+      return false;
     }
+    return true;
+  };
 
-    let creditUsed = false;
-    let slotUsed = false;
-
-    if (targetStatus !== 'draft') {
-      const entitlement = DataStore.consumeJobCredit(employerId);
-      if (!entitlement.success) {
-        setEntitlementError(entitlement.message);
-        navigate('/employer/plans');
-        return;
-      }
-      creditUsed = entitlement.creditUsed === true;
-      slotUsed = entitlement.slotUsed === true;
-    }
-
+  /** The form's job fields (shared by create and edit). */
+  const buildJobFields = () => {
     const structuredFormatted = formatStructuredLocation({ state, district, city, pincode });
-    const fullLocationString = location && !structuredFormatted.toLowerCase().includes(location.toLowerCase())
-      ? `${location}, ${structuredFormatted}`
-      : structuredFormatted || `${location}, ${city}, ${state}`;
-
-    const newJob: Job = {
-      id: crypto.randomUUID(),
-      employerId,
+    // Prefix only the landmark parts that the structured address doesn't
+    // already contain (a landmark of "Bengaluru, Karnataka" adds nothing).
+    const normalisePart = (part: string) => part.trim().toLowerCase()
+      .replace(/\s*-\s*\d{6}$/, '')
+      .replace(/\s+dist(rict)?\.?$/, '');
+    const known = new Set(
+      [...structuredFormatted.split(','), city, district, state, pincode]
+        .map(part => normalisePart(part || ''))
+        .filter(Boolean)
+    );
+    const landmark = location.split(',').map(part => part.trim())
+      .filter(part => part && !known.has(normalisePart(part)))
+      .join(', ');
+    const fullLocationString = structuredFormatted
+      ? (landmark ? `${landmark}, ${structuredFormatted}` : structuredFormatted)
+      : [location, city, state].filter(Boolean).join(', ');
+    return {
       companyName: hiringForCompany.trim(),
-      companyLogo: employer?.logoUrl,
-      postedBy: employer?.contactPerson || '',
       title: title.trim(),
       category,
       location: fullLocationString,
       city: city || district,
-      district,
+      district: district || undefined,
       state,
-      pincode,
+      pincode: pincode || undefined,
       workLocationType,
       experienceRequired,
       experienceMinYears,
       salaryMin,
       salaryMax,
-      salaryType: 'monthly',
+      salaryType: 'monthly' as const,
       payType,
       perks: selectedPerks,
       nightShift,
@@ -467,13 +577,50 @@ export const EmployerPostJob: React.FC = () => {
       joiningFeeRequired,
       screeningQuestions: selectedQuestions,
       workingHours: `${jobTypePill}${nightShift ? ' • Night Shift' : ' • Day Shift'}`,
-      employmentType: jobTypePill === 'Part Time' ? 'Part-time' : 'Full-time',
+      employmentType: (jobTypePill === 'Part Time' ? 'Part-time' : 'Full-time') as Job['employmentType'],
       description,
       requiredSkills: skillsText.split(',').map(s => s.trim()).filter(Boolean),
       requiredDocs: docsSelected,
       drivingLicenseRequired,
       licenseTypeRequired: drivingLicenseRequired ? licenseTypeRequired : undefined,
-      vacancies,
+      vacancies
+    };
+  };
+
+  const showSaveError = (fallback: string) => {
+    const reason = DataStore.getLastError(fallback);
+    setEntitlementIsPlan(isPlanOrCreditError(reason));
+    setEntitlementError(reason);
+  };
+
+  const handlePublishJob = async (targetStatus: 'draft' | 'pending' | 'active') => {
+    if (submittingJob) return;
+    setEntitlementError('');
+    setEntitlementIsPlan(false);
+    if (!validateForm()) return;
+
+    let creditUsed = false;
+    let slotUsed = false;
+
+    // Demo mode keeps credits locally. In production the database takes the
+    // credit (or a plan slot) and returns the reason when none is left.
+    if (targetStatus !== 'draft' && DataStore.isDemoMode()) {
+      const entitlement = DataStore.consumeJobCredit(employerId);
+      if (!entitlement.success) {
+        setEntitlementIsPlan(true);
+        setEntitlementError(entitlement.message);
+        return;
+      }
+      creditUsed = entitlement.creditUsed === true;
+      slotUsed = entitlement.slotUsed === true;
+    }
+
+    const newJob: Job = {
+      id: newId(),
+      employerId,
+      companyLogo: employer?.logoUrl,
+      postedBy: employer?.contactPerson || '',
+      ...buildJobFields(),
       status: targetStatus,
       postedDate: new Date().toISOString().slice(0, 10),
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -483,29 +630,114 @@ export const EmployerPostJob: React.FC = () => {
     };
 
     setSubmittingJob(true);
-    const saved = await DataStore.addJob(newJob);
-    setSubmittingJob(false);
+    clearLastError();
+    let saved = false;
+    try {
+      saved = await DataStore.addJob(newJob);
+    } catch (err) {
+      console.warn('Job save error:', err);
+    } finally {
+      setSubmittingJob(false);
+    }
 
-      if (!saved) {
-        if (creditUsed) DataStore.refundJobCredit(employerId);
-        setEntitlementError('The job could not be saved. Confirm your employer subscription and company verification, then try again.');
-        return;
-      }
+    if (!saved) {
+      if (creditUsed) DataStore.refundJobCredit(employerId);
+      // Stay on the form so nothing typed is lost.
+      showSaveError('The job could not be saved. Please try again.');
+      return;
+    }
 
-      const savedStatus = DataStore.getJobById(newJob.id)?.status || targetStatus;
-      setSubmissionType(savedStatus === 'draft' ? 'draft' : savedStatus === 'active' ? 'active' : 'pending');
+    const savedStatus = DataStore.getJobById(newJob.id)?.status || targetStatus;
+    setSubmissionType(savedStatus === 'draft' ? 'draft' : savedStatus === 'active' ? 'active' : 'pending');
     setSubmitted(true);
   };
+
+  /** Edit mode: save the form onto the existing job; its status is unchanged. */
+  const handleSaveEdit = async (publishAfterSave = false) => {
+    if (submittingJob || !editingJob) return;
+    setEntitlementError('');
+    setEntitlementIsPlan(false);
+    if (!validateForm()) return;
+
+    const latest = DataStore.getJobById(editingJob.id) || editingJob;
+    const updated: Job = { ...latest, ...buildJobFields(), status: latest.status };
+
+    setSubmittingJob(true);
+    clearLastError();
+    let saved = false;
+    try {
+      saved = await DataStore.updateJob(updated);
+    } catch (err) {
+      console.warn('Job update error:', err);
+    }
+    if (!saved) {
+      setSubmittingJob(false);
+      showSaveError('Your changes could not be saved. Please try again.');
+      return;
+    }
+    if (publishAfterSave && latest.status === 'draft') {
+      clearLastError();
+      let published = false;
+      try {
+        published = await DataStore.updateJobStatus(latest.id, 'active');
+      } catch (err) {
+        console.warn('Job publish error:', err);
+      } finally {
+        setSubmittingJob(false);
+      }
+      if (!published) {
+        // The edits are saved; only publishing failed.
+        setEditingJob(DataStore.getJobById(latest.id) || updated);
+        showSaveError('Your changes were saved, but the job could not be published.');
+        return;
+      }
+      const savedStatus = DataStore.getJobById(latest.id)?.status;
+      setSubmissionType(savedStatus === 'active' ? 'active' : 'pending');
+      setSubmitted(true);
+      return;
+    }
+    setSubmittingJob(false);
+    setSubmissionType('updated');
+    setSubmitted(true);
+  };
+
+  if (isEditMode && editLoadState !== 'ready') {
+    return (
+      <div className="max-w-2xl mx-auto bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 text-center shadow-card space-y-4 my-8">
+        {editLoadState === 'loading' ? (
+          <>
+            <Loader2 className="w-8 h-8 mx-auto text-emerald-600 animate-spin" />
+            <p className="text-sm font-bold text-[#08233F]">Loading job details…</p>
+          </>
+        ) : (
+          <>
+            <AlertCircle className="w-10 h-10 mx-auto text-rose-500" />
+            <h2 className="text-lg font-extrabold text-[#08233F]">
+              {editLoadState === 'forbidden' ? 'You can only edit your own company’s jobs' : 'This job could not be found'}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {editLoadState === 'forbidden'
+                ? 'This listing belongs to another employer account.'
+                : 'It may have been removed, or it is not part of your account.'}
+            </p>
+          </>
+        )}
+        <Link to="/employer/jobs" className="inline-block px-6 py-3 bg-[#08233F] hover:bg-slate-800 text-white font-bold rounded-xl text-xs">
+          Back to all jobs
+        </Link>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
       <div className="max-w-2xl mx-auto bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 text-center shadow-card space-y-6 my-8 animate-in fade-in zoom-in-95">
         <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
-          submissionType === 'active' 
-            ? 'bg-emerald-100 text-emerald-700' 
+          submissionType === 'active' || submissionType === 'updated'
+            ? 'bg-emerald-100 text-emerald-700'
             : (submissionType === 'draft' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800')
         }`}>
-          {submissionType === 'active' ? (
+          {submissionType === 'active' || submissionType === 'updated' ? (
             <CheckCircle2 className="w-9 h-9" />
           ) : (submissionType === 'draft' ? (
             <FileText className="w-8 h-8" />
@@ -516,37 +748,49 @@ export const EmployerPostJob: React.FC = () => {
 
         <div className="space-y-2">
           <h2 className="text-2xl font-extrabold text-[#08233F] font-display">
-            {submissionType === 'active' 
-              ? 'Driver Job is Live & Active! 🎉' 
-              : (submissionType === 'draft' ? 'Organization Draft Saved! 📝' : 'Submitted for Standard Admin Review ⏳')}
+            {submissionType === 'updated'
+              ? 'Job changes saved'
+              : submissionType === 'active'
+              ? 'Driver Job is Live & Active! 🎉'
+              : (submissionType === 'draft' ? 'Organization Draft Saved! 📝' : 'Submitted for DriverHub Review ⏳')}
           </h2>
-          <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+          <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed break-words">
+            {submissionType === 'updated' && (
+              `Your changes to "${title}" are saved. The listing keeps its current status.`
+            )}
             {submissionType === 'active' && (
-              `Your driver vacancy "${title}" is now immediately visible to all drivers in ${city}, ${state}. Drivers can start submitting applications right now.`
+              `Your driver vacancy "${title}" is now visible to drivers in ${[city, state].filter(Boolean).join(', ')}. Drivers can start applying right now.`
             )}
             {submissionType === 'draft' && (
-              `Your vacancy "${title}" has been saved as an organization draft. You or any authorized hiring manager in your company can review, edit, and approve it to make it live whenever ready.`
+              `Your vacancy "${title}" has been saved as a draft. Publishing it later uses 1 job credit.`
             )}
             {submissionType === 'pending' && (
-              `Your vacancy "${title}" is queued for platform compliance verification. Your hiring entitlement has been secured.`
+              `Your vacancy "${title}" is waiting for DriverHub review and goes live after approval. Your job credit has been applied.`
             )}
           </p>
         </div>
 
-        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1 text-left max-w-md mx-auto">
+        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1 text-left max-w-md mx-auto break-words">
           <p><strong>Company:</strong> {hiringForCompany}</p>
           <p><strong>Designation:</strong> {title} ({category})</p>
-          <p><strong>Location:</strong> {location}, {city}, {state}</p>
+          <p><strong>Location:</strong> {buildJobFields().location}</p>
           <p><strong>Salary Range:</strong> ₹{salaryMin.toLocaleString('en-IN')} – ₹{salaryMax.toLocaleString('en-IN')}/month</p>
-          <p><strong>Status:</strong> <span className="capitalize font-bold text-emerald-800">{submissionType}</span></p>
+          <p>
+            <strong>Status:</strong>{' '}
+            <span className="capitalize font-bold text-emerald-800">
+              {submissionType === 'updated'
+                ? (DataStore.getJobById(editingJob?.id || '')?.status || editingJob?.status || 'saved')
+                : submissionType === 'pending' ? 'Waiting for review' : submissionType}
+            </span>
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
           <Link
-            to="/employer/jobs"
+            to={editingJob ? `/employer/jobs/${editingJob.id}` : '/employer/jobs'}
             className="px-6 py-3 bg-[#08233F] hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-all shadow"
           >
-            Manage All Jobs ({submissionType === 'draft' ? 'View Drafts' : 'View Pipeline'})
+            {editingJob ? 'View this job' : `Manage All Jobs (${submissionType === 'draft' ? 'View Drafts' : 'View Pipeline'})`}
           </Link>
           <Link
             to={`/employer/candidates?category=${encodeURIComponent(category)}&city=${encodeURIComponent(city)}`}
@@ -562,29 +806,38 @@ export const EmployerPostJob: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16">
       {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-subtle">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-subtle">
+        <div className="flex items-center gap-3 min-w-0">
           <button
-            onClick={() => navigate('/employer/jobs')}
-            className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors"
+            onClick={() => navigate(editingJob ? `/employer/jobs/${editingJob.id}` : '/employer/jobs')}
+            aria-label="Back to jobs"
+            className="min-h-10 min-w-10 inline-flex items-center justify-center text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors shrink-0"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="text-lg font-extrabold text-[#08233F]">Post a New Driver Vacancy</h1>
-            <p className="text-xs text-slate-500">Reach verified commercial & personal drivers across India</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-extrabold text-[#08233F] break-words">
+              {isEditMode ? 'Edit Driver Vacancy' : 'Post a New Driver Vacancy'}
+            </h1>
+            <p className="text-xs text-slate-500">
+              {isEditMode
+                ? `Editing "${editingJob?.title || ''}" · status stays ${editingJob?.status || ''}`
+                : 'Reach verified commercial & personal drivers across India'}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setShowTemplateModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            <span>Use Driver Templates</span>
-          </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {!isEditMode && (
+            <button
+              type="button"
+              onClick={() => setShowTemplateModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <span>Use Driver Templates</span>
+            </button>
+          )}
 
           <Link
             to="/employer/billing"
@@ -654,14 +907,20 @@ export const EmployerPostJob: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs">
-              <div>
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between gap-3 text-xs">
+              <div className="min-w-0">
                 <span className="text-slate-500">Company you belong to: </span>
-                <strong className="text-slate-900">{employer?.companyName || 'Apex Fleet Logistics'}</strong>
-                <span className="text-slate-400 block text-[11px] mt-0.5">(Verified Fleet & Transport Employer)</span>
+                <strong className="text-slate-900 break-words">{employer?.companyName || 'Company profile not completed'}</strong>
+                {employer?.verified ? (
+                  <span className="text-emerald-700 block text-[11px] mt-0.5 font-semibold">(Verified employer)</span>
+                ) : (
+                  <span className="text-amber-700 block text-[11px] mt-0.5 font-semibold">
+                    (Verification pending: your jobs go live after DriverHub review)
+                  </span>
+                )}
               </div>
-              <Link to="/employer/company" className="font-bold text-emerald-700 hover:underline">
-                Change
+              <Link to="/employer/company" className="font-bold text-emerald-700 hover:underline shrink-0 min-h-10 inline-flex items-center">
+                {employer?.companyName ? 'Change' : 'Complete'}
               </Link>
             </div>
 
@@ -673,7 +932,10 @@ export const EmployerPostJob: React.FC = () => {
                 <input
                   type="text"
                   value={hiringForCompany}
-                  onChange={e => setHiringForCompany(e.target.value)}
+                  onChange={e => {
+                    companyEditedRef.current = true;
+                    setHiringForCompany(e.target.value);
+                  }}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none"
                 />
               </div>
@@ -1057,11 +1319,15 @@ export const EmployerPostJob: React.FC = () => {
                 value={experienceRequired}
                 onChange={e => {
                   setExperienceRequired(e.target.value);
-                  setExperienceMinYears(e.target.value.includes('5+') ? 5 : (e.target.value.includes('3') ? 3 : 1));
+                  setExperienceMinYears(EXPERIENCE_MIN_YEARS[e.target.value] ?? 0);
                 }}
                 className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-600 focus:outline-none cursor-pointer"
               >
                 <option value="">Select Minimum Driving Experience</option>
+                {/* Templates and older jobs may carry a value outside the standard list. */}
+                {experienceRequired && !(experienceRequired in EXPERIENCE_MIN_YEARS) && (
+                  <option value={experienceRequired}>{experienceRequired}</option>
+                )}
                 <option value="Fresher / 0-1 Year">Fresher / 0-1 Year</option>
                 <option value="1-2 Years">1-2 Years</option>
                 <option value="2-4 Years">2-4 Years</option>
@@ -1546,47 +1812,100 @@ export const EmployerPostJob: React.FC = () => {
                 ← Edit Details
               </button>
 
-              <div className="flex flex-wrap items-center gap-2.5">
-                {/* 1. Save as Organization Draft (0 Credits) */}
-                <button
-                  type="button"
-                  disabled={submittingJob}
-                  onClick={() => handlePublishJob('draft')}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                  title="Save draft for your company hiring team to review before making live"
-                >
-                  <FileText className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Save as Org Draft</span>
-                </button>
+              {isEditMode ? (
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    disabled={submittingJob}
+                    onClick={() => handleSaveEdit(false)}
+                    className="px-6 py-2.5 bg-[#19745B] hover:bg-[#135A46] disabled:opacity-60 text-white font-bold rounded-xl text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    {submittingJob ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    <span>Save changes</span>
+                  </button>
+                  {editingJob?.status === 'draft' && (
+                    <button
+                      type="button"
+                      disabled={submittingJob}
+                      onClick={() => handleSaveEdit(true)}
+                      className="px-4 py-2.5 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-60 text-emerald-900 font-bold rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <Wallet className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Save &amp; publish (uses 1 credit)</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* 1. Save as Organization Draft (0 Credits) */}
+                  <button
+                    type="button"
+                    disabled={submittingJob}
+                    onClick={() => handlePublishJob('draft')}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-800 font-bold rounded-xl text-xs border border-slate-300 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                    title="Save a draft for your hiring team to review before publishing (no credit used)"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Save as Org Draft</span>
+                  </button>
 
-                {/* 2. Submit for Admin Review */}
-                <button
-                  type="button"
-                  disabled={submittingJob}
-                  onClick={() => handlePublishJob('pending')}
-                  className="px-4 py-2.5 border border-blue-300 bg-blue-50/80 hover:bg-blue-100 text-blue-900 font-bold rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
-                >
-                  <Clock className="w-3.5 h-3.5 text-blue-700" />
-                  <span>Submit for Review</span>
-                </button>
+                  {/* 2. Submit for Admin Review */}
+                  <button
+                    type="button"
+                    disabled={submittingJob}
+                    onClick={() => handlePublishJob('pending')}
+                    className="px-4 py-2.5 border border-blue-300 bg-blue-50/80 hover:bg-blue-100 disabled:opacity-60 text-blue-900 font-bold rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-blue-700" />
+                    <span>Submit for Review (uses 1 credit)</span>
+                  </button>
 
-                {/* 3. Publish Instant Live */}
-                <button
-                  type="button"
-                  disabled={submittingJob}
-                  onClick={() => handlePublishJob('active')}
-                  className="px-6 py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
-                >
-                  <Wallet className="w-4 h-4" />
-                  <span>Publish Instant Live (1 Credit)</span>
-                </button>
-              </div>
+                  {/* 3. Publish live (verified companies only; others are reviewed first) */}
+                  {employer?.verified && (
+                    <button
+                      type="button"
+                      disabled={submittingJob}
+                      onClick={() => handlePublishJob('active')}
+                      className="px-6 py-2.5 bg-[#19745B] hover:bg-[#135A46] disabled:opacity-60 text-white font-bold rounded-xl text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.02]"
+                    >
+                      {submittingJob ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wallet className="w-4 h-4" />}
+                      <span>Publish Live (uses 1 credit)</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
-            {entitlementError && (
-              <p role="alert" className="text-xs font-semibold text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-200 text-center">
-                {entitlementError}
+            {!isEditMode && !employer?.verified && (
+              <p className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-center">
+                Your company is not verified yet, so new jobs go live after DriverHub review.
               </p>
+            )}
+
+            {entitlementError && (
+              <div role="alert" className="text-xs font-semibold text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-200 space-y-2 text-center break-words">
+                <p>{entitlementError}</p>
+                {entitlementIsPlan && (
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Link
+                      to="/employer/plans"
+                      className="inline-flex items-center min-h-10 px-4 py-2 bg-[#19745B] hover:bg-[#135A46] text-white rounded-xl text-xs font-bold"
+                    >
+                      View plans →
+                    </Link>
+                    {!isEditMode && (
+                      <button
+                        type="button"
+                        disabled={submittingJob}
+                        onClick={() => handlePublishJob('draft')}
+                        className="inline-flex items-center min-h-10 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        Save as draft instead
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1595,9 +1914,9 @@ export const EmployerPostJob: React.FC = () => {
       {/* JOB TEMPLATES MODAL */}
       {showTemplateModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between">
-              <div>
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-8 shadow-2xl border border-slate-200 space-y-5 max-h-[90dvh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-[11px] font-extrabold">
                   Save 50% more time
                 </span>
@@ -1606,7 +1925,8 @@ export const EmployerPostJob: React.FC = () => {
               </div>
               <button
                 onClick={() => setShowTemplateModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg cursor-pointer"
+                aria-label="Close"
+                className="min-h-10 min-w-10 inline-flex items-center justify-center text-slate-400 hover:text-slate-900 rounded-lg cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>

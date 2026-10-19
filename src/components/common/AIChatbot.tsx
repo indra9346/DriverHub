@@ -3,10 +3,27 @@ import { MessageSquare, X, Send, Bot, User, Sparkles, PhoneCall, RefreshCw } fro
 import { AIMessage } from '../../types';
 import { getBotWelcome, getSupportResponse } from '../../services/aiSupport';
 import { useLanguage } from '../../services/i18n';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { newId } from '../../lib/ids';
+
+// Full-screen chat pages where the floating launcher would cover the composer.
+const HIDDEN_ON_PATHS = ['/driver/messages', '/employer/messages'];
+
+/** Render **bold** and *italic* markers from the support answers as real emphasis. */
+const renderRichText = (text: string): React.ReactNode[] =>
+  text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g).map((part, index) => {
+    if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index} className="font-bold">{part.slice(2, -2)}</strong>;
+    }
+    if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+      return <em key={index}>{part.slice(1, -1)}</em>;
+    }
+    return <React.Fragment key={index}>{part}</React.Fragment>;
+  });
 
 export const AIChatbot: React.FC = () => {
   const { lang, t } = useLanguage();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<AIMessage[]>(() => [getBotWelcome(lang)]);
   const [input, setInput] = useState('');
@@ -41,7 +58,7 @@ export const AIChatbot: React.FC = () => {
     if (!text) return;
 
     const userMsg: AIMessage = {
-      id: 'user-' + Date.now(),
+      id: newId(),
       sender: 'user',
       text,
       timestamp: new Date().toLocaleTimeString(lang === 'kn' ? 'kn-IN' : 'en-IN', { hour: '2-digit', minute: '2-digit' }),
@@ -78,11 +95,15 @@ export const AIChatbot: React.FC = () => {
     setMessages([getBotWelcome(lang)]);
   };
 
+  if (HIDDEN_ON_PATHS.some(path => location.pathname.startsWith(path))) return null;
+
   return (
-    <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-50">
+    // z-40: below modals, drawers and dropdowns (z-50), so it never covers their buttons.
+    <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40">
       {/* Floating Trigger Button */}
       {!isOpen && (
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
           aria-label={t('Support Assistant')}
           className="group relative flex items-center gap-2.5 bg-[#08233F] hover:bg-[#051626] text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-elevated border border-slate-700/60 transition-all duration-200 hover:scale-[1.03] cursor-pointer"
@@ -105,15 +126,15 @@ export const AIChatbot: React.FC = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="w-[calc(100vw-2rem)] sm:w-[390px] max-w-[390px] h-[520px] max-h-[78vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="w-[calc(100vw-2rem)] sm:w-[390px] max-w-[390px] h-[520px] max-h-[calc(100vh-10rem)] supports-[height:100dvh]:max-h-[calc(100dvh-10rem-env(safe-area-inset-bottom))] lg:max-h-[78vh] lg:supports-[height:100dvh]:max-h-[78vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header */}
-          <div className="bg-[#08233F] text-white px-4 py-3.5 flex items-center justify-between border-b border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="relative w-8 h-8 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center">
+          <div className="bg-[#08233F] text-white pl-4 pr-2 py-2 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative w-8 h-8 shrink-0 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center">
                 <Bot className="w-4 h-4 text-amber-400" />
                 <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-400 border-2 border-[#08233F] rounded-full" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-xs font-bold flex items-center gap-1.5">
                   {t('DriverHub Assistant')}
                   <span className="bg-amber-400/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
@@ -124,18 +145,22 @@ export const AIChatbot: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
+                type="button"
                 onClick={handleResetChat}
                 title={t('Reset Chat')}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label={t('Reset Chat')}
+                className="min-h-10 min-w-10 inline-flex items-center justify-center text-slate-300 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
+                <RefreshCw className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 title={t('Close')}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label={t('Close')}
+                className="min-h-10 min-w-10 inline-flex items-center justify-center text-slate-300 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -160,7 +185,7 @@ export const AIChatbot: React.FC = () => {
                     ? 'bg-[#08233F] text-white rounded-br-none'
                     : 'bg-white text-slate-800 border border-slate-200/90 rounded-bl-none'
                 }`}>
-                  <div className="whitespace-pre-line font-sans">{msg.text}</div>
+                  <div className="whitespace-pre-line font-sans break-words [overflow-wrap:anywhere]">{renderRichText(msg.text)}</div>
 
                   {msg.actionLink && (
                     <div className="mt-2.5 pt-2 border-t border-slate-100">
@@ -181,8 +206,9 @@ export const AIChatbot: React.FC = () => {
                         {msg.options.map((opt, i) => (
                           <button
                             key={i}
+                            type="button"
                             onClick={() => handleSend(opt)}
-                            className="text-left bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border border-slate-200 cursor-pointer"
+                            className="min-h-8 text-left bg-slate-100 hover:bg-amber-100 hover:text-amber-900 text-slate-700 px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors border border-slate-200 cursor-pointer"
                           >
                             {opt}
                           </button>
@@ -221,34 +247,35 @@ export const AIChatbot: React.FC = () => {
           </div>
 
           {/* Quick FAQ footer strip */}
-          <div className="px-3 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-600">
+          <div className="px-3 py-1 bg-slate-100 border-t border-slate-200 flex items-center justify-between gap-2 text-[11px] text-slate-600 shrink-0">
             <span className="flex items-center gap-1 font-medium">
               <PhoneCall className="w-3 h-3 text-amber-600" /> {t('Need live support?')}
             </span>
             <Link
               to="/contact"
               onClick={() => setIsOpen(false)}
-              className="text-blue-600 font-semibold hover:underline"
+              className="min-h-8 inline-flex items-center text-blue-600 font-semibold hover:underline"
             >
               +91 80 2200 8899
             </Link>
           </div>
 
           {/* Input Box */}
-          <div className="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2">
+          <div className="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t('Ask about driver jobs, licenses, salary...')}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
+              className="flex-1 min-w-0 min-h-10 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-base sm:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white"
             />
             <button
+              type="button"
               onClick={() => handleSend()}
               disabled={!input.trim()}
               aria-label={t('Send')}
-              className="bg-[#08233F] hover:bg-[#051626] disabled:opacity-40 text-amber-400 p-2.5 rounded-xl transition-colors shadow-xs shrink-0 cursor-pointer"
+              className="min-h-10 min-w-10 inline-flex items-center justify-center bg-[#08233F] hover:bg-[#051626] disabled:opacity-40 text-amber-400 p-2.5 rounded-xl transition-colors shadow-xs shrink-0 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

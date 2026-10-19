@@ -124,6 +124,28 @@ const BANNER_ASSETS = {
   },
 };
 
+// Whole-word matching: plain substrings were too loose ('port' matched
+// "transport", 'ola' matched "Kolar", 'van' matched "advanced", 'ace'
+// matched "space", 'car' matched "cargo"). A term matches as a whole word,
+// optionally plural (bus/buses, van/vans); a trailing * makes it a prefix
+// match (edu* -> education, edutech).
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const termPatterns = new Map<string, RegExp>();
+function termPattern(term: string): RegExp {
+  let pattern = termPatterns.get(term);
+  if (!pattern) {
+    const prefix = term.endsWith('*');
+    const body = escapeRegex(prefix ? term.slice(0, -1) : term);
+    pattern = new RegExp(prefix ? `\\b${body}` : `\\b${body}(?:e?s)?\\b`, 'i');
+    termPatterns.set(term, pattern);
+  }
+  return pattern;
+}
+/** True when text contains any of the terms as a whole word. */
+function has(text: string, ...terms: string[]): boolean {
+  return terms.some(term => termPattern(term).test(text));
+}
+
 /**
  * Returns a 100% realistic photography banner accurately matching a Job posting.
  */
@@ -137,56 +159,60 @@ export function getJobCardBanner(job: {
   const text = `${job.category || ''} ${job.vehicleType || ''} ${job.title || ''} ${job.routeType || ''}`.toLowerCase();
 
   // 1. School Bus, Student Van & Educational Transit (highest priority)
-  if (text.includes('school') || text.includes('student') || text.includes('education') || (cat.includes('bus') && text.includes('van'))) {
+  if (has(text, 'school', 'student', 'education') || (has(cat, 'bus') && has(text, 'van'))) {
     return BANNER_ASSETS.bus;
   }
 
   // 2. Heavy Specialized (Trailer, Tipper, Tanker)
-  if (text.includes('trailer') || text.includes('40ft') || text.includes('flatbed') || text.includes('container') || text.includes('port')) {
+  if (has(text, 'trailer', '40ft', 'flatbed', 'container', 'port')) {
     return BANNER_ASSETS.trailer;
   }
-  if (text.includes('tipper') || text.includes('dumper') || text.includes('mining') || text.includes('construction') || text.includes('quarry')) {
+  if (has(text, 'tipper', 'dumper', 'mining', 'construction', 'quarry')) {
     return BANNER_ASSETS.tipper;
   }
-  if (text.includes('tanker') || text.includes('bulk liquid') || text.includes('fuel') || text.includes('petroleum')) {
+  if (has(text, 'tanker', 'bulk liquid', 'fuel', 'petroleum')) {
     return BANNER_ASSETS.tanker;
   }
 
   // 3. Tempo / Tata Ace / Mini Truck / Pickup / Bolero
-  if (text.includes('tempo') || text.includes('tata ace') || text.includes('mini truck') || text.includes('407') || text.includes('pickup') || text.includes('bolero') || (cat.includes('tempo') && !text.includes('bus'))) {
+  if (has(text, 'tempo', 'tata ace', 'mini truck', '407', 'pickup', 'bolero') || (has(cat, 'tempo') && !has(text, 'bus'))) {
     return BANNER_ASSETS.tempo;
   }
 
   // 4. Bus & Staff Transit
-  if (cat.includes('bus') || text.includes('bus driver') || text.includes('staff bus') || text.includes('staff transit')) {
+  if (has(cat, 'bus') || has(text, 'bus driver', 'staff bus', 'staff transit')) {
     return BANNER_ASSETS.bus;
   }
-  if (text.includes('coach') || text.includes('sleeper') || text.includes('intercity bus') || text.includes('tourist bus')) {
+  if (has(text, 'coach', 'sleeper', 'intercity bus', 'tourist bus')) {
     return BANNER_ASSETS.commercial;
   }
 
   // 5. Electric Delivery Cargo Van & Hyperlocal Parcel Cargo
-  if (cat.includes('delivery') || text.includes('delivery van') || text.includes('cargo van') || text.includes('hyperlocal') || text.includes('grocery') || text.includes('parcel') || text.includes('courier') || (text.includes('van') && !text.includes('student') && !text.includes('school') && !text.includes('passenger') && !text.includes('tour') && !cat.includes('bus'))) {
+  if (
+    has(cat, 'delivery') ||
+    has(text, 'delivery van', 'cargo van', 'hyperlocal', 'grocery', 'parcel', 'courier') ||
+    (has(text, 'van') && !has(text, 'student', 'school', 'passenger', 'tour') && !has(cat, 'bus'))
+  ) {
     return BANNER_ASSETS.delivery;
   }
 
   // 6. Cab / Taxi / Urban Mobility
-  if (cat.includes('cab') || text.includes('cab') || text.includes('taxi') || text.includes('ola') || text.includes('uber') || text.includes('airport')) {
+  if (has(cat, 'cab') || has(text, 'cab', 'taxi', 'ola', 'uber', 'airport')) {
     return BANNER_ASSETS.cab;
   }
 
   // 7. Personal Chauffeur & Executive LMV
-  if (cat.includes('personal') || cat.includes('lmv') || text.includes('chauffeur') || text.includes('personal') || text.includes('vip') || text.includes('private') || text.includes('sedan') || text.includes('innova')) {
+  if (has(cat, 'personal', 'lmv') || has(text, 'chauffeur', 'personal', 'vip', 'private', 'sedan', 'innova')) {
     return BANNER_ASSETS.lmv;
   }
 
   // 8. Heavy Motor Vehicle / Multi-axle / Highway Truck
-  if (cat.includes('hmv') || text.includes('hmv') || text.includes('heavy') || text.includes('truck') || text.includes('16-wheeler') || text.includes('10-wheeler') || text.includes('multi-axle') || text.includes('interstate')) {
+  if (has(cat, 'hmv') || has(text, 'hmv', 'heavy', 'truck', '16-wheeler', '10-wheeler', 'multi-axle', 'interstate')) {
     return BANNER_ASSETS.hmv;
   }
 
   // 9. Commercial tour / traveller
-  if (cat.includes('commercial') || text.includes('commercial') || text.includes('tour') || text.includes('traveller')) {
+  if (has(cat, 'commercial') || has(text, 'commercial', 'tour', 'traveller')) {
     return BANNER_ASSETS.commercial;
   }
 
@@ -204,37 +230,37 @@ export function getCandidateCardBanner(driver: {
 }): BannerInfo {
   const text = `${driver.driverCategory || ''} ${(driver.vehicleTypes || []).join(' ')} ${driver.licenseType || ''} ${driver.currentRole || ''}`.toLowerCase();
 
-  if (text.includes('trailer') || text.includes('container')) {
+  if (has(text, 'trailer', 'container')) {
     return BANNER_ASSETS.trailer;
   }
-  if (text.includes('tipper') || text.includes('dumper') || text.includes('mining')) {
+  if (has(text, 'tipper', 'dumper', 'mining')) {
     return BANNER_ASSETS.tipper;
   }
-  if (text.includes('tanker') || text.includes('fuel')) {
+  if (has(text, 'tanker', 'fuel')) {
     return BANNER_ASSETS.tanker;
   }
-  if (text.includes('tempo') || text.includes('ace') || text.includes('mini truck')) {
+  if (has(text, 'tempo', 'ace', 'mini truck')) {
     return BANNER_ASSETS.tempo;
   }
-  if (text.includes('delivery') || text.includes('van') || text.includes('courier')) {
+  if (has(text, 'delivery', 'van', 'courier')) {
     return BANNER_ASSETS.delivery;
   }
-  if (text.includes('school') || text.includes('student transit')) {
+  if (has(text, 'school', 'student transit')) {
     return BANNER_ASSETS.bus;
   }
-  if (text.includes('bus') || text.includes('coach') || text.includes('hpv')) {
+  if (has(text, 'bus', 'coach', 'hpv')) {
     return BANNER_ASSETS.commercial;
   }
-  if (text.includes('cab') || text.includes('taxi')) {
+  if (has(text, 'cab', 'taxi')) {
     return BANNER_ASSETS.cab;
   }
-  if (text.includes('personal') || text.includes('chauffeur') || text.includes('vip') || text.includes('executive')) {
+  if (has(text, 'personal', 'chauffeur', 'vip', 'executive')) {
     return BANNER_ASSETS.personal;
   }
-  if (text.includes('lmv') || text.includes('car') || text.includes('sedan')) {
+  if (has(text, 'lmv', 'car', 'sedan')) {
     return BANNER_ASSETS.lmv;
   }
-  if (text.includes('hmv') || text.includes('truck') || text.includes('heavy')) {
+  if (has(text, 'hmv', 'truck', 'heavy')) {
     return BANNER_ASSETS.hmv;
   }
 
@@ -252,39 +278,39 @@ export function getCompanyCardBanner(company: {
   const text = `${company.industry || ''} ${company.companyName || ''} ${company.description || ''}`.toLowerCase();
 
   // Education / Edu-tech / School & Student Transit
-  if (text.includes('edu') || text.includes('school') || text.includes('college') || text.includes('student') || text.includes('academic') || text.includes('sunbeam') || text.includes('sunrise')) {
+  if (has(text, 'edu*', 'school', 'college', 'student', 'academic*', 'sunbeam', 'sunrise')) {
     return BANNER_ASSETS.passengerCompany; // School bus & student transit coach
   }
   // Staff Transit & Corporate Shuttles
-  if (text.includes('staff transit') || text.includes('corporate staff transit') || text.includes('student & corporate')) {
+  if (has(text, 'staff transit', 'corporate staff transit', 'student & corporate')) {
     return BANNER_ASSETS.passengerCompany;
   }
   // E-Commerce & Last-Mile
-  if (text.includes('e-commerce') || text.includes('ecommerce') || text.includes('delivery') || text.includes('courier') || text.includes('express') || text.includes('swift')) {
+  if (has(text, 'e-commerce', 'ecommerce', 'delivery', 'courier', 'express', 'swift')) {
     return BANNER_ASSETS.ecommerceCompany;
   }
   // Urban Mobility & Cabs / Taxis
-  if (text.includes('urban mobility') || text.includes('mobility') || text.includes('cab') || text.includes('taxi') || text.includes('quickride') || text.includes('rides')) {
+  if (has(text, 'urban mobility', 'mobility', 'cab', 'taxi', 'quickride', 'ride')) {
     return BANNER_ASSETS.cab;
   }
   // Bus Fleet / Intercity Passenger Travels
-  if (text.includes('bus') || text.includes('passenger') || text.includes('travels') || text.includes('coach')) {
+  if (has(text, 'bus', 'passenger', 'travels', 'coach')) {
     return BANNER_ASSETS.commercial;
   }
   // Corporate Chauffeur / VIP Transport
-  if (text.includes('corporate') || text.includes('chauffeur') || text.includes('diplomatic') || text.includes('luxury') || text.includes('apex')) {
+  if (has(text, 'corporate', 'chauffeur', 'diplomatic', 'luxury', 'apex')) {
     return BANNER_ASSETS.corporateCompany;
   }
   // Port / Trailer / Cold Chain / Container Freight
-  if (text.includes('trailer') || text.includes('cold chain') || text.includes('reefer') || text.includes('port') || text.includes('container') || text.includes('jnpt')) {
+  if (has(text, 'trailer', 'cold chain', 'reefer', 'port', 'container', 'jnpt')) {
     return BANNER_ASSETS.trailer;
   }
   // Heavy Interstate Logistics & Freight
-  if (text.includes('interstate') || text.includes('heavy freight') || text.includes('freight')) {
+  if (has(text, 'interstate', 'heavy freight', 'freight')) {
     return BANNER_ASSETS.hmv;
   }
   // General Logistics Hub
-  if (text.includes('logistics') || text.includes('supply chain') || text.includes('cargo') || text.includes('carriers') || text.includes('transport')) {
+  if (has(text, 'logistic*', 'supply chain', 'cargo', 'carrier*', 'transport*')) {
     return BANNER_ASSETS.logisticsCompany;
   }
 

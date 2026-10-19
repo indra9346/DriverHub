@@ -29,10 +29,17 @@ import {
   findStateForDistrict,
   getBaselineTownsForDistrict,
   sanitizeLocalityName,
+  canonicalStateName,
+  matchDirectoryDistrict,
   CANONICAL_DISTRICT_PIN_OVERRIDES,
   CANONICAL_TOWN_DISTRICT_OVERRIDES
 } from '../../services/indiaLocationService';
-import { Navigation, LocateFixed } from 'lucide-react';
+import { LocateFixed } from 'lucide-react';
+
+/** Filters wait for a pause in typing before they change results / the URL. */
+const FREE_TEXT_DEBOUNCE_MS = 350;
+/** Coordinates are looked up once typing settles (Nominatim allows 1 request/second). */
+const GEOCODE_DEBOUNCE_MS = 700;
 
 export interface PanIndiaLocationValue {
   state: string;
@@ -274,11 +281,11 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           autoComplete="off"
-          className="w-full pl-8 pr-14 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500 transition-all disabled:bg-slate-100 disabled:text-slate-400"
+          className={`w-full pl-8 ${loading ? 'pr-24' : 'pr-20'} py-2.5 min-h-[44px] text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/25 focus:border-amber-500 transition-all disabled:bg-slate-100 disabled:text-slate-400`}
         />
 
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          {loading && <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />}
+        <div className="absolute right-0.5 top-1/2 -translate-y-1/2 flex items-center">
+          {loading && <Loader2 className="w-3.5 h-3.5 mr-1 text-amber-500 animate-spin" />}
           {query && !disabled && (
             <button
               type="button"
@@ -289,9 +296,9 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
               }}
               title="Clear field"
               aria-label="Clear selection"
-              className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 transition-colors"
+              className="inline-flex items-center justify-center w-10 h-10 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           )}
           <button
@@ -300,7 +307,7 @@ const SearchableLocationCombobox: React.FC<SearchableComboboxProps> = ({
             disabled={disabled}
             onClick={() => setIsOpen(prev => !prev)}
             aria-label="Toggle suggestions"
-            className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-slate-100 transition-colors"
+            className="inline-flex items-center justify-center w-9 h-10 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <ChevronDown
               className={`w-3.5 h-3.5 transition-transform duration-150 ${
@@ -454,6 +461,37 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   const liveSearchVersionRef = useRef(0);
   const pinRequestVersionRef = useRef(0);
   const coordinateResolveVersionRef = useRef(0);
+  const isFilterMode = mode === 'filter';
+  // Coordinates are only needed for radius search and saved profile locations;
+  // plain filters never call the geocoder.
+  const shouldGeocode = !isFilterMode || showRadius;
+
+  // Delayed callbacks (debounced typing, geocoding) must act on the latest
+  // value and handler, not on the render in which they were scheduled.
+  const latestValueRef = useRef(value);
+  latestValueRef.current = value;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Filter mode: typed town / PIN text is emitted once typing pauses.
+  const pendingFreeTextRef = useRef<{ city?: string; pin?: string }>({});
+  const freeTextTimerRef = useRef<number | undefined>(undefined);
+  const geocodeTimerRef = useRef<number | undefined>(undefined);
+
+  /** An explicit selection supersedes typed-but-unsent text and in-flight PIN checks. */
+  const cancelPendingFreeText = () => {
+    if (freeTextTimerRef.current !== undefined) window.clearTimeout(freeTextTimerRef.current);
+    freeTextTimerRef.current = undefined;
+    pendingFreeTextRef.current = {};
+    pinRequestVersionRef.current++;
+  };
+
+  useEffect(() => () => {
+    if (freeTextTimerRef.current !== undefined) window.clearTimeout(freeTextTimerRef.current);
+    if (geocodeTimerRef.current !== undefined) window.clearTimeout(geocodeTimerRef.current);
+    coordinateResolveVersionRef.current++;
+    pinRequestVersionRef.current++;
+  }, []);
 
   // Load towns & PINs whenever State + District change
   const loadDistrictData = async (targetState: string, targetDistrict: string) => {
@@ -500,14 +538,28 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   useEffect(() => {
     // If both state and district are provided, verify district belongs to the state
     if (value.state && value.district) {
-      if (!isDistrictInState(value.state, value.district)) {
-        // District does not belong to this state (e.g. Karnataka + Ananthapur)
-        // Discard invalid district to eliminate cross-state corruption
+      const directoryDistrict = isDistrictInState(value.state, value.district)
+        ? matchDirectoryDistrict(value.state, value.district)
+        : '';
+      if (!directoryDistrict) {
+        // District does not belong to this state (e.g. Karnataka + Ananthapur).
+        // Clear the district and its town only; a PIN the user typed is kept.
         emitChange({
           state: value.state,
           district: '',
           city: '',
-          pincode: '',
+          pincode: value.pincode || '',
+          addressLine: value.addressLine
+        });
+        return;
+      }
+      if (directoryDistrict !== value.district) {
+        // Old / postal spelling (e.g. "Bangalore"): use the directory name.
+        emitChange({
+          state: value.state,
+          district: directoryDistrict,
+          city: value.city,
+          pincode: value.pincode || '',
           addressLine: value.addressLine
         });
         return;
@@ -594,13 +646,16 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
         );
         if (!cancelled) {
           setExtraPins(pins);
-          if (pins.length === 1 && !value.pincode) {
+          // Forms may pre-fill the only PIN of a town. Filters never add a PIN
+          // the user did not choose (it would hide jobs at the town's other PINs).
+          const current = latestValueRef.current;
+          if (!isFilterMode && pins.length === 1 && !current.pincode && current.city === value.city) {
             emitChange({
-              state: value.state,
-              district: value.district || '',
-              city: value.city,
+              state: current.state,
+              district: current.district || '',
+              city: current.city,
               pincode: pins[0].code,
-              addressLine: value.addressLine
+              addressLine: current.addressLine
             });
           }
         }
@@ -652,20 +707,25 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
     longitude?: number;
     radiusKm?: number;
   }) => {
+    const current = latestValueRef.current;
     const coordinateResolveVersion = ++coordinateResolveVersionRef.current;
+    if (geocodeTimerRef.current !== undefined) {
+      window.clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = undefined;
+    }
     const formattedLocation = formatStructuredLocation(next);
     const locationChanged =
-      next.state !== value.state ||
-      next.district !== value.district ||
-      next.city !== value.city ||
-      next.pincode !== value.pincode;
+      next.state !== current.state ||
+      next.district !== (current.district || '') ||
+      next.city !== current.city ||
+      next.pincode !== (current.pincode || '');
     // Coordinates belong to the selected place. Never carry a previous town's
     // coordinates into a newly selected district/city/PIN.
-    const resolvedLat = next.latitude !== undefined ? next.latitude : (locationChanged ? undefined : value.latitude);
-    const resolvedLng = next.longitude !== undefined ? next.longitude : (locationChanged ? undefined : value.longitude);
+    const resolvedLat = next.latitude !== undefined ? next.latitude : (locationChanged ? undefined : current.latitude);
+    const resolvedLng = next.longitude !== undefined ? next.longitude : (locationChanged ? undefined : current.longitude);
     const effectiveRadius = next.radiusKm !== undefined ? next.radiusKm : radiusKm;
 
-    onChange({
+    onChangeRef.current({
       ...next,
       formattedLocation,
       latitude: resolvedLat,
@@ -673,9 +733,15 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
       radiusKm: effectiveRadius
     });
 
-    // If coordinates are not yet resolved, resolve them in background via authoritative table / Nominatim
-    if (resolvedLat === undefined || resolvedLng === undefined) {
-      if (next.city || next.district || next.state || next.pincode) {
+    // Resolve missing coordinates in the background (directory first, then the
+    // throttled geocoder), once the selection stops changing.
+    if (
+      shouldGeocode &&
+      (resolvedLat === undefined || resolvedLng === undefined) &&
+      (next.city || next.district || next.state || next.pincode)
+    ) {
+      geocodeTimerRef.current = window.setTimeout(() => {
+        geocodeTimerRef.current = undefined;
         resolveLocationCoordinates({
           city: next.city,
           district: next.district,
@@ -684,7 +750,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
         })
           .then(coords => {
             if (coords && coordinateResolveVersion === coordinateResolveVersionRef.current) {
-              onChange({
+              onChangeRef.current({
                 ...next,
                 formattedLocation,
                 latitude: coords.lat,
@@ -694,8 +760,32 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             }
           })
           .catch(() => {});
-      }
+      }, GEOCODE_DEBOUNCE_MS);
     }
+  };
+
+  /** Filter mode: emit the typed town / PIN after a pause in typing. */
+  const scheduleFreeTextEmit = (patch: { city?: string; pin?: string }) => {
+    pendingFreeTextRef.current = { ...pendingFreeTextRef.current, ...patch };
+    if (freeTextTimerRef.current !== undefined) window.clearTimeout(freeTextTimerRef.current);
+    freeTextTimerRef.current = window.setTimeout(() => {
+      freeTextTimerRef.current = undefined;
+      const pending = pendingFreeTextRef.current;
+      pendingFreeTextRef.current = {};
+      const current = latestValueRef.current;
+      const city = pending.city !== undefined ? pending.city : current.city;
+      if (pending.pin !== undefined) {
+        void applyPincode(pending.pin, city);
+      } else {
+        emitChange({
+          state: current.state,
+          district: current.district || '',
+          city,
+          pincode: current.pincode || '',
+          addressLine: current.addressLine
+        });
+      }
+    }, FREE_TEXT_DEBOUNCE_MS);
   };
 
   const handleUseCurrentLocation = () => {
@@ -856,24 +946,34 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   }, [availablePins, value.district, value.state]);
 
   // Verify or reverse-resolve when user types a 6-digit PIN code
-  const handlePincodeInput = async (rawPin: string) => {
+  const handlePincodeInput = (rawPin: string) => {
     const digitsOnly = rawPin.replace(/\D/g, '').slice(0, 6);
+    if (isFilterMode) {
+      scheduleFreeTextEmit({ pin: digitsOnly });
+      return;
+    }
+    void applyPincode(digitsOnly, latestValueRef.current.city);
+  };
+
+  const applyPincode = async (digitsOnly: string, typedCity: string) => {
+    const current = latestValueRef.current;
     emitChange({
-      state: value.state,
-      district: value.district || '',
-      city: value.city,
+      state: current.state,
+      district: current.district || '',
+      city: typedCity,
       pincode: digitsOnly,
-      addressLine: value.addressLine
+      addressLine: current.addressLine
     });
 
     if (digitsOnly.length < 6) {
+      pinRequestVersionRef.current++;
       setPinLookupStatus({ checking: false });
       return;
     }
 
-    // Check if it's already in availablePins
+    // A PIN already listed for the selected district/town is consistent with it.
     const existingPin = availablePins.find(p => p.code === digitsOnly);
-    if (existingPin) {
+    if (existingPin && current.district) {
       setPinLookupStatus({
         checking: false,
         isValid: true,
@@ -886,28 +986,29 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
     setPinLookupStatus({ checking: true, message: 'Verifying PIN with India Post…' });
     try {
       const res = await verifyPinCodeLive(digitsOnly);
+      // Any later typing or selection bumps the version, so this result is stale.
       if (version !== pinRequestVersionRef.current) return;
+      // The parent may not have re-rendered with the PIN emitted above yet.
+      const latest = { ...latestValueRef.current, city: typedCity, pincode: digitsOnly };
       if (res.valid) {
+        // The PIN's own State and district win over earlier selections, and
+        // India Post's old names map to the directory ("Bangalore" -> "Bengaluru Urban").
         const pinOverride = CANONICAL_DISTRICT_PIN_OVERRIDES[digitsOnly];
-        const matchedState =
-          pinOverride?.state ||
-          statesList.find(s => s.toLowerCase() === (res.state || '').toLowerCase()) ||
-          value.state ||
-          res.state ||
-          '';
-        const stateDistricts = matchedState ? getDistrictsForState(matchedState) : [];
-        let matchedDistrict = pinOverride?.district || value.district || '';
-        if (!matchedDistrict) {
-          matchedDistrict =
-            stateDistricts.find(
-              d =>
-                d.toLowerCase().includes((res.district || '').toLowerCase()) ||
-                (res.district || '').toLowerCase().includes(d.split('(')[0].trim().toLowerCase())
-            ) ||
-            res.district ||
-            '';
-        }
-        const matchedCity = sanitizeLocalityName(value.city || (pinOverride?.town) || res.towns[0] || '');
+        const pinState = pinOverride?.state || canonicalStateName(res.state) || (res.state || '').trim();
+        const matchedState = pinState || latest.state || '';
+        const pinDistrict =
+          pinOverride?.district ||
+          (res.district ? matchDirectoryDistrict(matchedState, res.district) || res.district.trim() : '');
+        const matchedDistrict = pinDistrict || latest.district || '';
+        const sameDistrict =
+          Boolean(latest.district) &&
+          (latest.district === matchedDistrict ||
+            matchDirectoryDistrict(matchedState, latest.district || '') === matchedDistrict);
+        const pinTown = sanitizeLocalityName(pinOverride?.town || res.towns[0] || '');
+        // Keep the typed town unless it belongs to a different district than the
+        // PIN. Filters do not invent a town from the post office name.
+        const keepTypedCity = Boolean(latest.city) && (!latest.district || sameDistrict);
+        const matchedCity = keepTypedCity ? latest.city : (isFilterMode ? '' : pinTown);
 
         if (res.offices.length > 0) {
           setExtraPins(res.offices);
@@ -918,13 +1019,13 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           district: matchedDistrict,
           city: matchedCity,
           pincode: digitsOnly,
-          addressLine: value.addressLine
+          addressLine: latest.addressLine
         });
 
         setPinLookupStatus({
           checking: false,
           isValid: true,
-          message: `Verified: ${res.offices[0]?.officeName || matchedCity} (${matchedDistrict}, ${matchedState})`
+          message: `Verified: ${res.offices[0]?.officeName || matchedCity || digitsOnly} (${[matchedDistrict, matchedState].filter(Boolean).join(', ')})`
         });
       } else {
         setPinLookupStatus({
@@ -941,6 +1042,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   };
 
   const handleResetAll = () => {
+    cancelPendingFreeText();
     setPinLookupStatus({ checking: false });
     emitChange({
       state: '',
@@ -976,7 +1078,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
               type="button"
               onClick={handleUseCurrentLocation}
               disabled={isDetectingGps}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 min-h-[40px] text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition-all cursor-pointer disabled:opacity-50"
               title="Detect current location via browser GPS"
             >
               {isDetectingGps ? (
@@ -997,7 +1099,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             <button
               type="button"
               onClick={handleResetAll}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-rose-600 transition-colors"
+              className="inline-flex items-center gap-1 min-h-[40px] px-2 -mx-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50/60 transition-colors"
             >
               <RotateCcw className="w-3 h-3" /> Clear Location
             </button>
@@ -1039,6 +1141,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           options={stateComboboxOptions}
           required={required && mode === 'form'}
           onSelect={opt => {
+            cancelPendingFreeText();
             setPinLookupStatus({ checking: false });
             emitChange({
               state: opt.value,
@@ -1049,6 +1152,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             });
           }}
           onClear={() => {
+            cancelPendingFreeText();
             setPinLookupStatus({ checking: false });
             emitChange({
               state: '',
@@ -1078,8 +1182,22 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           options={districtComboboxOptions}
           required={required && mode === 'form'}
           onSelect={opt => {
+            cancelPendingFreeText();
             const nextDistrict = opt.meta?.district || opt.value;
             const nextState = opt.meta?.state || value.state || (nextDistrict ? findStateForDistrict(nextDistrict) : '') || '';
+            if (isFilterMode) {
+              // A district filter means the whole district: no town or PIN is implied.
+              setExtraPins([]);
+              setPinLookupStatus({ checking: false });
+              emitChange({
+                state: nextState,
+                district: nextDistrict,
+                city: '',
+                pincode: '',
+                addressLine: value.addressLine
+              });
+              return;
+            }
             const parenMatch = nextDistrict.match(/\(([^)]+)\)/);
             const baseline = getBaselineTownsForDistrict(nextState, nextDistrict);
             const hqTown = baseline.find(t => t.name.toLowerCase() === nextDistrict.toLowerCase() || nextDistrict.toLowerCase().includes(t.name.toLowerCase()));
@@ -1104,6 +1222,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             });
           }}
           onClear={() => {
+            cancelPendingFreeText();
             setPinLookupStatus({ checking: false });
             emitChange({
               state: value.state,
@@ -1133,6 +1252,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
           allowFreeText={true}
           required={required && mode === 'form'}
           onSelect={opt => {
+            cancelPendingFreeText();
             const meta = opt.meta || {};
             const cleanTownName = sanitizeLocalityName(meta.city || opt.value);
             const pinOverride = meta.pincode ? CANONICAL_DISTRICT_PIN_OVERRIDES[meta.pincode] : undefined;
@@ -1142,6 +1262,25 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             const nextDistrict = pinOverride?.district || townOverride?.district || meta.district || value.district || '';
             const nextCity = pinOverride?.town || cleanTownName;
             const pins: PinOption[] = Array.isArray(meta.pins) ? meta.pins : [];
+
+            if (isFilterMode) {
+              // A town filter must not add a PIN; keep the user's PIN only when it belongs to this town.
+              setExtraPins(pins);
+              const keptPin = value.pincode && pins.some(p => p.code === value.pincode) ? value.pincode : '';
+              setPinLookupStatus({
+                checking: false,
+                message: pins.length > 1 ? `${pins.length} PIN codes available for ${nextCity}` : undefined
+              });
+              emitChange({
+                state: nextState,
+                district: nextDistrict,
+                city: nextCity,
+                pincode: keptPin,
+                addressLine: value.addressLine
+              });
+              return;
+            }
+
             const nextPin = pins.length === 1 ? pins[0].code : meta.pincode || value.pincode || '';
 
             if (pins.length > 0) {
@@ -1168,6 +1307,11 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             });
           }}
           onFreeTextChange={text => {
+            if (isFilterMode) {
+              // Filter results / URL update once typing pauses; no PIN is implied.
+              scheduleFreeTextEmit({ city: text });
+              return;
+            }
             const clean = text.trim().toLowerCase();
             let nextPin = value.pincode || '';
             const sourceTowns =
@@ -1206,12 +1350,14 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             });
           }}
           onClear={() => {
+            cancelPendingFreeText();
             setPinLookupStatus({ checking: false });
             emitChange({
               state: value.state,
               district: value.district || '',
               city: '',
-              pincode: '',
+              // Filters keep a PIN the user typed; forms clear the town's PIN with it.
+              pincode: isFilterMode ? value.pincode || '' : '',
               addressLine: value.addressLine
             });
           }}
@@ -1240,6 +1386,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
             inputMode="numeric"
             maxLength={6}
             onSelect={opt => {
+              cancelPendingFreeText();
               const pinCode = opt.value.replace(/\D/g, '').slice(0, 6);
               const poName = opt.meta?.officeName;
               setPinLookupStatus({
@@ -1250,15 +1397,16 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
               emitChange({
                 state: value.state,
                 district: value.district || '',
-                city: value.city || poName || '',
+                city: isFilterMode ? value.city : value.city || poName || '',
                 pincode: pinCode,
                 addressLine: value.addressLine
               });
             }}
             onFreeTextChange={text => {
-              void handlePincodeInput(text);
+              handlePincodeInput(text);
             }}
             onClear={() => {
+              cancelPendingFreeText();
               setPinLookupStatus({ checking: false });
               emitChange({
                 state: value.state,

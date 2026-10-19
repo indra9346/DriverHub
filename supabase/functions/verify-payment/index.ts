@@ -53,8 +53,14 @@ Deno.serve(async (req) => {
     const paymentResponse = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`, {
       headers: { Authorization: `Basic ${btoa(`${keyId}:${keySecret}`)}` },
     });
-    const payment = await paymentResponse.json();
-    if (!paymentResponse.ok || payment.order_id !== orderId || payment.amount !== order.amount_paise || payment.currency !== 'INR' || payment.status !== 'captured') {
+    const payment = await paymentResponse.json().catch(() => null);
+    if (!paymentResponse.ok || !payment) {
+      return json({ error: 'The payment provider could not be reached to confirm this payment. Please retry.' }, 502);
+    }
+    if (payment.order_id !== orderId || payment.amount !== order.amount_paise || payment.currency !== 'INR') {
+      return json({ error: 'This payment does not match the plan order.' }, 400);
+    }
+    if (payment.status !== 'captured') {
       return json({ error: 'Payment is not captured yet. Your plan will activate after the provider confirms it.' }, 409);
     }
     const { error: completeError } = await db.rpc('complete_driverhub_payment', { p_order_id: order.id, p_payment_id: paymentId });

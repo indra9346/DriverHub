@@ -61,15 +61,53 @@ The production app requires a configured Supabase project and the SQL files belo
 
 ## Production Database and Hiring Plans
 
-Apply these SQL files in order using the Supabase SQL Editor:
+### Existing project: repair first
+
+If the live site shows no jobs or companies (the browser console reports `permission denied for table jobs`, code 42501), run `supabase-live-repair-2026-10.sql` once in the Supabase SQL Editor. It restores the table privileges and fixes the moderation, credit and application rules. It is idempotent and only touches DriverHub objects, which matters because this Supabase project is shared with other apps.
+
+Then run `supabase-db-health-check.sql` (read-only). It returns one row per check; after the repair there should be no `FAIL` rows. Each `FAIL` names the SQL file that fixes it. For databases created by older DriverHub scripts the repair also adds every column the app uses (with safe defaults: no credits, no verification), the radius candidate search, the payment-order table and plan-activation function, and the realtime tables.
+
+### Create an admin account
+
+Registration only creates driver and employer accounts. To make an administrator:
+
+1. Create the sign-in account if needed: Supabase Dashboard → Authentication → Users → Add user → Create new user (tick "Auto Confirm User").
+2. Open `supabase-make-admin.sql`, replace `CHANGE-ME@example.com` with that email, and run it in the SQL Editor. It works whether or not the account already has a DriverHub profile.
+3. Sign in on `/login?role=admin`. The health check row "admins are active" turns PASS.
+
+`supabase-list-accounts.sql` (read-only) lists every sign-in account in this shared project and its DriverHub role, which shows accounts that belong to other apps.
+
+### Activate a plan without online payment
+
+Until the Razorpay functions are deployed, `supabase-activate-plan.sql` activates a hiring plan for an employer by email (for offline payments or test employers). It records a payment order and billing transaction and grants credits through the same trusted function as a verified online payment.
+
+### New project: apply in this order
+
+Apply these SQL files in order using the Supabase SQL Editor (this exact order is what `supabase/tests/run-local.sh` verifies):
 
 1. `supabase-schema.sql`
 2. `supabase-apnahire-upgrade.sql`
 3. `supabase-security-hardening.sql`
 4. `supabase-marketplace-flows.sql`
-5. `supabase-pan-india-locations.sql`
-6. `supabase-radius-search.sql`
-7. `supabase-payment-checkout.sql`
+5. `supabase-fix-rls-recursion.sql`
+6. `supabase-payment-checkout.sql`
+7. `supabase-employer-driver-doc-access.sql`
+8. `supabase-homepage-public-stats.sql`
+9. `supabase-admin-live-fix.sql`
+10. `supabase-pan-india-locations.sql`
+11. `supabase-radius-search.sql`
+12. `supabase-profile-sync-rls-fix.sql`
+13. `supabase-live-repair-2026-10.sql`
+
+Finish with `supabase-db-health-check.sql`.
+
+### Database tests
+
+`supabase/tests/` holds 112 business-flow checks (driver, employer, admin and visitor permissions, credits, moderation, messaging, notifications) that run against a throwaway local Postgres with Supabase stubs: `PSQL=psql PGPORT=54329 bash supabase/tests/run-local.sh` (exits non-zero if any check or the health check fails). Never point it at the live project.
+
+### Password reset links
+
+In Supabase Dashboard → Authentication → URL Configuration, set the Site URL to the deployed site and add `https://<your-domain>/reset-password` to the Redirect URLs, otherwise reset emails link to the wrong page.
 
 Apply the location migrations after the marketplace migration. The radius-search migration is the final candidate-search RPC definition and keeps current driver location fields in `profiles` authoritative when reconciling older values in `driver_profiles`.
 

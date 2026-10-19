@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { 
-  Building2, Shield, Lock, Mail, ArrowRight, 
+import React, { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Building2, Shield, Lock, Mail, ArrowRight,
   AlertCircle, Truck, Eye, EyeOff
 } from 'lucide-react';
 import { Logo } from '../../components/common/Logo';
@@ -10,7 +10,9 @@ import { supabase, isSupabaseConfigured } from '../../services/supabaseClient';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { useLanguage } from '../../services/i18n';
 import { UserRole, User as UserType } from '../../types';
-import { getPostLoginPath, inferRoleFromPath, isUserRole } from '../../services/authRouting';
+import { getDashboardPathForRole, getPostLoginPath, inferRoleFromPath, isUserRole } from '../../services/authRouting';
+
+const DEMO_AUTH = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
 
 export const LoginPage: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -30,6 +32,47 @@ export const LoginPage: React.FC = () => {
   const [suggestedRole, setSuggestedRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Someone already signed in on this device is sent on to their dashboard
+  // (or the page they asked for) instead of seeing the sign-in form again.
+  const [signedInUser, setSignedInUser] = useState<UserType | null>(() => DataStore.getCurrentUser());
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    const cached = DataStore.getCurrentUser();
+    if (!cached || DEMO_AUTH || !isSupabaseConfigured) {
+      setSessionChecked(true);
+      return () => { live = false; };
+    }
+    // The cached account only counts while its Supabase session is still valid.
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        if (!live) return;
+        if (!data.session || data.session.user.id !== cached.id) {
+          DataStore.setCurrentUser(null);
+          setSignedInUser(null);
+        }
+        setSessionChecked(true);
+      })
+      .catch(() => { if (live) setSessionChecked(true); });
+    return () => { live = false; };
+  }, []);
+
+  const handleSignOutToSwitch = async () => {
+    setSigningOut(true);
+    try {
+      if (!DEMO_AUTH) await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Finish the local sign-out even if the network call fails.
+    } finally {
+      DataStore.clearSessionCaches();
+      DataStore.setCurrentUser(null);
+      setSignedInUser(null);
+      setSigningOut(false);
+    }
+  };
+
   const handleRoleChange = (newRole: UserRole) => {
     setRoleTab(newRole);
     setError(null);
@@ -43,7 +86,7 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setSuggestedRole(null);
     setLoading(true);
-    DataStore.setCurrentUser(null);
+    const previousUserId = DataStore.getCurrentUser()?.id || null;
 
     try {
       const cleanEmail = email.trim().toLowerCase();
@@ -75,30 +118,8 @@ export const LoginPage: React.FC = () => {
           phone: profile.phone || '', createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)
         };
         DataStore.addUser(matched);
-        if (matched.role === 'driver') {
-          const { data: row } = await supabase.from('driver_profiles').select('*').eq('user_id', authData.user.id).maybeSingle();
-          DataStore.updateDriverProfile({
-            id: matched.id, fullName: profile.full_name || 'Driver', phone: matched.phone || '', email: matched.email,
-            location: profile.location || profile.city || '', city: profile.city || '', state: profile.state || '',
-            driverCategory: row?.driver_category || '', licenseNumber: row?.license_number || '',
-            licenseType: row?.license_type || '', licenseExpiry: row?.license_expiry || '',
-            experienceYears: row?.years_experience || 0, skills: row?.skills || [], availability: row?.availability || 'Flexible',
-            status: matched.status, experiences: [], documents: []
-          });
-        } else if (matched.role === 'employer') {
-          const { data: company } = await supabase.from('companies').select('*').eq('user_id', authData.user.id).maybeSingle();
-          const metadata = authData.user.user_metadata || {};
-          DataStore.updateEmployerProfile({
-            id: matched.id, companyName: company?.company_name || metadata.company_name || `${profile.full_name || 'New'} Fleet`,
-            contactPerson: company?.contact_person || profile.full_name || '', email: company?.email || matched.email,
-            phone: company?.phone || matched.phone || '', industry: company?.industry || metadata.industry || 'Driver Hiring',
-            location: company?.location || profile.location || profile.city || '', city: company?.city || profile.city || '',
-            state: company?.state || profile.state || '', address: company?.address || '', website: company?.website || '',
-            description: company?.description || '', verified: company?.verified === true,
-            status: company?.status === 'suspended' ? 'blocked' : company?.status || 'pending',
-            createdAt: company?.created_at?.slice(0, 10) || matched.createdAt
-          });
-        }
+        // Profile details are loaded by fetchAndMergeRemoteData after the role
+        // checks below. Never write a partial profile back to the database here.
       }
 
       if (!matched) throw new Error(lang === 'kn' ? 'ಖಾತೆ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನೋಂದಾಯಿಸಿ.' : 'No account found. Please sign up first.');
@@ -114,6 +135,7 @@ export const LoginPage: React.FC = () => {
         throw new Error(`This account is registered as ${matched.role}. Switch to that sign-in role.`);
       }
 
+      if (previousUserId && previousUserId !== matched.id) DataStore.clearSessionCaches();
       DataStore.setCurrentUser(matched);
       if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
         await SupabaseSync.fetchAndMergeRemoteData(DataStore);
@@ -127,23 +149,29 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const activeSignedInUser = signedInUser && signedInUser.status !== 'blocked' ? signedInUser : null;
+  const requestedRoleForSession = isUserRole(requestedRole) ? requestedRole : null;
+  if (sessionChecked && activeSignedInUser && !loading && (!requestedRoleForSession || requestedRoleForSession === activeSignedInUser.role)) {
+    return <Navigate to={getPostLoginPath(activeSignedInUser.role, redirect)} replace />;
+  }
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-100 flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-0 bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
-        
-        {/* Left Column: Banner */}
-        <div className="lg:col-span-6 bg-[#072038] p-4 sm:p-6 flex flex-col justify-center items-center">
+
+        {/* Left Column: Banner (large screens only, so the form is first on phones) */}
+        <div className="hidden lg:flex lg:col-span-6 bg-[#072038] p-4 sm:p-6 flex-col justify-center items-center">
           <div className="w-full h-full min-h-[320px] sm:min-h-[420px] lg:min-h-[520px] flex items-center justify-center rounded-2xl overflow-hidden">
-            <img 
-              src="/auth-banner.jpg" 
-              alt="Find Driver Jobs Near You - Driver Hub" 
+            <img
+              src="/auth-banner.jpg"
+              alt="Find Driver Jobs Near You - Driver Hub"
               className="w-full h-full object-contain object-center"
             />
           </div>
         </div>
 
         {/* Right Column: Clean Auth Form */}
-        <div className="lg:col-span-6 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6">
+        <div className="lg:col-span-6 p-5 sm:p-8 lg:p-10 flex flex-col justify-center space-y-6 min-w-0">
           {/* Header */}
           <div className="space-y-2">
             <Logo size="md" />
@@ -151,21 +179,46 @@ export const LoginPage: React.FC = () => {
               {roleTab === 'admin' ? t('Admin Portal Sign In') : t('Sign In to Driver Hub')}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600">
-              {roleTab === 'admin' 
+              {roleTab === 'admin'
                 ? (lang === 'kn' ? 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಆಡಳಿತ, ಉದ್ಯೋಗ ಪರಿಶೀಲನೆ & ಅನುಮೋದನೆ.' : 'Authorized platform administration, job moderation & verification.')
                 : (lang === 'kn' ? 'ನಿಮ್ಮ ಚಾಲಕ ಖಾತೆ, ಉದ್ಯೋಗದಾತ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್ ಅಥವಾ ಫ್ಲೀಟ್ ಪರಿಕರಗಳನ್ನು ಪ್ರವೇಶಿಸಿ.' : 'Access your driver account, employer dashboard, or fleet tools.')
               }
             </p>
           </div>
 
+          {activeSignedInUser && (
+            <div role="status" className="p-3.5 bg-blue-50 text-blue-900 text-xs rounded-xl border border-blue-200 space-y-2.5">
+              <p className="leading-relaxed break-words [overflow-wrap:anywhere]">
+                You are signed in as <strong>{activeSignedInUser.email}</strong> ({activeSignedInUser.role}). To continue as{' '}
+                {roleTab === 'admin' ? 'an admin' : `a ${roleTab}`}, sign out first.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  to={getDashboardPathForRole(activeSignedInUser.role)}
+                  className="inline-flex items-center min-h-[40px] px-3 bg-[#08233F] text-white font-bold rounded-lg"
+                >
+                  Go to my dashboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleSignOutToSwitch()}
+                  disabled={signingOut}
+                  className="inline-flex items-center min-h-[40px] px-3 border border-blue-300 text-blue-900 font-bold rounded-lg hover:bg-blue-100 disabled:opacity-60 cursor-pointer"
+                >
+                  {signingOut ? 'Signing out…' : t('Sign Out')}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Credentials Box */}
           <div className="space-y-4">
             {/* 3 Prominent Role Selector Tabs */}
-            <div className="grid grid-cols-3 p-1 bg-slate-100 rounded-xl gap-1">
+            <div className="grid grid-cols-3 p-1 bg-slate-100 rounded-xl gap-1" role="tablist" aria-label="Sign-in role">
               <button
                 type="button"
                 onClick={() => handleRoleChange('driver')}
-                className={`py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
+                className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
                   roleTab === 'driver'
                     ? 'bg-white text-[#08233F] shadow-sm'
                     : 'text-slate-600 hover:text-slate-950'
@@ -177,7 +230,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleRoleChange('employer')}
-                className={`py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
+                className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
                   roleTab === 'employer'
                     ? 'bg-white text-[#08233F] shadow-sm'
                     : 'text-slate-600 hover:text-slate-950'
@@ -189,7 +242,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleRoleChange('admin')}
-                className={`py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
+                className={`min-h-[40px] py-2 px-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
                   roleTab === 'admin'
                     ? 'bg-[#08233F] text-amber-400 shadow-sm'
                     : 'text-slate-600 hover:text-[#08233F]'
@@ -230,14 +283,15 @@ export const LoginPage: React.FC = () => {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">{t('Email Address')}</label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="email"
+                    autoComplete="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@example.com"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
+                    className="w-full min-h-[44px] pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
                   />
                 </div>
               </div>
@@ -245,25 +299,27 @@ export const LoginPage: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold text-slate-700">{t('Password')}</label>
-                  <Link to={`/forgot-password?role=${encodeURIComponent(roleTab)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-[11px] text-blue-700 font-bold hover:underline">
+                  <Link to={`/forgot-password?role=${encodeURIComponent(roleTab)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`} className="inline-flex items-center min-h-[32px] text-[11px] text-blue-700 font-bold hover:underline">
                     {t('Forgot?')}
                   </Link>
                 </div>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
+                    className="w-full min-h-[44px] pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white focus:border-amber-400 transition-all font-medium"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                    className="absolute right-0.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
                     title={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -273,7 +329,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
+                className="w-full min-h-[44px] py-2.5 bg-[#08233F] hover:bg-[#051626] text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] disabled:opacity-70 disabled:cursor-wait"
               >
                 {loading ? t('Authenticating...') : t('Sign In as {role}', { role: roleTab === 'admin' ? t('Superadmin') : roleTab === 'driver' ? t('Driver') : t('Employer') })}
               </button>
@@ -281,7 +337,7 @@ export const LoginPage: React.FC = () => {
 
             <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
               {t("Don't have an account?")}{' '}
-              <Link to={`/register?role=${roleTab === 'admin' ? 'driver' : roleTab}`} className="text-blue-700 font-bold hover:underline">
+              <Link to={`/register?role=${roleTab === 'admin' ? 'driver' : roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`} className="inline-flex items-center min-h-[40px] text-blue-700 font-bold hover:underline">
                 {t('Create an Account')}
               </Link>
             </div>

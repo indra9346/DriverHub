@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link, NavLink } from 'react-router-dom';
 import { 
   Menu, LayoutDashboard, Search, FileText, FileCheck, User,
-  PlusCircle, Briefcase, Users, Building2, ShieldCheck, Settings 
+  PlusCircle, Briefcase, Users, Building2, ShieldCheck
 } from 'lucide-react';
 import { Navbar } from '../components/common/Navbar';
 import { Footer } from '../components/common/Footer';
@@ -11,6 +11,7 @@ import { AIChatbot } from '../components/common/AIChatbot';
 import { RoutePageBoundary } from '../components/common/RoutePageBoundary';
 import { DataStore } from '../services/store';
 import { supabase } from '../services/supabaseClient';
+import { SupabaseSync } from '../services/supabaseSync';
 import { useLanguage } from '../services/i18n';
 import { UserRole } from '../types';
 import { getDashboardPathForRole, getLoginPathForRole, inferRoleFromPath, isUserRole } from '../services/authRouting';
@@ -20,7 +21,7 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }) => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [currentUser, setCurrentUser] = useState(DataStore.getCurrentUser());
   const [sessionReady, setSessionReady] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -34,13 +35,32 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
       setSessionReady(true);
       return () => { live = false; };
     }
+    const signOutLocally = async () => {
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* local sign-out only */ }
+      DataStore.clearSessionCaches();
+      setCurrentUser(null);
+    };
     void (async () => {
-      const { data, error: authError } = await supabase.auth.getUser();
+      // The stored session decides whether anyone is signed in; a network
+      // failure while verifying it must not sign the user out.
+      const { data: sessionData } = await supabase.auth.getSession();
       if (!live) return;
-      if (authError) throw authError;
-      if (!data.user) {
+      if (!sessionData.session) {
         DataStore.setCurrentUser(null);
         setCurrentUser(null);
+        setSessionReady(true);
+        return;
+      }
+      const { data, error: authError } = await supabase.auth.getUser();
+      if (!live) return;
+      if (authError || !data.user) {
+        const status = (authError as { status?: number } | null)?.status;
+        if (!authError || status === 401 || status === 403) {
+          await signOutLocally();
+        } else {
+          // Offline or a transient error: keep the cached account for now.
+          setCurrentUser(DataStore.getCurrentUser());
+        }
         setSessionReady(true);
         return;
       }
@@ -50,11 +70,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         .eq('id', data.user.id)
         .maybeSingle();
       if (!live) return;
-      if (profileError || !profile || !isUserRole(profile.role) || profile.status === 'blocked' || profile.status === 'suspended') {
-        await supabase.auth.signOut({ scope: 'local' });
-        DataStore.setCurrentUser(null);
-        setCurrentUser(null);
+      if (profileError && !profile) {
+        setCurrentUser(DataStore.getCurrentUser());
+        setSessionReady(true);
+        return;
+      }
+      if (!profile || !isUserRole(profile.role) || profile.status === 'blocked' || profile.status === 'suspended'
+        || (profile.role === 'admin' && profile.status !== 'active')) {
+        await signOutLocally();
       } else {
+        const cachedUserId = DataStore.getCurrentUser()?.id;
         const verified = {
           id: data.user.id,
           email: data.user.email || profile.email || '',
@@ -63,15 +88,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
           phone: profile.phone || undefined,
           createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
         };
+        if (cachedUserId && cachedUserId !== verified.id) DataStore.clearSessionCaches();
         DataStore.addUser(verified);
         DataStore.setCurrentUser(verified);
         setCurrentUser(verified);
+        // Restored session (new tab, cleared cache): load this account's data.
+        if (cachedUserId !== verified.id) {
+          void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
+            window.dispatchEvent(new Event('driverhub_storage_updated'));
+          });
+        }
       }
       setSessionReady(true);
     })().catch(() => {
       if (!live) return;
-      DataStore.setCurrentUser(null);
-      setCurrentUser(null);
+      // Unexpected failure: keep whatever account is cached rather than logging out.
+      setCurrentUser(DataStore.getCurrentUser());
       setSessionReady(true);
     });
     return () => { live = false; };
@@ -84,6 +116,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     window.addEventListener('driverhub_storage_updated', handleStorage);
     return () => window.removeEventListener('driverhub_storage_updated', handleStorage);
   }, []);
+
+  // An administrator can block an account while it is signed in.
+  useEffect(() => {
+    if (!sessionReady || currentUser?.status !== 'blocked') return;
+    void (async () => {
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* local sign-out only */ }
+      DataStore.clearSessionCaches();
+      setCurrentUser(null);
+    })();
+  }, [currentUser?.status, sessionReady]);
 
   useEffect(() => {
     if (!sessionReady) return;
@@ -105,8 +147,29 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     setIsMobileSidebarOpen(false);
   }, [location.pathname]);
 
+  // While the mobile drawer is open the page behind it must not scroll, and
+  // Escape closes it.
+  useEffect(() => {
+    if (!isMobileSidebarOpen) return;
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileSidebarOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isMobileSidebarOpen]);
+
   if (!sessionReady || !currentUser || (requiredRole && currentUser.role !== requiredRole)) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm font-medium text-slate-500">
+        {sessionReady ? 'Redirecting…' : 'Checking your session…'}
+      </div>
+    );
   }
 
   const unreadNotifs = DataStore.getNotifications(currentUser.id).filter(n => !n.read).length;
@@ -123,29 +186,31 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     || navLinks.find(link => location.pathname.startsWith(link.to) && link.to !== '/driver/dashboard' && link.to !== '/employer/dashboard' && link.to !== '/admin/dashboard');
   const currentSectionTitle = currentNav?.label || t('Dashboard');
 
-  // Bottom quick tabs for mobile
-  const getBottomTabs = () => {
+  // Bottom quick tabs for mobile. Short English labels so every tab fits on a
+  // 360px screen; Kannada uses the existing translations (truncated if long).
+  const tabLabel = (short: string, key: string) => (lang === 'kn' ? t(key) : short);
+  const getBottomTabs = (): { to: string; label: string; icon: React.ComponentType<{ className?: string }>; highlight?: boolean }[] => {
     if (currentUser.role === 'driver') {
       return [
         { to: '/driver/dashboard', label: t('Home'), icon: LayoutDashboard },
         { to: '/jobs', label: t('Jobs'), icon: Search },
-        { to: '/driver/applications', label: t('My Applications'), icon: FileText },
-        { to: '/driver/profile', label: t('My Profile'), icon: User },
+        { to: '/driver/applications', label: tabLabel('Applications', 'My Applications'), icon: FileText },
+        { to: '/driver/profile', label: tabLabel('Profile', 'My Profile'), icon: User },
       ];
     } else if (currentUser.role === 'employer') {
       return [
         { to: '/employer/dashboard', label: t('Home'), icon: LayoutDashboard },
-        { to: '/employer/post-job', label: t('Post Vacancy'), icon: PlusCircle, highlight: true },
+        { to: '/employer/post-job', label: tabLabel('Post Job', 'Post Vacancy'), icon: PlusCircle, highlight: true },
         { to: '/employer/jobs', label: t('Jobs'), icon: Briefcase },
-        { to: '/employer/applications', label: t('Applications Pipeline'), icon: FileText },
+        { to: '/employer/applications', label: tabLabel('Applicants', 'Applications Pipeline'), icon: FileText },
       ];
     } else {
       return [
         { to: '/admin/dashboard', label: t('Home'), icon: LayoutDashboard },
-        { to: '/admin/jobs', label: t('Job Moderation Queue'), icon: ShieldCheck },
-        { to: '/admin/employers', label: t('Employer Verification'), icon: Building2 },
-        { to: '/admin/documents', label: t('Driver Document Reviews'), icon: FileCheck },
-        { to: '/admin/candidates', label: t('Candidate Management'), icon: Users },
+        { to: '/admin/jobs', label: tabLabel('Jobs', 'Job Moderation Queue'), icon: ShieldCheck },
+        { to: '/admin/employers', label: tabLabel('Employers', 'Employer Verification'), icon: Building2 },
+        { to: '/admin/documents', label: tabLabel('Docs', 'Driver Document Reviews'), icon: FileCheck },
+        { to: '/admin/candidates', label: tabLabel('Drivers', 'Candidate Management'), icon: Users },
       ];
     }
   };
@@ -160,9 +225,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
       <div className="lg:hidden sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 py-2.5 shadow-2xs">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-800 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {roleTitle}
+            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-800 min-w-0 max-w-[55%] shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="truncate">{roleTitle}</span>
             </span>
             <span className="text-xs font-bold text-slate-900 truncate">
               {currentSectionTitle}
@@ -170,8 +235,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
           </div>
 
           <button
+            type="button"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#08233F] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-[#051626] transition-colors shrink-0 cursor-pointer"
+            aria-label="Open menu"
+            aria-expanded={isMobileSidebarOpen}
+            className="min-h-10 flex items-center gap-1.5 px-3 py-1.5 bg-[#08233F] text-white rounded-xl text-xs font-bold shadow-xs hover:bg-[#051626] transition-colors shrink-0 cursor-pointer"
           >
             <Menu className="w-3.5 h-3.5 text-amber-400" />
             <span>Menu</span>
@@ -192,20 +260,23 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
           isOpenMobile={isMobileSidebarOpen}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden pb-24 lg:pb-8">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-8">
           <RoutePageBoundary key={location.pathname}>
             <Outlet />
           </RoutePageBoundary>
         </main>
       </div>
 
-      <div className="pb-16 lg:pb-0">
+      <div className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         <Footer />
       </div>
 
       {/* Sleek Mobile Bottom Tab Bar */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-2 py-1.5 shadow-elevated safe-area-bottom">
-        <div className="flex items-center justify-around">
+      <nav
+        aria-label="Quick navigation"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-elevated"
+      >
+        <div className="flex items-stretch justify-around gap-0.5">
           {bottomTabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -214,7 +285,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
                 to={tab.to}
                 end={tab.to.endsWith('dashboard')}
                 className={({ isActive }) => `
-                  flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-[10px] font-bold transition-all min-w-[54px]
+                  flex-1 min-w-0 min-h-10 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl text-[10px] font-bold transition-all
                   ${
                     isActive
                       ? 'text-[#08233F]'
@@ -233,7 +304,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
                     }`}>
                       <Icon className="w-4 h-4" />
                     </div>
-                    <span className={`mt-0.5 leading-none ${isActive ? 'font-extrabold text-[#08233F]' : ''}`}>
+                    <span className={`mt-0.5 leading-tight max-w-full truncate ${isActive ? 'font-extrabold text-[#08233F]' : ''}`}>
                       {tab.label}
                     </span>
                   </>
@@ -244,8 +315,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
 
           {/* More / Menu Drawer Toggle in Bottom Bar */}
           <button
+            type="button"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="flex flex-col items-center justify-center py-1 px-2.5 rounded-xl text-[10px] font-bold text-slate-500 hover:text-slate-900 min-w-[54px] cursor-pointer"
+            aria-label="More: open menu"
+            className="flex-1 min-w-0 min-h-10 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl text-[10px] font-bold text-slate-500 hover:text-slate-900 cursor-pointer"
           >
             <div className="p-1 rounded-lg text-slate-600 relative">
               <Menu className="w-4 h-4" />
@@ -253,7 +326,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full" />
               )}
             </div>
-            <span className="mt-0.5 leading-none">More</span>
+            <span className="mt-0.5 leading-tight max-w-full truncate">More</span>
           </button>
         </div>
       </nav>

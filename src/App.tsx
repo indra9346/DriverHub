@@ -42,24 +42,36 @@ const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').the
 
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { SupabaseSync } from './services/supabaseSync';
+import { supabase } from './services/supabaseClient';
 import { DataStore } from './services/store';
 import { LanguageProvider } from './services/i18n';
 
 export const App: React.FC = () => {
   React.useEffect(() => {
+    const notify = () => window.dispatchEvent(new Event('driverhub_storage_updated'));
     // Fetch role-scoped authenticated data. Never upload local/demo records on startup.
-    void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
-      window.dispatchEvent(new Event('driverhub_storage_updated'));
+    void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(notify);
+
+    // Database changes arrive in bursts; refresh once per burst, one fetch at a time.
+    const cleanup = SupabaseSync.initRealtimeListeners(() => {
+      SupabaseSync.scheduleRefresh(DataStore, notify);
     });
 
-    // Listen for database changes and refresh only data visible to the current session.
-    const cleanup = SupabaseSync.initRealtimeListeners(() => {
-      SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
-        window.dispatchEvent(new Event('driverhub_storage_updated'));
-      });
+    // A session ended elsewhere (expired, revoked, signed out in another tab)
+    // must not leave this tab showing the previous account.
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      const cached = DataStore.getCurrentUser();
+      if (event === 'SIGNED_OUT') {
+        if (cached) DataStore.clearSessionCaches();
+        // Reload the public listings for the now signed-out visitor.
+        void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(notify);
+      } else if (session?.user && cached && cached.id !== session.user.id) {
+        DataStore.clearSessionCaches();
+      }
     });
     return () => {
       if (cleanup) cleanup();
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
@@ -113,6 +125,7 @@ export const App: React.FC = () => {
           <Route path="jobs/new" element={<EmployerPostJob />} />
           <Route path="jobs" element={<EmployerManageJobs />} />
           <Route path="jobs/:jobId" element={<EmployerManageJobs />} />
+          <Route path="jobs/:jobId/edit" element={<EmployerPostJob />} />
           <Route path="jobs/:jobId/applications" element={<EmployerApplications />} />
           <Route path="applications" element={<EmployerApplications />} />
           <Route path="candidates" element={<EmployerCandidates />} />

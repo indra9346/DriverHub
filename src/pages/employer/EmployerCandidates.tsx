@@ -19,6 +19,50 @@ import {
 import { useLanguage } from '../../services/i18n';
 import { PanIndiaLocationSelector, RADIUS_OPTIONS, PanIndiaLocationValue } from '../../components/common/PanIndiaLocationSelector';
 import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, resolveLocationCoordinates, isDistrictInState, sanitizeLocalityName } from '../../services/indiaLocationService';
+import { newId } from '../../lib/ids';
+import {
+  clearLastError, downloadCsv, fetchCandidateById, isCompanyVerificationError, isPlanOrCreditError, mapWithConcurrency
+} from '../../services/employerApi';
+
+const ACTIVE_IN_OPTIONS = ['any', '7 days', '15 days', '30 days', '6 months'];
+/** 'any' -> no filter; '6 months' -> 180; 'N days' -> N. */
+const activeInDaysToNumber = (value: string): number | undefined =>
+  value === 'any' ? undefined : value === '6 months' ? 180 : (Number.parseInt(value, 10) || undefined);
+const activeInDaysFromNumber = (days?: number | null): string =>
+  !days ? 'any' : days === 180 ? '6 months' : `${days} days`;
+
+/** Tracks the lg breakpoint so the phone layout renders a single location selector. */
+function useIsDesktop(): boolean {
+  const query = '(min-width: 1024px)';
+  const [matches, setMatches] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(query).matches : true
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    }
+    mql.addListener(onChange);
+    return () => mql.removeListener(onChange);
+  }, []);
+  return matches;
+}
+
+/** Remove button inside a filter pill: 40px tap area without enlarging the pill. */
+const PillClose: React.FC<{ onClick: () => void; label: string; className?: string }> = ({ onClick, label, className = '' }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={`Remove ${label}`}
+    className={`-my-3 -mr-2 min-h-10 min-w-10 inline-flex items-center justify-center cursor-pointer ${className}`}
+  >
+    ✕
+  </button>
+);
 
 export const EmployerCandidates: React.FC = () => {
   const { t } = useLanguage();
@@ -67,7 +111,8 @@ export const EmployerCandidates: React.FC = () => {
   const [onlyCvAttached, setOnlyCvAttached] = useState<boolean>(false);
   const [onlyPoliceVerified, setOnlyPoliceVerified] = useState<boolean>(false);
   const [mustHaveSkill, setMustHaveSkill] = useState<string>('');
-  const [activeInDays, setActiveInDays] = useState<string>('15 days');
+  // "Any time" by default: a 15-day window hid most of the database.
+  const [activeInDays, setActiveInDays] = useState<string>('any');
   const [perPage, setPerPage] = useState<number>(20);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -76,7 +121,23 @@ export const EmployerCandidates: React.FC = () => {
   const [selectedDriverModal, setSelectedDriverModal] = useState<DriverProfile | null>(null);
   const [showNoCreditsModal, setShowNoCreditsModal] = useState<{ driver: DriverProfile } | null>(null);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'warning' } | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
   const [showModifySearchModal, setShowModifySearchModal] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const isDesktop = useIsDesktop();
+  const resultsTopRef = useRef<HTMLDivElement>(null);
+
+  // Per-driver unlock guard (a double tap must not start two paid unlocks).
+  const [unlockingIds, setUnlockingIds] = useState<Set<string>>(() => new Set());
+  const unlockingRef = useRef<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+
+  // Unlocked tab: every unlocked driver, fetched by id (independent of filters).
+  // undefined = not fetched yet, null = no longer available.
+  const [unlockedProfiles, setUnlockedProfiles] = useState<Record<string, DriverProfile | null>>({});
+  const [unlockedLoading, setUnlockedLoading] = useState(false);
+  const [unlockedError, setUnlockedError] = useState('');
+  const unlockedRunRef = useRef(0);
 
   // Click-outside listener
   useEffect(() => {
@@ -103,9 +164,9 @@ export const EmployerCandidates: React.FC = () => {
     return POPULAR_INDIAN_SKILLS.filter(s => s.toLowerCase().includes(q)).slice(0, 6);
   }, [mustHaveSkill]);
 
+  // Search results come only from the secured search (or the local demo
+  // search); the cached driver list is never used as results in production.
   const loadAll = () => {
-    const localDrivers = DataStore.getDrivers().filter(d => d.status === 'active');
-    setDrivers(prev => prev.length > 0 ? prev : localDrivers);
     setSubscription(DataStore.getSubscription(employerId));
     setUnlocks(DataStore.getCandidateUnlocks(employerId));
     setSavedSearches(DataStore.getSavedSearches(employerId));
@@ -192,25 +253,27 @@ export const EmployerCandidates: React.FC = () => {
         minExperience: minimumExperience,
         skill: mustHaveSkill,
         vehicleType: vehicleTypeFilter,
-        activeInDays: activeInDays === '6 months' ? 180 : Number.parseInt(activeInDays, 10),
+        activeInDays: activeInDaysToNumber(activeInDays),
         limit: 250
       };
 
       try {
         const results = await SupabaseSync.searchDriverCandidates(searchCriteria);
         if (!cancelled) {
-          if (results && results.length > 0) {
-            setDrivers(results);
-          } else {
-            const fallback = DataStore.searchDriversLocally(searchCriteria);
-            setDrivers(fallback);
-          }
+          // Local sample data is a development-only fallback.
+          setDrivers(results.length === 0 && DataStore.isDemoMode()
+            ? DataStore.searchDriversLocally(searchCriteria)
+            : results);
         }
       } catch (e) {
         if (!cancelled) {
-          const fallback = DataStore.searchDriversLocally(searchCriteria);
-          setDrivers(fallback);
-          setSearchError('');
+          if (DataStore.isDemoMode()) {
+            setDrivers(DataStore.searchDriversLocally(searchCriteria));
+          } else {
+            // No plan, company not verified, signed out: say why instead of showing nothing.
+            setDrivers([]);
+            setSearchError(e instanceof Error && e.message ? e.message : 'The driver database could not be searched. Please try again.');
+          }
         }
       } finally {
         if (!cancelled) setSearchLoading(false);
@@ -223,15 +286,72 @@ export const EmployerCandidates: React.FC = () => {
   }, [employerId, keyword, categoryFilter, selectedCities, selectedDistrict, selectedState, selectedPincode, selectedRadiusKm, searchCoords, minimumExperience, mustHaveSkill, vehicleTypeFilter, activeInDays]);
 
   const showToast = (text: string, type: 'success' | 'warning' = 'success') => {
+    window.clearTimeout(toastTimer.current);
     setToast({ text, type });
-    setTimeout(() => setToast(null), 4000);
+    toastTimer.current = window.setTimeout(() => setToast(null), type === 'warning' ? 6000 : 4000);
   };
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const unlockedDriverIds = useMemo(() => new Set(unlocks.map(u => u.driverId)), [unlocks]);
   const downloadedDriverIds = useMemo(
     () => new Set(unlocks.filter(u => u.downloadedExcel).map(u => u.driverId)),
     [unlocks]
   );
+  // Newest unlock first.
+  const unlockedIdsOrdered = useMemo(
+    () => [...unlocks]
+      .sort((a, b) => (Date.parse(b.unlockedAt) || 0) - (Date.parse(a.unlockedAt) || 0))
+      .map(u => u.driverId)
+      .filter((id, index, all) => all.indexOf(id) === index),
+    [unlocks]
+  );
+  const unlockedKey = unlockedIdsOrdered.join(',');
+
+  // Unlocked tab: fetch each unlocked driver by id so the list never depends on the search filters.
+  useEffect(() => {
+    if (activeTab !== 'unlocked' || !employerId) return;
+    const missing = unlockedIdsOrdered.filter(id => !(id in unlockedProfiles));
+    if (missing.length === 0) return;
+    const run = ++unlockedRunRef.current;
+    let aborted = false;
+    setUnlockedLoading(true);
+    setUnlockedError('');
+    void mapWithConcurrency(
+      missing,
+      5,
+      async (id): Promise<DriverProfile | null | undefined> => {
+        if (aborted || run !== unlockedRunRef.current) return undefined;
+        try {
+          return await fetchCandidateById(id);
+        } catch (e) {
+          // The same refusal (plan expired, signed out) applies to every driver: stop here.
+          aborted = true;
+          if (run === unlockedRunRef.current) {
+            setUnlockedError(e instanceof Error && e.message ? e.message : 'Unlocked drivers could not be loaded.');
+          }
+          return undefined;
+        }
+      },
+      (id, profile) => {
+        if (profile === undefined || run !== unlockedRunRef.current) return;
+        setUnlockedProfiles(prev => ({ ...prev, [id]: profile }));
+      }
+    ).finally(() => {
+      if (run === unlockedRunRef.current) setUnlockedLoading(false);
+    });
+    return () => {
+      unlockedRunRef.current += 1;
+      setUnlockedLoading(false);
+    };
+    // unlockedProfiles is read only to skip drivers already fetched
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, employerId, unlockedKey]);
+
+  const unlockedList = useMemo(
+    () => unlockedIdsOrdered.map(id => unlockedProfiles[id]).filter((d): d is DriverProfile => Boolean(d)),
+    [unlockedIdsOrdered, unlockedProfiles]
+  );
+  const unavailableUnlockedCount = unlockedIdsOrdered.filter(id => unlockedProfiles[id] === null).length;
 
   // Real-time State Counts
   const stateCounts = useMemo(() => {
@@ -252,11 +372,12 @@ export const EmployerCandidates: React.FC = () => {
   }, [selectedState]);
 
   const filteredDrivers = useMemo(() => {
-    let list = [...drivers];
-
+    // The unlocked tab lists every unlocked driver, whatever the search filters are.
     if (activeTab === 'unlocked') {
-      return list.filter(d => unlockedDriverIds.has(d.id));
+      return unlockedList;
     }
+
+    let list = [...drivers];
 
     if (keyword.trim()) {
       const q = keyword.toLowerCase();
@@ -380,11 +501,11 @@ export const EmployerCandidates: React.FC = () => {
     }
 
     if (onlyCvAttached) {
-      list = list.filter(d => d.cvAttached !== false);
+      list = list.filter(d => d.cvAttached === true);
     }
 
     if (onlyPoliceVerified) {
-      list = list.filter(d => d.policeVerified !== false);
+      list = list.filter(d => d.policeVerified === true);
     }
 
     if (mustHaveSkill.trim()) {
@@ -421,10 +542,12 @@ export const EmployerCandidates: React.FC = () => {
     minimumExperience,
     vehicleTypeFilter,
     unlockedDriverIds,
-    downloadedDriverIds
+    downloadedDriverIds,
+    unlockedList
   ]);
 
   const appliedFilterCount =
+    (activeInDays !== 'any' ? 1 : 0) +
     (categoryFilter ? 1 : 0) +
     (selectedState ? 1 : 0) +
     (selectedDistrict ? 1 : 0) +
@@ -458,6 +581,8 @@ export const EmployerCandidates: React.FC = () => {
     mustHaveSkill,
     minimumExperience,
     vehicleTypeFilter,
+    activeInDays,
+    activeTab,
     perPage
   ]);
 
@@ -473,29 +598,68 @@ export const EmployerCandidates: React.FC = () => {
     return filteredDrivers.slice(start, start + perPage);
   }, [filteredDrivers, currentPage, perPage]);
 
+  const hasVisiblePhone = (driver: DriverProfile) => Boolean(driver.phone) && !driver.phone.includes('•');
+
+  const applyRefreshedCandidate = (fresh: DriverProfile) => {
+    setDrivers(prev => prev.map(d => (d.id === fresh.id ? { ...d, ...fresh, distanceKm: d.distanceKm ?? fresh.distanceKm } : d)));
+    setUnlockedProfiles(prev => ({ ...prev, [fresh.id]: fresh }));
+    setSelectedDriverModal(prev => (prev && prev.id === fresh.id ? fresh : prev));
+  };
+
+  /** Already unlocked, but this row was loaded masked: fetch the contact again (no credit). */
+  const refreshCandidate = async (driver: DriverProfile) => {
+    if (unlockingRef.current.has(driver.id)) return;
+    unlockingRef.current.add(driver.id);
+    setUnlockingIds(new Set(unlockingRef.current));
+    try {
+      const fresh = await fetchCandidateById(driver.id);
+      if (fresh && hasVisiblePhone(fresh)) applyRefreshedCandidate(fresh);
+      else showToast('The phone number could not be loaded. Please try again.', 'warning');
+    } catch (e) {
+      showToast(e instanceof Error && e.message ? e.message : 'The phone number could not be loaded.', 'warning');
+    } finally {
+      unlockingRef.current.delete(driver.id);
+      setUnlockingIds(new Set(unlockingRef.current));
+    }
+  };
+
   const handleUnlockPhone = async (driver: DriverProfile) => {
     if (!employerId) {
       showToast('Please sign in as an employer to unlock candidate contacts.', 'warning');
       return;
     }
+    if (unlockingRef.current.has(driver.id)) return;
     const currentSub = DataStore.getSubscription(employerId);
     if (currentSub.dbUnlockCredits <= 0) {
       setShowNoCreditsModal({ driver });
       return;
     }
-    const res = await DataStore.unlockCandidate(employerId, driver.id);
-    if (!res.success) {
-      showToast(res.message, 'warning');
-      return;
-    }
-    loadAll();
+    unlockingRef.current.add(driver.id);
+    setUnlockingIds(new Set(unlockingRef.current));
     try {
-      const [unlocked] = await SupabaseSync.searchDriverCandidates({ userId: driver.id, limit: 1 });
-      if (unlocked) setSelectedDriverModal(unlocked);
-    } catch (error) {
-      console.warn('Could not refresh unlocked candidate details:', error);
+      clearLastError();
+      const res = await DataStore.unlockCandidate(employerId, driver.id);
+      if (!res.success) {
+        showToast(DataStore.getLastError(res.message), 'warning');
+        return;
+      }
+      loadAll();
+      // Search rows are masked; fetch the now-unlocked contact details.
+      let refreshed: DriverProfile | null = null;
+      try {
+        refreshed = await fetchCandidateById(driver.id);
+      } catch (error) {
+        console.warn('Could not refresh unlocked candidate details:', error);
+      }
+      if (refreshed) applyRefreshedCandidate(refreshed);
+      const phone = refreshed && hasVisiblePhone(refreshed) ? refreshed.phone : '';
+      showToast(phone
+        ? `${driver.fullName}: ${phone}. ${res.message}`
+        : `${driver.fullName} unlocked. ${res.message}`);
+    } finally {
+      unlockingRef.current.delete(driver.id);
+      setUnlockingIds(new Set(unlockingRef.current));
     }
-    showToast(`Unlocked ${driver.fullName}'s phone number (${driver.phone}). 1 Database Credit used.`);
   };
 
   const handleSelectAll = () => {
@@ -514,19 +678,39 @@ export const EmployerCandidates: React.FC = () => {
     }
   };
 
-  const handleDownloadExcel = () => {
+  const handleDownloadExcel = async () => {
+    if (exporting) return;
     const selectedDrivers =
       selectedDriverIds.length > 0
         ? filteredDrivers.filter(d => selectedDriverIds.includes(d.id))
         : filteredDrivers;
-    const targetDrivers = selectedDrivers.filter(d => unlockedDriverIds.has(d.id));
+    const targetIds = selectedDrivers.filter(d => unlockedDriverIds.has(d.id)).map(d => d.id);
 
-    if (targetDrivers.length === 0) {
+    if (targetIds.length === 0) {
       showToast('Unlock candidates before exporting their contact or license details.', 'warning');
       return;
     }
 
-    // Create CSV content
+    setExporting(true);
+    let targetDrivers: DriverProfile[] = [];
+    try {
+      // Rows loaded before an in-session unlock still carry masked contacts: fetch fresh ones.
+      const fresh = await mapWithConcurrency(targetIds, 5, async id => {
+        try {
+          return await fetchCandidateById(id);
+        } catch {
+          return null;
+        }
+      });
+      targetDrivers = fresh.filter((d): d is DriverProfile => Boolean(d));
+    } finally {
+      setExporting(false);
+    }
+    if (targetDrivers.length === 0) {
+      showToast('Contact details could not be loaded for export. Check your plan and try again.', 'warning');
+      return;
+    }
+
     const headers = [
       'Driver Name',
       'Category',
@@ -541,63 +725,89 @@ export const EmployerCandidates: React.FC = () => {
       'Key Driving Skills'
     ];
 
-    const rows = targetDrivers.map(d => {
-      return [
-        `"${d.fullName}"`,
-        `"${d.driverCategory}"`,
-        `"${d.experienceYears} yrs ${d.experienceMonths || 0} mos"`,
-        `"${d.licenseNumber}"`,
-        `"${d.licenseType}"`,
-        `"${d.phone}"`,
-        `"${d.email}"`,
-        `"${d.location}, ${d.city}"`,
-        `"Rs. ${d.expectedSalary || 25000}/month"`,
-        `"${d.availability}"`,
-        `"${d.skills.join(' | ')}"`
-      ].join(',');
-    });
+    const rows = targetDrivers.map(d => [
+      d.fullName,
+      d.driverCategory,
+      `${d.experienceYears} yrs ${d.experienceMonths || 0} mos`,
+      d.licenseNumber,
+      d.licenseType,
+      d.phone,
+      d.email,
+      d.location || [d.city, d.state].filter(Boolean).join(', '),
+      typeof d.expectedSalary === 'number' && d.expectedSalary > 0 ? `Rs. ${d.expectedSalary}/month` : '',
+      d.availability,
+      (d.skills || []).join(' | ')
+    ]);
 
-    const csvString = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvString);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `DriverHub_Candidates_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`DriverHub_Candidates_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
 
-    DataStore.markDriversDownloadedExcel(
-      employerId,
-      targetDrivers.map(d => d.id)
-    );
+    await DataStore.markDriversDownloadedExcel(employerId, targetDrivers.map(d => d.id));
     loadAll();
-    showToast(`Downloaded ${targetDrivers.length} driver profile(s) to Excel (.csv).`);
+    const skipped = targetIds.length - targetDrivers.length;
+    showToast(`Downloaded ${targetDrivers.length} driver profile(s) to Excel (.csv).${skipped > 0 ? ` ${skipped} could not be loaded.` : ''}`);
   };
 
   const handleSaveCurrentSearch = async () => {
-    const title = `${categoryFilter || 'All Commercial & Fleet Drivers'} — ${selectedCities.join(', ') || 'All India'}`;
+    const place = selectedCities.length > 0
+      ? selectedCities.map(c => sanitizeLocalityName(c)).join(', ')
+      : [selectedDistrict, selectedState].filter(Boolean).join(', ');
+    const title = `${categoryFilter || keyword || 'All Commercial & Fleet Drivers'} — ${place || 'All India'}${selectedRadiusKm > 0 ? ` (${selectedRadiusKm} km)` : ''}`;
     const newSaved: SavedSearch = {
-      id: crypto.randomUUID(),
+      id: newId(),
       employerId,
       title,
-      category: categoryFilter || 'HMV',
-      city: selectedCities[0] || 'Bengaluru',
+      category: categoryFilter,
+      city: selectedCities[0] || '',
+      district: selectedDistrict || undefined,
       state: selectedState,
+      pincode: selectedPincode || undefined,
+      radiusKm: selectedRadiusKm > 0 ? selectedRadiusKm : undefined,
       keyword,
       vehicleType: vehicleTypeFilter,
-      activeInDays: activeInDays === '6 months' ? 180 : Number.parseInt(activeInDays, 10),
+      activeInDays: activeInDaysToNumber(activeInDays),
       minExp: minimumExperience,
-      mustHaveSkills: mustHaveSkill ? [mustHaveSkill] : ['Commercial License', 'Safe Driving'],
+      mustHaveSkills: mustHaveSkill.trim() ? [mustHaveSkill.trim()] : [],
       createdAt: new Date().toISOString().slice(0, 10),
       matchCount: filteredDrivers.length
     };
+    clearLastError();
     const saved = await DataStore.saveSearch(newSaved);
     if (!saved) {
-      showToast('Could not save this search. Confirm you are signed in with an active hiring plan.', 'warning');
+      showToast(DataStore.getLastError('Could not save this search. Confirm you are signed in with an active hiring plan.'), 'warning');
       return;
     }
     loadAll();
     showToast(`Saved search "${title}" to your Database Saved Searches.`);
+  };
+
+  /** Restore every filter of a saved search and run it. */
+  const runSavedSearch = (s: SavedSearch) => {
+    setCategoryFilter(s.category || '');
+    setSelectedCities(s.city ? [s.city] : []);
+    setSelectedState(s.state || '');
+    setSelectedDistrict(s.district || '');
+    setSelectedPincode(s.pincode || '');
+    setSelectedRadiusKm(s.radiusKm && s.radiusKm > 0 ? s.radiusKm : 0);
+    setKeyword(s.keyword || '');
+    setVehicleTypeFilter(s.vehicleType || '');
+    setMinimumExperience(s.minExp || 0);
+    setActiveInDays(activeInDaysFromNumber(s.activeInDays));
+    setMustHaveSkill(s.mustHaveSkills?.[0] || '');
+    setHideUnlocked(false);
+    setHideDownloaded(false);
+    setOnlyCvAttached(false);
+    setOnlyPoliceVerified(false);
+    setSearchCoords({});
+    setCurrentPage(1);
+    const params = new URLSearchParams({ tab: 'search' });
+    if (s.category) params.set('category', s.category);
+    if (s.city) params.set('city', s.city);
+    if (s.district) params.set('district', s.district);
+    if (s.state) params.set('state', s.state);
+    if (s.pincode) params.set('pincode', s.pincode);
+    if (s.radiusKm && s.radiusKm > 0) params.set('radius', String(s.radiusKm));
+    if (s.keyword) params.set('q', s.keyword);
+    setSearchParams(params);
   };
 
   const handleMessageDriver = async (driver: DriverProfile) => {
@@ -605,22 +815,24 @@ export const EmployerCandidates: React.FC = () => {
       showToast('Unlock this driver profile before starting a hiring conversation.', 'warning');
       return;
     }
+    const companyName = DataStore.getEmployerById(employerId)?.companyName || subscription.billingCompanyName || 'Employer';
+    clearLastError();
     const sent = await DataStore.sendMessage({
-      id: 'msg-' + Date.now(),
+      id: newId(),
       senderId: employerId,
-      senderName: subscription.billingCompanyName || 'Verified Fleet Employer',
+      senderName: companyName,
       senderRole: 'employer',
       receiverId: driver.id,
       receiverName: driver.fullName,
-      text: `Hi ${driver.fullName}, we found your ${driver.driverCategory} profile on DriverHub Database and would like to invite you for a driving trial.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      text: `Hi ${driver.fullName}, we found your ${driver.driverCategory || 'driver'} profile on DriverHub and would like to invite you for a driving trial.`,
+      timestamp: new Date().toISOString(),
       read: false
     });
     if (!sent) {
-      showToast('Message could not be sent. Check your connection and hiring access, then try again.', 'warning');
+      showToast(DataStore.getLastError('Message could not be sent. Check your connection and hiring access, then try again.'), 'warning');
       return;
     }
-    navigate('/employer/messages');
+    navigate(`/employer/messages?driverId=${encodeURIComponent(driver.id)}`);
   };
 
   const resetAllFilters = () => {
@@ -640,7 +852,23 @@ export const EmployerCandidates: React.FC = () => {
     setOnlyCvAttached(false);
     setOnlyPoliceVerified(false);
     setMustHaveSkill('');
+    setActiveInDays('any');
     setCurrentPage(1);
+  };
+
+  const searchErrorAction = searchError
+    ? isCompanyVerificationError(searchError)
+      ? { to: '/employer/company', label: 'Open company profile →' }
+      : isPlanOrCreditError(searchError)
+      ? { to: '/employer/billing', label: 'View plans & billing →' }
+      : /sign in/i.test(searchError)
+      ? { to: '/login', label: 'Sign in →' }
+      : null
+    : null;
+
+  const showResultsOnMobile = () => {
+    setShowMobileFilters(false);
+    window.setTimeout(() => resultsTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const getInitials = (name: string) => {
@@ -656,14 +884,17 @@ export const EmployerCandidates: React.FC = () => {
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold animate-in fade-in slide-in-from-top-3 ${
+          role={toast.type === 'warning' ? 'alert' : 'status'}
+          className={`fixed top-4 sm:top-20 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[60] flex items-start gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold animate-in fade-in slide-in-from-top-3 ${
             toast.type === 'warning'
-              ? 'bg-amber-950 text-amber-200 border-amber-700'
+              ? 'bg-amber-50 text-amber-900 border-amber-300'
               : 'bg-[#08233F] text-white border-slate-700'
           }`}
         >
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toast.text}</span>
+          {toast.type === 'warning'
+            ? <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-px" />
+            : <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-px" />}
+          <span className="min-w-0 break-words">{toast.text}</span>
         </div>
       )}
 
@@ -672,14 +903,20 @@ export const EmployerCandidates: React.FC = () => {
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => navigate('/employer/dashboard')}
-            className="w-8 h-8 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 cursor-pointer"
+            className="min-w-10 min-h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 cursor-pointer shrink-0"
             title="Back to Dashboard"
+            aria-label="Back to Dashboard"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm sm:text-base font-extrabold text-[#08233F]">
+              {activeTab === 'unlocked' ? (
+                <span className="text-sm sm:text-base font-extrabold text-[#08233F]">
+                  {unlockedIdsOrdered.length} unlocked candidate{unlockedIdsOrdered.length === 1 ? '' : 's'}
+                </span>
+              ) : (
+              <span className="text-sm sm:text-base font-extrabold text-[#08233F] break-words">
                 {filteredDrivers.length} profiles found for{' '}
                 <span className="underline decoration-amber-400 decoration-2 underline-offset-4">
                   {categoryFilter || 'Commercial & Personal Drivers'}
@@ -694,6 +931,7 @@ export const EmployerCandidates: React.FC = () => {
                     : ' across India'}
                 </span>
               </span>
+              )}
               <button
                 onClick={() => setShowModifySearchModal(!showModifySearchModal)}
                 className="text-xs font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1 cursor-pointer"
@@ -773,7 +1011,7 @@ export const EmployerCandidates: React.FC = () => {
 
       {/* Quick Modify Search Bar Drawer */}
       {showModifySearchModal && (
-        <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-card grid grid-cols-1 sm:grid-cols-7 gap-3 animate-in fade-in">
+        <div className="bg-white p-4 rounded-2xl border border-emerald-200 shadow-card grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 animate-in fade-in">
           <div className="sm:col-span-2">
             <label className="block text-[11px] font-bold text-slate-600 mb-1">Role / License / Vehicle Keyword</label>
             <input
@@ -830,7 +1068,7 @@ export const EmployerCandidates: React.FC = () => {
 
       {/* TAB 2: SAVED SEARCHES VIEW */}
       {activeTab === 'saved' ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-6 space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-card p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-[#08233F]">Saved Candidate Searches</h2>
@@ -838,30 +1076,50 @@ export const EmployerCandidates: React.FC = () => {
             </div>
           </div>
 
+          {savedSearches.length === 0 && (
+            <p className="text-xs text-slate-500 py-8 text-center">
+              No saved searches yet. Set your filters on the Search tab and tap “Save search”.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {savedSearches.map(s => (
+            {savedSearches.map(s => {
+              const place = [s.city ? sanitizeLocalityName(s.city) : '', s.district, s.state].filter((v, i, a) => v && a.indexOf(v) === i).join(', ');
+              return (
               <div
                 key={s.id}
-                className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-300 bg-slate-50/60 flex flex-col justify-between gap-4 transition-all"
+                className="p-4 rounded-2xl border border-slate-200 hover:border-emerald-300 bg-slate-50/60 flex flex-col justify-between gap-4 transition-all min-w-0"
               >
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-sm font-bold text-[#08233F]">{s.title}</h3>
+                    <h3 className="text-sm font-bold text-[#08233F] break-words min-w-0">{s.title}</h3>
                     <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[11px] font-bold shrink-0">
-                      {s.matchCount} Drivers
+                      {s.matchCount ?? 0} Drivers
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-[11px] font-semibold">
-                      ★ {s.category}
+                      ★ {s.category || 'All categories'}
                     </span>
                     <span className="px-2 py-0.5 bg-white text-slate-700 border border-slate-200 rounded-md text-[11px]">
-                      📍 {s.city}
+                      📍 {place || 'All India'}{s.pincode ? ` · PIN ${s.pincode}` : ''}{s.radiusKm ? ` · ${s.radiusKm} km` : ''}
                     </span>
-                    <span className="px-2 py-0.5 bg-white text-slate-700 border border-slate-200 rounded-md text-[11px]">
-                      💼 {s.minExp}+ Yrs Exp
-                    </span>
-                    {s.mustHaveSkills.map(sk => (
+                    {s.keyword && (
+                      <span className="px-2 py-0.5 bg-white text-slate-700 border border-slate-200 rounded-md text-[11px] break-all">
+                        🔎 {s.keyword}
+                      </span>
+                    )}
+                    {s.minExp > 0 && (
+                      <span className="px-2 py-0.5 bg-white text-slate-700 border border-slate-200 rounded-md text-[11px]">
+                        💼 {s.minExp}+ Yrs Exp
+                      </span>
+                    )}
+                    {s.activeInDays ? (
+                      <span className="px-2 py-0.5 bg-white text-slate-700 border border-slate-200 rounded-md text-[11px]">
+                        Active in {activeInDaysFromNumber(s.activeInDays)}
+                      </span>
+                    ) : null}
+                    {(s.mustHaveSkills || []).map(sk => (
                       <span key={sk} className="px-2 py-0.5 bg-white text-slate-600 border border-slate-200 rounded-md text-[11px]">
                         ✓ {sk}
                       </span>
@@ -869,7 +1127,7 @@ export const EmployerCandidates: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70">
                   <span className="text-[11px] text-slate-400">Saved on {s.createdAt}</span>
                   <div className="flex items-center gap-2">
                     <button
@@ -879,37 +1137,46 @@ export const EmployerCandidates: React.FC = () => {
                           else showToast('Could not delete the saved search. Try again.', 'warning');
                         });
                       }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg cursor-pointer"
+                      className="min-h-10 min-w-10 inline-flex items-center justify-center text-slate-400 hover:text-red-600 rounded-lg cursor-pointer"
                       title="Delete Saved Search"
+                      aria-label="Delete saved search"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => {
-                        setCategoryFilter(s.category);
-                        setSelectedCities([s.city]);
-                        setSelectedState(s.state || '');
-                        setKeyword(s.keyword || '');
-                        setVehicleTypeFilter(s.vehicleType || '');
-                        setMinimumExperience(s.minExp || 0);
-                        setActiveInDays(s.activeInDays === 180 ? '6 months' : `${s.activeInDays || 15} days`);
-                        setSearchParams({ tab: 'search' });
-                      }}
-                      className="px-3.5 py-1.5 bg-[#08233F] hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+                      onClick={() => runSavedSearch(s)}
+                      className="min-h-10 px-3.5 py-1.5 bg-[#08233F] hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer"
                     >
                       Run Search →
                     </button>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
         /* MAIN 2-COLUMN APNAHIRE DATABASE LAYOUT (Left Filters + Right Candidate Cards) */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* Phone / tablet: the long filter panel opens on demand */}
+          {activeTab === 'search' && (
+            <button
+              type="button"
+              onClick={() => setShowMobileFilters(open => !open)}
+              aria-expanded={showMobileFilters}
+              className="lg:hidden w-full min-h-10 inline-flex items-center justify-between gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-subtle text-sm font-bold text-[#08233F] cursor-pointer"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-700" /> Filters ({appliedFilterCount})
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+
           {/* LEFT FILTER PANEL (Col 1-4) — Matches Screenshot 1 */}
-          <aside className="lg:col-span-4 xl:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-subtle overflow-hidden">
+          {activeTab === 'search' && (
+          <aside className={`${showMobileFilters ? 'block' : 'hidden'} lg:block lg:col-span-4 xl:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-subtle overflow-hidden`}>
             <div className="p-4 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2 font-bold text-sm text-[#08233F]">
                 <Filter className="w-4 h-4 text-slate-700" />
@@ -933,19 +1200,19 @@ export const EmployerCandidates: React.FC = () => {
                   {categoryFilter && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
                       ★ {categoryFilter}
-                      <button onClick={() => setCategoryFilter('')} className="hover:text-blue-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setCategoryFilter('')} label="filter" className="hover:text-blue-950" />
                     </span>
                   )}
                   {selectedState && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                       State: {selectedState}
-                      <button onClick={() => { setSelectedState(''); setSelectedDistrict(''); setSelectedCities([]); setSelectedPincode(''); }} className="hover:text-emerald-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => { setSelectedState(''); setSelectedDistrict(''); setSelectedCities([]); setSelectedPincode(''); }} label="filter" className="hover:text-emerald-950" />
                     </span>
                   )}
                   {selectedDistrict && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                       District: {selectedDistrict}
-                      <button onClick={() => { setSelectedDistrict(''); setSelectedCities([]); setSelectedPincode(''); }} className="hover:text-emerald-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => { setSelectedDistrict(''); setSelectedCities([]); setSelectedPincode(''); }} label="filter" className="hover:text-emerald-950" />
                     </span>
                   )}
                   {selectedCities.map(city => (
@@ -954,66 +1221,67 @@ export const EmployerCandidates: React.FC = () => {
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200"
                     >
                       {sanitizeLocalityName(city)}
-                      <button
-                        onClick={() => setSelectedCities(selectedCities.filter(c => c !== city))}
-                        className="hover:text-blue-950 ml-0.5 cursor-pointer"
-                      >
-                        ✕
-                      </button>
+                      <PillClose onClick={() => setSelectedCities(selectedCities.filter(c => c !== city))} label={sanitizeLocalityName(city)} className="hover:text-blue-950" />
                     </span>
                   ))}
                   {selectedPincode && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
                       PIN: {selectedPincode}
-                      <button onClick={() => setSelectedPincode('')} className="hover:text-blue-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setSelectedPincode('')} label="filter" className="hover:text-blue-950" />
                     </span>
                   )}
                   {selectedRadiusKm > 0 && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
                       Within {selectedRadiusKm} km
-                      <button onClick={() => setSelectedRadiusKm(0)} className="hover:text-purple-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setSelectedRadiusKm(0)} label="filter" className="hover:text-purple-950" />
+                    </span>
+                  )}
+                  {activeInDays !== 'any' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                      Active in {activeInDays}
+                      <PillClose onClick={() => setActiveInDays('any')} label="activity filter" className="hover:text-purple-950" />
                     </span>
                   )}
                   {mustHaveSkill && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
                       Skill: {mustHaveSkill}
-                      <button onClick={() => setMustHaveSkill('')} className="hover:text-slate-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setMustHaveSkill('')} label="filter" className="hover:text-slate-950" />
                     </span>
                   )}
                   {minimumExperience > 0 && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
                       Min {minimumExperience}+ yrs
-                      <button onClick={() => setMinimumExperience(0)} className="hover:text-slate-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setMinimumExperience(0)} label="filter" className="hover:text-slate-950" />
                     </span>
                   )}
                   {vehicleTypeFilter && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
                       Vehicle: {vehicleTypeFilter}
-                      <button onClick={() => setVehicleTypeFilter('')} className="hover:text-slate-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setVehicleTypeFilter('')} label="filter" className="hover:text-slate-950" />
                     </span>
                   )}
                   {hideUnlocked && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
                       Hide: Already unlocked
-                      <button onClick={() => setHideUnlocked(false)} className="hover:text-blue-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setHideUnlocked(false)} label="filter" className="hover:text-blue-950" />
                     </span>
                   )}
                   {hideDownloaded && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
                       Hide: Already downloaded in excel
-                      <button onClick={() => setHideDownloaded(false)} className="hover:text-blue-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setHideDownloaded(false)} label="filter" className="hover:text-blue-950" />
                     </span>
                   )}
                   {onlyCvAttached && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                       CV Attached
-                      <button onClick={() => setOnlyCvAttached(false)} className="hover:text-amber-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setOnlyCvAttached(false)} label="filter" className="hover:text-amber-950" />
                     </span>
                   )}
                   {onlyPoliceVerified && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                       Police Verified
-                      <button onClick={() => setOnlyPoliceVerified(false)} className="hover:text-emerald-950 ml-0.5 cursor-pointer">✕</button>
+                      <PillClose onClick={() => setOnlyPoliceVerified(false)} label="filter" className="hover:text-emerald-950" />
                     </span>
                   )}
                 </div>
@@ -1252,7 +1520,9 @@ export const EmployerCandidates: React.FC = () => {
               </div>
             </div>
 
-            {/* Section 5: Pan-India Location Hierarchy (State/UT -> District -> Town/City -> PIN Code) */}
+            {/* Section 5: Pan-India Location Hierarchy (State/UT -> District -> Town/City -> PIN Code).
+                Desktop only: on phones the search bar's selector is the single location control. */}
+            {isDesktop && (
             <div className="p-4 border-b border-slate-200 space-y-3">
               <PanIndiaLocationSelector
                 value={{
@@ -1315,6 +1585,7 @@ export const EmployerCandidates: React.FC = () => {
                 idPrefix="emp-candidate-loc"
               />
             </div>
+            )}
 
             {/* Section 6: Multi-City Quick Checkboxes */}
             <div className="p-4 space-y-3">
@@ -1398,11 +1669,51 @@ export const EmployerCandidates: React.FC = () => {
                   })}
               </div>
             </div>
+
+            {/* Phone: close the panel and jump to the results */}
+            <div className="lg:hidden p-4 border-t border-slate-200 bg-slate-50/70 flex gap-2">
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="min-h-10 px-4 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 cursor-pointer"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={showResultsOnMobile}
+                className="flex-1 min-h-10 px-4 py-2 bg-[#19745B] hover:bg-[#135A46] text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Show {filteredDrivers.length} result{filteredDrivers.length === 1 ? '' : 's'}
+              </button>
+            </div>
           </aside>
+          )}
 
           {/* RIGHT CANDIDATE RESULTS LIST (Col 5-12) — Exact ApnaHire Candidate Card UI */}
-          <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+          <div ref={resultsTopRef} className={`${activeTab === 'unlocked' ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'} space-y-4 min-w-0 scroll-mt-20`}>
+            {activeTab === 'unlocked' && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-4 text-xs text-slate-600 space-y-1">
+                <p className="font-bold text-[#08233F] text-sm">Every driver you have unlocked</p>
+                <p>This list ignores the search filters. Contacts and licence details are shown in full.</p>
+                {unlockedLoading && (
+                  <p className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading unlocked drivers ({unlockedList.length}/{unlockedIdsOrdered.length})…
+                  </p>
+                )}
+                {unavailableUnlockedCount > 0 && (
+                  <p className="text-amber-700">{unavailableUnlockedCount} unlocked driver profile(s) are no longer active on DriverHub.</p>
+                )}
+                {unlockedError && (
+                  <p role="alert" className="text-rose-700 font-semibold break-words">
+                    {unlockedError}{' '}
+                    {isPlanOrCreditError(unlockedError) && <Link to="/employer/billing" className="underline">View plans →</Link>}
+                  </p>
+                )}
+              </div>
+            )}
             {/* Top Interactive Candidate Search Bar with Auto-Suggestions & Pan-India Location / Radius Hierarchy */}
+            {activeTab === 'search' && (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-subtle p-4 space-y-3.5">
               {/* Keyword / Role Input */}
               <div ref={candidateSearchContainerRef} className="relative">
@@ -1533,6 +1844,7 @@ export const EmployerCandidates: React.FC = () => {
                 />
               </div>
             </div>
+            )}
 
             {/* Candidate Database Preview Notice when 0 unlock credits remain */}
             {subscription.dbUnlockCredits <= 0 && (
@@ -1571,27 +1883,33 @@ export const EmployerCandidates: React.FC = () => {
                 </label>
 
                 <button
-                  onClick={handleDownloadExcel}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                  onClick={() => { void handleDownloadExcel(); }}
+                  disabled={exporting}
+                  className="min-h-10 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 disabled:opacity-60 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5" /> Download Excel
+                  {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  {exporting ? 'Preparing export…' : 'Download Excel'}
                 </button>
               </div>
 
               <div className="flex items-center gap-3 flex-wrap text-xs text-slate-600">
+                {activeTab === 'search' && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-400">Active in</span>
                   <select
                     value={activeInDays}
                     onChange={e => setActiveInDays(e.target.value)}
-                    className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
+                    className="min-h-10 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800"
                   >
-                    <option>7 days</option>
-                    <option>15 days</option>
-                    <option>30 days</option>
-                    <option>6 months</option>
+                    {!ACTIVE_IN_OPTIONS.includes(activeInDays) && <option value={activeInDays}>{activeInDays}</option>}
+                    <option value="any">Any time</option>
+                    <option value="7 days">7 days</option>
+                    <option value="15 days">15 days</option>
+                    <option value="30 days">30 days</option>
+                    <option value="6 months">6 months</option>
                   </select>
                 </div>
+                )}
 
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-400">Showing</span>
@@ -1601,7 +1919,7 @@ export const EmployerCandidates: React.FC = () => {
                       setPerPage(Number(e.target.value));
                       setCurrentPage(1);
                     }}
-                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 cursor-pointer"
+                    className="min-h-10 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 cursor-pointer"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
@@ -1616,7 +1934,8 @@ export const EmployerCandidates: React.FC = () => {
                     type="button"
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage <= 1}
-                    className={`p-1 rounded-lg border text-xs font-bold transition-all ${
+                    aria-label="Previous page"
+                    className={`min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg border text-xs font-bold transition-all ${
                       currentPage <= 1
                         ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
                         : 'border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-xs active:scale-95'
@@ -1634,7 +1953,8 @@ export const EmployerCandidates: React.FC = () => {
                     type="button"
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                     disabled={currentPage >= totalPages}
-                    className={`p-1 rounded-lg border text-xs font-bold transition-all ${
+                    aria-label="Next page"
+                    className={`min-h-10 min-w-10 inline-flex items-center justify-center rounded-lg border text-xs font-bold transition-all ${
                       currentPage >= totalPages
                         ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
                         : 'border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-xs active:scale-95'
@@ -1649,12 +1969,31 @@ export const EmployerCandidates: React.FC = () => {
 
             {/* Candidate Cards List */}
             {filteredDrivers.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-subtle space-y-3">
-                {searchLoading ? <div className="w-8 h-8 mx-auto border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : <Users className="w-12 h-12 text-slate-300 mx-auto" />}
+              activeTab === 'unlocked' ? (
+                <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 shadow-subtle space-y-3">
+                  {unlockedLoading ? <Loader2 className="w-8 h-8 mx-auto text-emerald-600 animate-spin" /> : <Unlock className="w-12 h-12 text-slate-300 mx-auto" />}
+                  <h3 className="text-base font-bold text-[#08233F]">
+                    {unlockedLoading ? 'Loading unlocked drivers…' : unlockedError ? 'Unlocked drivers could not be loaded' : 'No unlocked drivers yet'}
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto break-words">
+                    {unlockedError || (unlockedLoading ? '' : 'Unlock a driver from the search results to see their phone number and contact details here.')}
+                  </p>
+                </div>
+              ) : (
+              <div className="bg-white rounded-2xl p-8 sm:p-12 text-center border border-slate-200 shadow-subtle space-y-3">
+                {searchLoading ? <div className="w-8 h-8 mx-auto border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : searchError ? <Lock className="w-12 h-12 text-amber-400 mx-auto" /> : <Users className="w-12 h-12 text-slate-300 mx-auto" />}
                 <h3 className="text-base font-bold text-[#08233F]">{searchLoading ? 'Searching driver profiles…' : searchError ? 'Driver search is unavailable' : 'No matching driver profiles found'}</h3>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                <p role={searchError ? 'alert' : undefined} className="text-xs text-slate-500 max-w-md mx-auto break-words">
                   {searchError || 'Try clearing some filters or selecting additional cities to view more verified drivers.'}
                 </p>
+                {searchError && !searchLoading && searchErrorAction && (
+                  <Link
+                    to={searchErrorAction.to}
+                    className="inline-flex items-center min-h-10 px-4 py-2 bg-[#19745B] hover:bg-[#135A46] text-white rounded-xl text-xs font-bold"
+                  >
+                    {searchErrorAction.label}
+                  </Link>
+                )}
                 {!searchError && !searchLoading && <button
                   onClick={resetAllFilters}
                   className="px-4 py-2 bg-[#08233F] text-white rounded-xl text-xs font-bold cursor-pointer"
@@ -1662,6 +2001,7 @@ export const EmployerCandidates: React.FC = () => {
                   Reset Filters
                 </button>}
               </div>
+              )
             ) : (
               <div className="space-y-4">
                 {paginatedDrivers.map(driver => {
@@ -1683,20 +2023,21 @@ export const EmployerCandidates: React.FC = () => {
                         isSelected ? 'border-emerald-500 ring-1 ring-emerald-500/30' : 'border-slate-200'
                       }`}
                     >
-                      <div className="p-5 sm:p-6">
-                        <div className="flex items-start gap-3.5">
+                      <div className="p-4 sm:p-6">
+                        <div className="flex items-start gap-2.5 sm:gap-3.5">
                           {/* Checkbox */}
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelectDriver(driver.id)}
+                            aria-label={`Select ${driver.fullName}`}
                             className="mt-2 w-4 h-4 accent-emerald-600 rounded cursor-pointer shrink-0"
                           />
 
                           {/* Avatar Initials Circle (like AK in ApnaHire screenshot) */}
                           <div
                             onClick={() => setSelectedDriverModal(driver)}
-                            className="w-12 h-12 rounded-full bg-slate-800 text-white font-bold text-sm flex items-center justify-center shrink-0 cursor-pointer hover:bg-[#08233F]"
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800 text-white font-bold text-sm flex items-center justify-center shrink-0 cursor-pointer hover:bg-[#08233F]"
                           >
                             {getInitials(driver.fullName)}
                           </div>
@@ -1705,12 +2046,12 @@ export const EmployerCandidates: React.FC = () => {
                           <div className="flex-1 min-w-0 space-y-3.5">
                             {/* Header Name & Meta */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              <div>
+                              <div className="min-w-0">
                                 <button
                                   onClick={() => setSelectedDriverModal(driver)}
-                                  className="text-base font-bold text-slate-900 hover:text-blue-700 inline-flex items-center gap-1.5 cursor-pointer text-left"
+                                  className="text-base font-bold text-slate-900 hover:text-blue-700 inline-flex items-center gap-1.5 cursor-pointer text-left min-w-0"
                                 >
-                                  <span>{driver.fullName}</span>
+                                  <span className="break-words min-w-0">{driver.fullName}</span>
                                   <ChevronRight className="w-4 h-4 text-slate-400" />
                                   {driver.policeVerified && <span title="Police verification verified"><ShieldCheck className="w-4 h-4 text-emerald-600" /></span>}
                                 </button>
@@ -1721,7 +2062,7 @@ export const EmployerCandidates: React.FC = () => {
                                     {driver.experienceYears} yrs {driver.experienceMonths ?? 0} mos
                                   </span>
                                   <span className="inline-flex items-center gap-1 font-medium">
-                                    💵 {driver.expectedSalary ? `₹${driver.expectedSalary.toLocaleString('en-IN')}/mo` : 'Not Disclosed'}
+                                    💵 {typeof driver.expectedSalary === 'number' && driver.expectedSalary > 0 ? `₹${driver.expectedSalary.toLocaleString('en-IN')}/mo` : 'Not Disclosed'}
                                   </span>
                                   <span className="inline-flex items-center gap-1 font-medium">
                                     <MapPin className="w-3.5 h-3.5 text-slate-400" />
@@ -1824,12 +2165,22 @@ export const EmployerCandidates: React.FC = () => {
                             <div className="pt-2 flex flex-wrap items-center gap-3">
                               {isUnlocked ? (
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                  <a
-                                    href={`tel:${driver.phone}`}
-                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow-xs transition-all"
-                                  >
-                                    <Phone className="w-3.5 h-3.5" /> {driver.phone} (Call Now)
-                                  </a>
+                                  {hasVisiblePhone(driver) ? (
+                                    <a
+                                      href={`tel:${driver.phone}`}
+                                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow-xs transition-all break-all"
+                                    >
+                                      <Phone className="w-3.5 h-3.5 shrink-0" /> {driver.phone} (Call Now)
+                                    </a>
+                                  ) : (
+                                    <button
+                                      onClick={() => { void refreshCandidate(driver); }}
+                                      disabled={unlockingIds.has(driver.id)}
+                                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer"
+                                    >
+                                      {unlockingIds.has(driver.id) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Phone className="w-3.5 h-3.5" />} Show phone number
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => { void handleMessageDriver(driver); }}
                                     className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs cursor-pointer"
@@ -1847,9 +2198,12 @@ export const EmployerCandidates: React.FC = () => {
                                 <div className="flex flex-wrap items-center gap-2.5">
                                   <button
                                     onClick={() => handleUnlockPhone(driver)}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-lg text-xs shadow-xs transition-all cursor-pointer"
+                                    disabled={unlockingIds.has(driver.id)}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#19745B] hover:bg-[#135A46] disabled:opacity-60 disabled:cursor-wait text-white font-bold rounded-lg text-xs shadow-xs transition-all cursor-pointer"
                                   >
-                                    <Phone className="w-3.5 h-3.5" /> View Phone Number
+                                    {unlockingIds.has(driver.id)
+                                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Unlocking…</>
+                                      : <><Phone className="w-3.5 h-3.5" /> View Phone Number</>}
                                   </button>
                                   <button
                                     onClick={() => setSelectedDriverModal(driver)}
@@ -1865,9 +2219,9 @@ export const EmployerCandidates: React.FC = () => {
                       </div>
 
                       {/* Card Bottom Footer Bar (22 unlocks | CV attached | Active on 24 Sep '26) */}
-                      <div className="px-6 py-2.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                        <span>{driver.policeVerified ? 'Verified driver' : 'Verification pending'}</span>
-                        <div className="flex items-center gap-4">
+                      <div className="px-4 sm:px-6 py-2.5 bg-slate-50/80 border-t border-slate-100 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                        <span>{driver.policeVerified ? 'Police verified' : 'Police verification pending'}</span>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                           <span>{driver.licenseType ? 'License details provided' : 'License details missing'}</span>
                           <span>{driver.cvAttached ? 'CV attached' : 'CV not attached'}</span>
                           <span>Active on {lastActiveDate}</span>
@@ -1896,33 +2250,40 @@ export const EmployerCandidates: React.FC = () => {
                       window.scrollTo({ top: 200, behavior: 'smooth' });
                     }}
                     disabled={currentPage <= 1}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                    aria-label="Previous page"
+                    className={`min-h-10 min-w-10 inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
                       currentPage <= 1
                         ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 cursor-pointer shadow-xs'
                     }`}
                   >
-                    <ChevronLeft className="w-4 h-4" /> Previous
+                    <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Previous</span>
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                    .map((page, index, visible) => {
                     const isActive = page === currentPage;
+                    const gap = index > 0 && page - visible[index - 1] > 1;
                     return (
-                      <button
-                        key={page}
-                        type="button"
-                        onClick={() => {
-                          setCurrentPage(page);
-                          window.scrollTo({ top: 200, behavior: 'smooth' });
-                        }}
-                        className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-[#08233F] text-white shadow-xs font-extrabold'
-                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
-                        }`}
-                      >
-                        {page}
-                      </button>
+                      <React.Fragment key={page}>
+                        {gap && <span className="px-1 text-slate-400 select-none">…</span>}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentPage(page);
+                            window.scrollTo({ top: 200, behavior: 'smooth' });
+                          }}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`min-w-10 min-h-10 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-[#08233F] text-white shadow-xs font-extrabold'
+                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
                     );
                   })}
 
@@ -1933,13 +2294,14 @@ export const EmployerCandidates: React.FC = () => {
                       window.scrollTo({ top: 200, behavior: 'smooth' });
                     }}
                     disabled={currentPage >= totalPages}
-                    className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                    aria-label="Next page"
+                    className={`min-h-10 min-w-10 inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
                       currentPage >= totalPages
                         ? 'border-slate-200 text-slate-300 cursor-not-allowed bg-slate-50'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 cursor-pointer shadow-xs'
                     }`}
                   >
-                    Next <ChevronRight className="w-4 h-4" />
+                    <span className="hidden sm:inline">Next</span> <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -1950,58 +2312,86 @@ export const EmployerCandidates: React.FC = () => {
 
       {/* Detailed Driver Dossier Modal */}
       {selectedDriverModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3.5">
-                <div className="w-14 h-14 rounded-2xl bg-[#08233F] text-amber-400 flex items-center justify-center font-bold text-lg">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-8 shadow-2xl border border-slate-200 space-y-5 max-h-[90dvh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#08233F] text-amber-400 flex items-center justify-center font-bold text-lg shrink-0">
                   {getInitials(selectedDriverModal.fullName)}
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5 break-words">
                     {selectedDriverModal.fullName}
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    {selectedDriverModal.policeVerified && (
+                      <span title="Police verification verified"><ShieldCheck className="w-4 h-4 text-emerald-600" /></span>
+                    )}
                   </h3>
-                  <p className="text-xs text-slate-500">
-                    {selectedDriverModal.driverCategory} • {selectedDriverModal.experienceYears} Yrs {selectedDriverModal.experienceMonths || 0} Mos Experience • {selectedDriverModal.location}
+                  <p className="text-xs text-slate-500 break-words">
+                    {[selectedDriverModal.driverCategory, `${selectedDriverModal.experienceYears} Yrs ${selectedDriverModal.experienceMonths || 0} Mos Experience`, selectedDriverModal.location].filter(Boolean).join(' • ')}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedDriverModal(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-900 rounded-lg cursor-pointer"
+                aria-label="Close"
+                className="min-h-10 min-w-10 inline-flex items-center justify-center text-slate-400 hover:text-slate-900 rounded-lg cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
-              <div>
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+              <div className="min-w-0">
                 <span className="text-slate-400 block">Phone Number</span>
                 {unlockedDriverIds.has(selectedDriverModal.id) ? (
-                  <a href={`tel:${selectedDriverModal.phone}`} className="font-bold text-emerald-700 hover:underline">
-                    {selectedDriverModal.phone}
-                  </a>
+                  hasVisiblePhone(selectedDriverModal) ? (
+                    <a href={`tel:${selectedDriverModal.phone}`} className="font-bold text-emerald-700 hover:underline break-all">
+                      {selectedDriverModal.phone}
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => { void refreshCandidate(selectedDriverModal); }}
+                      disabled={unlockingIds.has(selectedDriverModal.id)}
+                      className="min-h-10 font-bold text-emerald-700 hover:underline cursor-pointer disabled:opacity-60"
+                    >
+                      {unlockingIds.has(selectedDriverModal.id) ? 'Loading…' : 'Show phone number'}
+                    </button>
+                  )
                 ) : (
                   <button
                     onClick={() => handleUnlockPhone(selectedDriverModal)}
-                    className="font-bold text-emerald-700 hover:underline cursor-pointer"
+                    disabled={unlockingIds.has(selectedDriverModal.id)}
+                    className="min-h-10 font-bold text-emerald-700 hover:underline cursor-pointer disabled:opacity-60"
                   >
-                    Unlock Phone (1 Credit)
+                    {unlockingIds.has(selectedDriverModal.id) ? 'Unlocking…' : 'Unlock Phone (1 Credit)'}
                   </button>
                 )}
               </div>
-              <div>
+              <div className="min-w-0">
+                <span className="text-slate-400 block">Email</span>
+                <span className="font-bold text-slate-900 break-all">
+                  {unlockedDriverIds.has(selectedDriverModal.id) ? (selectedDriverModal.email || 'Not provided') : 'Unlock profile to view'}
+                </span>
+              </div>
+              <div className="min-w-0">
                 <span className="text-slate-400 block">License Number</span>
-                <span className="font-bold text-slate-900">{unlockedDriverIds.has(selectedDriverModal.id) ? selectedDriverModal.licenseNumber : 'Unlock profile to view'}</span>
+                <span className="font-bold text-slate-900 break-all">{unlockedDriverIds.has(selectedDriverModal.id) ? (selectedDriverModal.licenseNumber || 'Not provided') : 'Unlock profile to view'}</span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-slate-400 block">License Validity</span>
-                <span className="font-bold text-emerald-700">{unlockedDriverIds.has(selectedDriverModal.id) ? `Valid till ${selectedDriverModal.licenseExpiry}` : 'Unlock profile to view'}</span>
+                <span className="font-bold text-emerald-700">
+                  {!unlockedDriverIds.has(selectedDriverModal.id)
+                    ? 'Unlock profile to view'
+                    : selectedDriverModal.licenseExpiry ? `Valid till ${selectedDriverModal.licenseExpiry}` : 'Not provided'}
+                </span>
               </div>
-              <div>
+              <div className="min-w-0">
                 <span className="text-slate-400 block">Expected Salary</span>
-                <span className="font-bold text-slate-900">₹{(selectedDriverModal.expectedSalary || 26000).toLocaleString('en-IN')} / month</span>
+                <span className="font-bold text-slate-900">
+                  {typeof selectedDriverModal.expectedSalary === 'number' && selectedDriverModal.expectedSalary > 0
+                    ? `₹${selectedDriverModal.expectedSalary.toLocaleString('en-IN')} / month`
+                    : 'Not disclosed'}
+                </span>
               </div>
               <div>
                 <span className="text-slate-400 block">Joining Availability</span>
@@ -2031,10 +2421,10 @@ export const EmployerCandidates: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setSelectedDriverModal(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 cursor-pointer"
+                className="min-h-10 px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 cursor-pointer"
               >
                 Close
               </button>
@@ -2044,16 +2434,17 @@ export const EmployerCandidates: React.FC = () => {
                   setSelectedDriverModal(null);
                   void handleMessageDriver(d);
                 }}
-                className="px-4 py-2 bg-[#08233F] text-white rounded-xl text-xs font-bold cursor-pointer"
+                className="min-h-10 px-4 py-2 bg-[#08233F] text-white rounded-xl text-xs font-bold cursor-pointer"
               >
                 Send Interview Invite
               </button>
               {!unlockedDriverIds.has(selectedDriverModal.id) && (
                 <button
                   onClick={() => handleUnlockPhone(selectedDriverModal)}
-                  className="px-5 py-2 bg-[#19745B] hover:bg-[#135A46] text-white font-bold rounded-xl text-xs cursor-pointer"
+                  disabled={unlockingIds.has(selectedDriverModal.id)}
+                  className="min-h-10 px-5 py-2 bg-[#19745B] hover:bg-[#135A46] disabled:opacity-60 text-white font-bold rounded-xl text-xs cursor-pointer"
                 >
-                  📞 Unlock Phone Number
+                  {unlockingIds.has(selectedDriverModal.id) ? 'Unlocking…' : '📞 Unlock Phone Number'}
                 </button>
               )}
             </div>
@@ -2063,8 +2454,8 @@ export const EmployerCandidates: React.FC = () => {
 
       {/* 0 Credits / Recharge Plan Prompt Modal */}
       {showNoCreditsModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div role="dialog" aria-modal="true" className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-7 shadow-2xl border border-slate-200 text-center space-y-4 max-h-[90dvh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center mx-auto">
               <Wallet className="w-7 h-7 text-amber-600" />
             </div>

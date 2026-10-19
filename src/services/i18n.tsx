@@ -230,7 +230,9 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'Active': 'ಸಕ್ರಿಯ',
   'Pending Approval': 'ಅನುಮೋದನೆ ಬಾಕಿ ಇದೆ',
   'Pending': 'ಬಾಕಿ ಇದೆ',
-  'Closed': 'ಮುಕ್ತಾಯಗೊಂಡಿದೆ',
+  // "Closed" (closed by the employer/admin) and "Expired" (validity ran out)
+  // must read differently, so they are not both "ಮುಕ್ತಾಯಗೊಂಡಿದೆ".
+  'Closed': 'ಮುಚ್ಚಲಾಗಿದೆ',
   'Draft': 'ಕರಡು',
   'Under Review': 'ಪರಿಶೀಲನೆಯಲ್ಲಿದೆ',
   'Shortlisted': 'ಶಾರ್ಟ್‌ಲಿಸ್ಟ್ ಮಾಡಲಾಗಿದೆ',
@@ -528,7 +530,7 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'Save 50% more time': '50% ಹೆಚ್ಚು ಸಮಯ ಉಳಿಸಿ',
   'All Filters': 'ಎಲ್ಲಾ ಫಿಲ್ಟರ್‌ಗಳು',
   'Under Admin Review': 'ಅಡ್ಮಿನ್ ಪರಿಶೀಲನೆಯಲ್ಲಿದೆ',
-  'Expired': 'ಮುಕ್ತಾಯಗೊಂಡಿದೆ',
+  'Expired': 'ಅವಧಿ ಮುಗಿದಿದೆ',
   'Select Plan': 'ಪ್ಲಾನ್ ಆಯ್ಕೆಮಾಡಿ',
   'Applied to job': 'ಉದ್ಯೋಗಕ್ಕೆ ಅರ್ಜಿ ಸಲ್ಲಿಸಲಾಗಿದೆ',
   'Active leads': 'ಸಕ್ರಿಯ ಲೀಡ್‌ಗಳು',
@@ -557,7 +559,661 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'All posted jobs have been reviewed!': 'ಎಲ್ಲಾ ಪೋಸ್ಟ್ ಮಾಡಿದ ಉದ್ಯೋಗಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗಿದೆ!',
   'Review & Approve': 'ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಅನುಮೋದಿಸಿ',
   'Employer Accounts': 'ಉದ್ಯೋಗದಾತ ಖಾತೆಗಳು',
-  'View All': 'ಎಲ್ಲವನ್ನೂ ನೋಡಿ'
+  'View All': 'ಎಲ್ಲವನ್ನೂ ನೋಡಿ',
+
+  // --------------------------------------------------------------------------
+  // English texts of the identifier keys in ENGLISH_CATALOG (admin portal,
+  // employer pages). Identifier keys resolve to English first, then to these.
+  // --------------------------------------------------------------------------
+  // Admin: applications
+  'Applications Audit Log': 'ಅರ್ಜಿಗಳ ಲೆಕ್ಕಪರಿಶೋಧನಾ ದಾಖಲೆ',
+  'Every driver application across all employers, with its current status': 'ಎಲ್ಲಾ ಉದ್ಯೋಗದಾತರಿಗೆ ಸಲ್ಲಿಸಿದ ಪ್ರತಿಯೊಂದು ಚಾಲಕ ಅರ್ಜಿ ಮತ್ತು ಅದರ ಪ್ರಸ್ತುತ ಸ್ಥಿತಿ',
+  'Search by driver, job or company…': 'ಚಾಲಕ, ಉದ್ಯೋಗ ಅಥವಾ ಕಂಪನಿಯ ಮೂಲಕ ಹುಡುಕಿ…',
+  'Loading…': 'ಲೋಡ್ ಆಗುತ್ತಿದೆ…',
+  'No results match your search or filters.': 'ನಿಮ್ಮ ಹುಡುಕಾಟ ಅಥವಾ ಫಿಲ್ಟರ್‌ಗಳಿಗೆ ಹೊಂದುವ ಫಲಿತಾಂಶಗಳಿಲ್ಲ.',
+  'No candidate applications yet': 'ಇನ್ನೂ ಯಾವುದೇ ಅಭ್ಯರ್ಥಿ ಅರ್ಜಿಗಳಿಲ್ಲ',
+  'Applied for': 'ಅರ್ಜಿ ಸಲ್ಲಿಸಿದ ಹುದ್ದೆ',
+  'Applied on': 'ಅರ್ಜಿ ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ',
+  'Scheduled interview': 'ನಿಗದಿತ ಸಂದರ್ಶನ',
+  'Could not load applications.': 'ಅರ್ಜಿಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ.',
+  'Retry': 'ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ',
+  'No applications with this status.': 'ಈ ಸ್ಥಿತಿಯ ಯಾವುದೇ ಅರ್ಜಿಗಳಿಲ್ಲ.',
+  'Filter applications by status': 'ಸ್ಥಿತಿಯ ಪ್ರಕಾರ ಅರ್ಜಿಗಳನ್ನು ಫಿಲ್ಟರ್ ಮಾಡಿ',
+  'Showing the newest {shown} of {total}.': 'ಒಟ್ಟು {total} ರಲ್ಲಿ ಇತ್ತೀಚಿನ {shown} ತೋರಿಸಲಾಗುತ್ತಿದೆ.',
+  // Admin: candidates & employers
+  'Candidate Moderation': 'ಅಭ್ಯರ್ಥಿಗಳ ಪರಿಶೀಲನೆ',
+  'Review registered drivers and block or unblock their accounts': 'ನೋಂದಾಯಿತ ಚಾಲಕರನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಅವರ ಖಾತೆಗಳನ್ನು ನಿರ್ಬಂಧಿಸಿ ಅಥವಾ ಅನಿರ್ಬಂಧಿಸಿ',
+  'Search by name, email, category or location…': 'ಹೆಸರು, ಇಮೇಲ್, ವರ್ಗ ಅಥವಾ ಸ್ಥಳದ ಮೂಲಕ ಹುಡುಕಿ…',
+  'No drivers have registered yet.': 'ಇನ್ನೂ ಯಾವುದೇ ಚಾಲಕರು ನೋಂದಾಯಿಸಿಲ್ಲ.',
+  'years experience': 'ವರ್ಷಗಳ ಅನುಭವ',
+  'Saving…': 'ಉಳಿಸಲಾಗುತ್ತಿದೆ…',
+  'Unblock account': 'ಖಾತೆಯ ನಿರ್ಬಂಧ ತೆಗೆದುಹಾಕಿ',
+  'Block driver': 'ಚಾಲಕರನ್ನು ನಿರ್ಬಂಧಿಸಿ',
+  'Block this driver?': 'ಈ ಚಾಲಕರನ್ನು ನಿರ್ಬಂಧಿಸಬೇಕೇ?',
+  '{name} will not be able to apply for jobs until you unblock the account.': 'ನೀವು ನಿರ್ಬಂಧ ತೆಗೆದುಹಾಕುವವರೆಗೆ {name} ಉದ್ಯೋಗಗಳಿಗೆ ಅರ್ಜಿ ಸಲ್ಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+  'Block account': 'ಖಾತೆಯನ್ನು ನಿರ್ಬಂಧಿಸಿ',
+  'Reason (optional)': 'ಕಾರಣ (ಐಚ್ಛಿಕ)',
+  'Why is this account being blocked?': 'ಈ ಖಾತೆಯನ್ನು ಏಕೆ ನಿರ್ಬಂಧಿಸಲಾಗುತ್ತಿದೆ?',
+  'Driver account blocked.': 'ಚಾಲಕರ ಖಾತೆಯನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ.',
+  'Driver account unblocked.': 'ಚಾಲಕರ ಖಾತೆಯ ನಿರ್ಬಂಧ ತೆಗೆದುಹಾಕಲಾಗಿದೆ.',
+  'The account status was not saved. Confirm your administrator access and database connection, then retry.': 'ಖಾತೆಯ ಸ್ಥಿತಿಯನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಅಡ್ಮಿನ್ ಪ್ರವೇಶ ಮತ್ತು ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕವನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  'Select': 'ಆಯ್ಕೆಮಾಡಿ',
+  'Clear search': 'ಹುಡುಕಾಟ ತೆರವುಗೊಳಿಸಿ',
+  'Fleet Accounts & Verification': 'ಫ್ಲೀಟ್ ಖಾತೆಗಳು ಮತ್ತು ಪರಿಶೀಲನೆ',
+  'Verify employer companies and manage their account access': 'ಉದ್ಯೋಗದಾತ ಕಂಪನಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಅವರ ಖಾತೆ ಪ್ರವೇಶವನ್ನು ನಿರ್ವಹಿಸಿ',
+  'Search by company, industry or city…': 'ಕಂಪನಿ, ಉದ್ಯಮ ಅಥವಾ ನಗರದ ಮೂಲಕ ಹುಡುಕಿ…',
+  'No employers have registered yet.': 'ಇನ್ನೂ ಯಾವುದೇ ಉದ್ಯೋಗದಾತರು ನೋಂದಾಯಿಸಿಲ್ಲ.',
+  'Company profile required': 'ಕಂಪನಿ ಪ್ರೊಫೈಲ್ ಅಗತ್ಯವಿದೆ',
+  'Revoke verified badge': 'ಪರಿಶೀಲಿತ ಬ್ಯಾಡ್ಜ್ ಹಿಂಪಡೆಯಿರಿ',
+  'Approve & verify company': 'ಕಂಪನಿಯನ್ನು ಅನುಮೋದಿಸಿ ಮತ್ತು ಪರಿಶೀಲಿಸಿ',
+  'Block employer': 'ಉದ್ಯೋಗದಾತರನ್ನು ನಿರ್ಬಂಧಿಸಿ',
+  'Block this employer?': 'ಈ ಉದ್ಯೋಗದಾತರನ್ನು ನಿರ್ಬಂಧಿಸಬೇಕೇ?',
+  '{name} will be blocked from employer features until you unblock the account.': 'ನೀವು ನಿರ್ಬಂಧ ತೆಗೆದುಹಾಕುವವರೆಗೆ {name} ಉದ್ಯೋಗದಾತರ ಸೌಲಭ್ಯಗಳನ್ನು ಬಳಸಲು ಸಾಧ್ಯವಿಲ್ಲ.',
+  'Employer account blocked.': 'ಉದ್ಯೋಗದಾತರ ಖಾತೆಯನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ.',
+  'Employer account unblocked.': 'ಉದ್ಯೋಗದಾತರ ಖಾತೆಯ ನಿರ್ಬಂಧ ತೆಗೆದುಹಾಕಲಾಗಿದೆ.',
+  'Company verified and listed.': 'ಕಂಪನಿಯನ್ನು ಪರಿಶೀಲಿಸಿ ಪಟ್ಟಿಗೆ ಸೇರಿಸಲಾಗಿದೆ.',
+  'Company verification revoked.': 'ಕಂಪನಿಯ ಪರಿಶೀಲನೆಯನ್ನು ಹಿಂಪಡೆಯಲಾಗಿದೆ.',
+  'The verification change was not saved. Confirm your administrator access and database connection, then retry.': 'ಪರಿಶೀಲನೆಯ ಬದಲಾವಣೆಯನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಅಡ್ಮಿನ್ ಪ್ರವೇಶ ಮತ್ತು ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕವನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  'Unverified': 'ಪರಿಶೀಲಿಸಲಾಗಿಲ್ಲ',
+  // Admin: dashboard
+  'Manage candidates': 'ಚಾಲಕರನ್ನು ನಿರ್ವಹಿಸಿ',
+  'Verify companies': 'ಕಂಪನಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ',
+  'Active Jobs': 'ಸಕ್ರಿಯ ಉದ್ಯೋಗಗಳು',
+  'Live on the portal': 'ಪೋರ್ಟಲ್‌ನಲ್ಲಿ ಲೈವ್ ಆಗಿವೆ',
+  'Requires action': 'ಕ್ರಮ ಅಗತ್ಯವಿದೆ',
+  'Documents': 'ದಾಖಲೆಗಳು',
+  'Companies': 'ಕಂಪನಿಗಳು',
+  'Pending jobs': 'ಬಾಕಿ ಇರುವ ಉದ್ಯೋಗಗಳು',
+  'Pending documents': 'ಬಾಕಿ ಇರುವ ದಾಖಲೆಗಳು',
+  'Unverified companies': 'ಪರಿಶೀಲಿಸದ ಕಂಪನಿಗಳು',
+  'Blocked accounts': 'ನಿರ್ಬಂಧಿತ ಖಾತೆಗಳು',
+  // Admin: documents
+  'Check uploaded licenses and IDs, then verify or reject each document': 'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಪರವಾನಗಿ ಮತ್ತು ಗುರುತಿನ ಚೀಟಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಪ್ರತಿ ದಾಖಲೆಯನ್ನು ದೃಢೀಕರಿಸಿ ಅಥವಾ ತಿರಸ್ಕರಿಸಿ',
+  'Refresh': 'ರಿಫ್ರೆಶ್ ಮಾಡಿ',
+  'Rejected': 'ತಿರಸ್ಕರಿಸಲಾಗಿದೆ',
+  'No documents found': 'ಯಾವುದೇ ದಾಖಲೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ',
+  'New driver uploads will appear here.': 'ಚಾಲಕರು ಹೊಸದಾಗಿ ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ದಾಖಲೆಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.',
+  'Uploaded': 'ಅಪ್‌ಲೋಡ್ ಮಾಡಲಾಗಿದೆ',
+  'date unavailable': 'ದಿನಾಂಕ ಲಭ್ಯವಿಲ್ಲ',
+  'View': 'ನೋಡಿ',
+  'Verify': 'ದೃಢೀಕರಿಸಿ',
+  'Reject': 'ತಿರಸ್ಕರಿಸಿ',
+  'Open document': 'ದಾಖಲೆ ತೆರೆಯಿರಿ',
+  'Opening…': 'ತೆರೆಯಲಾಗುತ್ತಿದೆ…',
+  'Could not open this document. Try again.': 'ಈ ದಾಖಲೆಯನ್ನು ತೆರೆಯಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  "This file was saved only on the driver's device and cannot be opened. Ask the driver to upload it again.": 'ಈ ಫೈಲ್ ಚಾಲಕರ ಸಾಧನದಲ್ಲಿ ಮಾತ್ರ ಉಳಿದಿದ್ದು ತೆರೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ. ಮತ್ತೆ ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಚಾಲಕರಿಗೆ ತಿಳಿಸಿ.',
+  'Your browser blocked the new tab. Tap the link to open the document.': 'ನಿಮ್ಮ ಬ್ರೌಸರ್ ಹೊಸ ಟ್ಯಾಬ್ ಅನ್ನು ತಡೆದಿದೆ. ದಾಖಲೆ ತೆರೆಯಲು ಲಿಂಕ್ ಒತ್ತಿರಿ.',
+  'Could not load the driver document queue.': 'ಚಾಲಕರ ದಾಖಲೆಗಳ ಪಟ್ಟಿಯನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ.',
+  'The review was not saved. Check your administrator access and connection, then retry.': 'ಪರಿಶೀಲನೆಯನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಅಡ್ಮಿನ್ ಪ್ರವೇಶ ಮತ್ತು ಸಂಪರ್ಕವನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  '{name} marked as verified.': '{name} ಅನ್ನು ಪರಿಶೀಲಿತ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ.',
+  '{name} marked as rejected.': '{name} ಅನ್ನು ತಿರಸ್ಕರಿಸಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ.',
+  'Filter documents by status': 'ಸ್ಥಿತಿಯ ಪ್ರಕಾರ ದಾಖಲೆಗಳನ್ನು ಫಿಲ್ಟರ್ ಮಾಡಿ',
+  // Admin: jobs
+  'Job Vacancies Moderation': 'ಉದ್ಯೋಗ ಹುದ್ದೆಗಳ ಪರಿಶೀಲನೆ',
+  'Approve, reject or close job listings posted by employers': 'ಉದ್ಯೋಗದಾತರು ಪೋಸ್ಟ್ ಮಾಡಿದ ಉದ್ಯೋಗಗಳನ್ನು ಅನುಮೋದಿಸಿ, ತಿರಸ್ಕರಿಸಿ ಅಥವಾ ಮುಚ್ಚಿ',
+  'No jobs in this category': 'ಈ ವಿಭಾಗದಲ್ಲಿ ಯಾವುದೇ ಉದ್ಯೋಗಗಳಿಲ್ಲ',
+  'All submissions here have been moderated.': 'ಇಲ್ಲಿನ ಎಲ್ಲಾ ಸಲ್ಲಿಕೆಗಳನ್ನು ಪರಿಶೀಲಿಸಲಾಗಿದೆ.',
+  'Posted': 'ಪೋಸ್ಟ್ ಮಾಡಲಾಗಿದೆ',
+  'Inspect': 'ಪರಿಶೀಲಿಸಿ',
+  'Approve & publish': 'ಅನುಮೋದಿಸಿ ಮತ್ತು ಪ್ರಕಟಿಸಿ',
+  'Suspend / Close': 'ಸ್ಥಗಿತಗೊಳಿಸಿ / ಮುಚ್ಚಿ',
+  'Moderation inspection': 'ಪರಿಶೀಲನಾ ವಿವರ',
+  'Category': 'ವರ್ಗ',
+  'Location': 'ಸ್ಥಳ',
+  'Salary': 'ವೇತನ',
+  'Shifts': 'ಶಿಫ್ಟ್‌ಗಳು',
+  'Job description': 'ಉದ್ಯೋಗ ವಿವರಣೆ',
+  'Approve job now': 'ಈಗ ಉದ್ಯೋಗವನ್ನು ಅನುಮೋದಿಸಿ',
+  'Job ID': 'ಉದ್ಯೋಗ ID',
+  'Expires': 'ಮುಕ್ತಾಯ',
+  'Reject job listing': 'ಉದ್ಯೋಗ ಪಟ್ಟಿಯನ್ನು ತಿರಸ್ಕರಿಸಿ',
+  'Reason for rejection': 'ತಿರಸ್ಕಾರದ ಕಾರಣ',
+  'For example: salary missing, duplicate listing, contact details in the description…': 'ಉದಾಹರಣೆಗೆ: ವೇತನ ನಮೂದಿಸಿಲ್ಲ, ನಕಲಿ ಪಟ್ಟಿ, ವಿವರಣೆಯಲ್ಲಿ ಸಂಪರ್ಕ ವಿವರಗಳು…',
+  'Required. The reason is saved in the moderation log, and any job credit used is returned to the employer.': 'ಕಡ್ಡಾಯ. ಕಾರಣವನ್ನು ಪರಿಶೀಲನಾ ದಾಖಲೆಯಲ್ಲಿ ಉಳಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಬಳಸಿದ ಉದ್ಯೋಗ ಕ್ರೆಡಿಟ್ ಉದ್ಯೋಗದಾತರಿಗೆ ಹಿಂತಿರುಗಿಸಲಾಗುತ್ತದೆ.',
+  'Enter a reason for rejecting this job.': 'ಈ ಉದ್ಯೋಗವನ್ನು ತಿರಸ್ಕರಿಸಲು ಕಾರಣವನ್ನು ನಮೂದಿಸಿ.',
+  'Reject job': 'ಉದ್ಯೋಗವನ್ನು ತಿರಸ್ಕರಿಸಿ',
+  'The job status was not saved. Confirm your administrator access and database connection, then retry.': 'ಉದ್ಯೋಗದ ಸ್ಥಿತಿಯನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಅಡ್ಮಿನ್ ಪ್ರವೇಶ ಮತ್ತು ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕವನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  'Job approved and published.': 'ಉದ್ಯೋಗವನ್ನು ಅನುಮೋದಿಸಿ ಪ್ರಕಟಿಸಲಾಗಿದೆ.',
+  'Job rejected.': 'ಉದ್ಯೋಗವನ್ನು ತಿರಸ್ಕರಿಸಲಾಗಿದೆ.',
+  'Remove from saved': 'ಉಳಿಸಿದ ಪಟ್ಟಿಯಿಂದ ತೆಗೆದುಹಾಕಿ',
+  '1 saved job is no longer accepting applications and is hidden.': 'ಉಳಿಸಿದ 1 ಉದ್ಯೋಗ ಈಗ ಅರ್ಜಿಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತಿಲ್ಲ, ಆದ್ದರಿಂದ ಮರೆಮಾಡಲಾಗಿದೆ.',
+  '{count} saved jobs are no longer accepting applications and are hidden.': 'ಉಳಿಸಿದ {count} ಉದ್ಯೋಗಗಳು ಈಗ ಅರ್ಜಿಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತಿಲ್ಲ, ಆದ್ದರಿಂದ ಮರೆಮಾಡಲಾಗಿದೆ.',
+  'Removing…': 'ತೆಗೆದುಹಾಕಲಾಗುತ್ತಿದೆ…',
+  'Job rejected, but the reason could not be saved in the moderation log.': 'ಉದ್ಯೋಗವನ್ನು ತಿರಸ್ಕರಿಸಲಾಗಿದೆ, ಆದರೆ ಕಾರಣವನ್ನು ಮಾಡರೇಶನ್ ಲಾಗ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಲಿಲ್ಲ.',
+  "We're Here to Help Drivers & Fleets": 'ಚಾಲಕರು ಮತ್ತು ಫ್ಲೀಟ್‌ಗಳಿಗೆ ಸಹಾಯ ಮಾಡಲು ನಾವಿದ್ದೇವೆ',
+  'Job listing closed.': 'ಉದ್ಯೋಗ ಪಟ್ಟಿಯನ್ನು ಮುಚ್ಚಲಾಗಿದೆ.',
+  // Admin: settings
+  'Moderate job listings': 'ಉದ್ಯೋಗ ಪಟ್ಟಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ',
+  'Review driver documents': 'ಚಾಲಕರ ದಾಖಲೆಗಳನ್ನು ಪರಿಶೀಲಿಸಿ',
+  'Manage driver accounts': 'ಚಾಲಕರ ಖಾತೆಗಳನ್ನು ನಿರ್ವಹಿಸಿ',
+  'Verify employer companies': 'ಉದ್ಯೋಗದಾತ ಕಂಪನಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ',
+  'Audit applications': 'ಅರ್ಜಿಗಳನ್ನು ಲೆಕ್ಕಪರಿಶೋಧಿಸಿ',
+  'Access & System Status': 'ಪ್ರವೇಶ ಮತ್ತು ವ್ಯವಸ್ಥೆಯ ಸ್ಥಿತಿ',
+  'Your administrator session, database connection and moderation workload. This page is read-only.': 'ನಿಮ್ಮ ಅಡ್ಮಿನ್ ಸೆಷನ್, ಡೇಟಾಬೇಸ್ ಸಂಪರ್ಕ ಮತ್ತು ಪರಿಶೀಲನಾ ಕಾರ್ಯಭಾರ. ಈ ಪುಟವನ್ನು ವೀಕ್ಷಿಸಲು ಮಾತ್ರ ಬಳಸಬಹುದು.',
+  'Refresh status': 'ಸ್ಥಿತಿ ರಿಫ್ರೆಶ್ ಮಾಡಿ',
+  'Live database access': 'ನೇರ ಡೇಟಾಬೇಸ್ ಪ್ರವೇಶ',
+  'Checking your sign-in and profile…': 'ನಿಮ್ಮ ಲಾಗಿನ್ ಮತ್ತು ಪ್ರೊಫೈಲ್ ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…',
+  'Account': 'ಖಾತೆ',
+  'Profile role': 'ಪ್ರೊಫೈಲ್ ಪಾತ್ರ',
+  'Account status': 'ಖಾತೆಯ ಸ್ಥಿತಿ',
+  'No account details available.': 'ಖಾತೆಯ ವಿವರಗಳು ಲಭ್ಯವಿಲ್ಲ.',
+  'Admin workflows': 'ಅಡ್ಮಿನ್ ಕಾರ್ಯಗಳು',
+  'Shortcuts to the moderation tools.': 'ಪರಿಶೀಲನಾ ಸಾಧನಗಳಿಗೆ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು.',
+  'Administrator access is granted in the database (profile role "admin"). This app has no editable platform settings; role and configuration changes are made in Supabase.': 'ಅಡ್ಮಿನ್ ಪ್ರವೇಶವನ್ನು ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ನೀಡಲಾಗುತ್ತದೆ (ಪ್ರೊಫೈಲ್ ಪಾತ್ರ "admin"). ಈ ಆ್ಯಪ್‌ನಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದಾದ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಲ್ಲ; ಪಾತ್ರ ಮತ್ತು ಸಂರಚನೆಯ ಬದಲಾವಣೆಗಳನ್ನು Supabase ನಲ್ಲಿ ಮಾಡಲಾಗುತ್ತದೆ.',
+  'System status': 'ವ್ಯವಸ್ಥೆಯ ಸ್ಥಿತಿ',
+  'Data source': 'ಡೇಟಾ ಮೂಲ',
+  'Live Supabase database': 'ನೇರ Supabase ಡೇಟಾಬೇಸ್',
+  'Demo data on this device': 'ಈ ಸಾಧನದಲ್ಲಿನ ಡೆಮೊ ಡೇಟಾ',
+  'Supabase is not configured for this deployment.': 'ಈ ಡಿಪ್ಲಾಯ್‌ಮೆಂಟ್‌ಗೆ Supabase ಸಂರಚಿಸಲಾಗಿಲ್ಲ.',
+  'Platform settings': 'ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
+  'There are no editable platform settings. This page saves nothing.': 'ಬದಲಾಯಿಸಬಹುದಾದ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಲ್ಲ. ಈ ಪುಟ ಏನನ್ನೂ ಉಳಿಸುವುದಿಲ್ಲ.',
+  'Moderation workload': 'ಪರಿಶೀಲನಾ ಕಾರ್ಯಭಾರ',
+  'Administrator access confirmed': 'ಅಡ್ಮಿನ್ ಪ್ರವೇಶ ದೃಢಪಟ್ಟಿದೆ',
+  'This account is not an active administrator.': 'ಈ ಖಾತೆ ಸಕ್ರಿಯ ಅಡ್ಮಿನ್ ಖಾತೆಯಲ್ಲ.',
+
+  // Employer pages (English texts of their identifier keys)
+  'Candidate Pipeline': 'ಅಭ್ಯರ್ಥಿಗಳ ಪೈಪ್‌ಲೈನ್',
+  'Review applicants for your vacancies and move them through each hiring stage': 'ನಿಮ್ಮ ಹುದ್ದೆಗಳ ಅರ್ಜಿದಾರರನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಪ್ರತಿ ನೇಮಕಾತಿ ಹಂತದಲ್ಲಿ ಮುಂದುವರಿಸಿ',
+  'Filter by vacancy': 'ಹುದ್ದೆಯ ಪ್ರಕಾರ ಫಿಲ್ಟರ್ ಮಾಡಿ',
+  'All jobs': 'ಎಲ್ಲಾ ಉದ್ಯೋಗಗಳು',
+  'candidates': 'ಅಭ್ಯರ್ಥಿಗಳು',
+  'Interview': 'ಸಂದರ್ಶನ',
+  'Selected': 'ಆಯ್ಕೆಯಾಗಿದ್ದಾರೆ',
+  'Applications from drivers will appear here.': 'ಚಾಲಕರ ಅರ್ಜಿಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.',
+  'Driver candidate': 'ಚಾಲಕ ಅಭ್ಯರ್ಥಿ',
+  'Experience': 'ಅನುಭವ',
+  'View details & manage': 'ವಿವರಗಳನ್ನು ನೋಡಿ ಮತ್ತು ನಿರ್ವಹಿಸಿ',
+  'Shortlist': 'ಶಾರ್ಟ್‌ಲಿಸ್ಟ್ ಮಾಡಿ',
+  'Candidate profile': 'ಅಭ್ಯರ್ಥಿಯ ಪ್ರೊಫೈಲ್',
+  'Call driver': 'ಚಾಲಕರಿಗೆ ಕರೆ ಮಾಡಿ',
+  'In-app chat': 'ಆ್ಯಪ್‌ನಲ್ಲಿ ಚಾಟ್',
+  'Phone': 'ಫೋನ್',
+  'Not specified': 'ನಮೂದಿಸಿಲ್ಲ',
+  'Applied date': 'ಅರ್ಜಿ ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ',
+  'Current status': 'ಪ್ರಸ್ತುತ ಸ್ಥಿತಿ',
+  'Verified driver details': 'ಪರಿಶೀಲಿತ ಚಾಲಕರ ವಿವರಗಳು',
+  'RTO verified': 'RTO ಪರಿಶೀಲಿಸಲಾಗಿದೆ',
+  'License number': 'ಪರವಾನಗಿ ಸಂಖ್ಯೆ',
+  'License type': 'ಪರವಾನಗಿ ಪ್ರಕಾರ',
+  'License expiry': 'ಪರವಾನಗಿ ಮುಕ್ತಾಯ ದಿನಾಂಕ',
+  'Stored securely in the cloud': 'ಕ್ಲೌಡ್‌ನಲ್ಲಿ ಸುರಕ್ಷಿತವಾಗಿ ಸಂಗ್ರಹಿಸಲಾಗಿದೆ',
+  'No documents uploaded yet.': 'ಇನ್ನೂ ಯಾವುದೇ ದಾಖಲೆಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿಲ್ಲ.',
+  'Uploaded on': 'ಅಪ್‌ಲೋಡ್ ದಿನಾಂಕ',
+  'Download': 'ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
+  'Application history with your company': 'ನಿಮ್ಮ ಕಂಪನಿಯಲ್ಲಿನ ಅರ್ಜಿ ಇತಿಹಾಸ',
+  'Tracked across all your vacancies': 'ನಿಮ್ಮ ಎಲ್ಲಾ ಹುದ್ದೆಗಳಲ್ಲಿ ದಾಖಲಿಸಲಾಗಿದೆ',
+  'Current': 'ಪ್ರಸ್ತುತ',
+  'Cover note from driver': 'ಚಾಲಕರ ಟಿಪ್ಪಣಿ',
+  'Update status & schedule': 'ಸ್ಥಿತಿ ನವೀಕರಿಸಿ ಮತ್ತು ಸಮಯ ನಿಗದಿಪಡಿಸಿ',
+  'Interview / driving trial slot': 'ಸಂದರ್ಶನ / ಚಾಲನಾ ಪರೀಕ್ಷೆಯ ಸಮಯ',
+  'Employer remarks': 'ಉದ್ಯೋಗದಾತರ ಟಿಪ್ಪಣಿಗಳು',
+  'Add notes for the driver, such as documents to bring or the trial location…': 'ತರಬೇಕಾದ ದಾಖಲೆಗಳು ಅಥವಾ ಪರೀಕ್ಷೆಯ ಸ್ಥಳದಂತಹ ಟಿಪ್ಪಣಿಗಳನ್ನು ಚಾಲಕರಿಗಾಗಿ ಸೇರಿಸಿ…',
+  'Shortlist candidate': 'ಅಭ್ಯರ್ಥಿಯನ್ನು ಶಾರ್ಟ್‌ಲಿಸ್ಟ್ ಮಾಡಿ',
+  'Schedule interview': 'ಸಂದರ್ಶನ ನಿಗದಿಪಡಿಸಿ',
+  'Select / Hire': 'ಆಯ್ಕೆಮಾಡಿ / ನೇಮಿಸಿ',
+  'Manage your hiring credits, billing profile and payment history': 'ನಿಮ್ಮ ನೇಮಕಾತಿ ಕ್ರೆಡಿಟ್ಸ್, ಬಿಲ್ಲಿಂಗ್ ಪ್ರೊಫೈಲ್ ಮತ್ತು ಪಾವತಿ ಇತಿಹಾಸವನ್ನು ನಿರ್ವಹಿಸಿ',
+  'Job Credits': 'ಉದ್ಯೋಗ ಕ್ರೆಡಿಟ್ಸ್',
+  'Database Unlocks': 'ಡೇಟಾಬೇಸ್ ಅನ್‌ಲಾಕ್‌ಗಳು',
+  'Verification pending': 'ಪರಿಶೀಲನೆ ಬಾಕಿ ಇದೆ',
+  'Company name': 'ಕಂಪನಿಯ ಹೆಸರು',
+  'Address': 'ವಿಳಾಸ',
+  'Add your GSTIN or ISD-GSTIN to claim GST input credit on DriverHub invoices.': 'DriverHub ಇನ್‌ವಾಯ್ಸ್‌ಗಳಲ್ಲಿ GST ಇನ್‌ಪುಟ್ ಕ್ರೆಡಿಟ್ ಪಡೆಯಲು ನಿಮ್ಮ GSTIN ಅಥವಾ ISD-GSTIN ಸೇರಿಸಿ.',
+  'Active plan': 'ಸಕ್ರಿಯ ಪ್ಲಾನ್',
+  'Date': 'ದಿನಾಂಕ',
+  'Save changes': 'ಬದಲಾವಣೆಗಳನ್ನು ಉಳಿಸಿ',
+  'DriverHub hiring plans': 'DriverHub ನೇಮಕಾತಿ ಪ್ಲಾನ್‌ಗಳು',
+  'Everything you need to hire drivers': 'ಚಾಲಕರನ್ನು ನೇಮಿಸಲು ಬೇಕಾದ ಎಲ್ಲವೂ',
+  'Choose job credits or a database plan that suits your hiring.': 'ನಿಮ್ಮ ನೇಮಕಾತಿಗೆ ಸೂಕ್ತವಾದ ಉದ್ಯೋಗ ಕ್ರೆಡಿಟ್ಸ್ ಅಥವಾ ಡೇಟಾಬೇಸ್ ಪ್ಲಾನ್ ಆಯ್ಕೆಮಾಡಿ.',
+  'Ideal for small teams': 'ಸಣ್ಣ ತಂಡಗಳಿಗೆ ಸೂಕ್ತ',
+  'For growing fleets': 'ಬೆಳೆಯುತ್ತಿರುವ ಫ್ಲೀಟ್‌ಗಳಿಗೆ',
+  'For larger hiring needs': 'ದೊಡ್ಡ ಪ್ರಮಾಣದ ನೇಮಕಾತಿಗೆ',
+  'Quarterly database plan for a single city': 'ಒಂದು ನಗರಕ್ಕೆ ತ್ರೈಮಾಸಿಕ ಡೇಟಾಬೇಸ್ ಪ್ಲಾನ್',
+  'Recommended': 'ಶಿಫಾರಸು ಮಾಡಲಾಗಿದೆ',
+  'list price': 'ಪಟ್ಟಿ ಬೆಲೆ',
+  'Valid for {days} days': '{days} ದಿನಗಳವರೆಗೆ ಮಾನ್ಯ',
+  'GST added at checkout': 'ಪಾವತಿಯ ಸಮಯದಲ್ಲಿ GST ಸೇರಿಸಲಾಗುತ್ತದೆ',
+  'driver job post credits': 'ಚಾಲಕ ಉದ್ಯೋಗ ಪೋಸ್ಟ್ ಕ್ರೆಡಿಟ್ಸ್',
+  'active job slot for 90 days': '90 ದಿನಗಳ ಸಕ್ರಿಯ ಉದ್ಯೋಗ ಸ್ಲಾಟ್',
+  'driver database unlocks': 'ಚಾಲಕ ಡೇಟಾಬೇಸ್ ಅನ್‌ಲಾಕ್‌ಗಳು',
+  'Choose any driver job type': 'ಯಾವುದೇ ಚಾಲಕ ಉದ್ಯೋಗ ಪ್ರಕಾರವನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+  'Receive driver applications and follow up in the app': 'ಚಾಲಕರ ಅರ್ಜಿಗಳನ್ನು ಸ್ವೀಕರಿಸಿ ಮತ್ತು ಆ್ಯಪ್‌ನಲ್ಲೇ ಮುಂದುವರಿಸಿ',
+  'Valid for': 'ಮಾನ್ಯತೆ',
+  'days': 'ದಿನಗಳು',
+  'View order': 'ಆರ್ಡರ್ ನೋಡಿ',
+  'Need just one credit?': 'ಕೇವಲ ಒಂದು ಕ್ರೆಡಿಟ್ ಬೇಕೇ?',
+  'Contact our sales team to buy a single job credit.': 'ಒಂದೇ ಉದ್ಯೋಗ ಕ್ರೆಡಿಟ್ ಖರೀದಿಸಲು ನಮ್ಮ ಸೇಲ್ಸ್ ತಂಡವನ್ನು ಸಂಪರ್ಕಿಸಿ.',
+  'Contact sales': 'ಸೇಲ್ಸ್ ಸಂಪರ್ಕಿಸಿ',
+  "A job credit is used when you publish a job and is returned if DriverHub rejects it. A database unlock is used when you unlock a driver's contact details.": 'ನೀವು ಉದ್ಯೋಗವನ್ನು ಪ್ರಕಟಿಸಿದಾಗ ಒಂದು ಉದ್ಯೋಗ ಕ್ರೆಡಿಟ್ ಬಳಕೆಯಾಗುತ್ತದೆ; DriverHub ಅದನ್ನು ತಿರಸ್ಕರಿಸಿದರೆ ಕ್ರೆಡಿಟ್ ಹಿಂತಿರುಗಿಸಲಾಗುತ್ತದೆ. ಚಾಲಕರ ಸಂಪರ್ಕ ವಿವರಗಳನ್ನು ಅನ್‌ಲಾಕ್ ಮಾಡಿದಾಗ ಒಂದು ಡೇಟಾಬೇಸ್ ಅನ್‌ಲಾಕ್ ಬಳಕೆಯಾಗುತ್ತದೆ.',
+  'Need a custom plan?': 'ವಿಶೇಷ ಪ್ಲಾನ್ ಬೇಕೇ?',
+  'Tell us about your locations and hiring volume and we will suggest a plan.': 'ನಿಮ್ಮ ಸ್ಥಳಗಳು ಮತ್ತು ನೇಮಕಾತಿ ಪ್ರಮಾಣದ ಬಗ್ಗೆ ತಿಳಿಸಿ, ನಾವು ಸೂಕ್ತ ಪ್ಲಾನ್ ಸೂಚಿಸುತ್ತೇವೆ.',
+  'FAQs': 'ಪದೇ ಪದೇ ಕೇಳುವ ಪ್ರಶ್ನೆಗಳು',
+  'How do job credits work?': 'ಉದ್ಯೋಗ ಕ್ರೆಡಿಟ್ಸ್ ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತವೆ?',
+  'Each credit publishes one driver job listing. If DriverHub rejects the listing, the credit is returned to your account.': 'ಪ್ರತಿ ಕ್ರೆಡಿಟ್‌ನಿಂದ ಒಂದು ಚಾಲಕ ಉದ್ಯೋಗ ಪಟ್ಟಿಯನ್ನು ಪ್ರಕಟಿಸಬಹುದು. DriverHub ಆ ಪಟ್ಟಿಯನ್ನು ತಿರಸ್ಕರಿಸಿದರೆ, ಕ್ರೆಡಿಟ್ ನಿಮ್ಮ ಖಾತೆಗೆ ಹಿಂತಿರುಗುತ್ತದೆ.',
+  'How can I reach more candidates?': 'ಹೆಚ್ಚು ಅಭ್ಯರ್ಥಿಗಳನ್ನು ಹೇಗೆ ತಲುಪಬಹುದು?',
+  'Give clear salary, location and license details in your job, and use database unlocks to contact matching drivers directly.': 'ನಿಮ್ಮ ಉದ್ಯೋಗದಲ್ಲಿ ವೇತನ, ಸ್ಥಳ ಮತ್ತು ಪರವಾನಗಿ ವಿವರಗಳನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ನೀಡಿ, ಮತ್ತು ಹೊಂದಾಣಿಕೆಯಾಗುವ ಚಾಲಕರನ್ನು ನೇರವಾಗಿ ಸಂಪರ್ಕಿಸಲು ಡೇಟಾಬೇಸ್ ಅನ್‌ಲಾಕ್‌ಗಳನ್ನು ಬಳಸಿ.',
+  'Order summary': 'ಆರ್ಡರ್ ಸಾರಾಂಶ',
+  'Subtotal': 'ಉಪಮೊತ್ತ',
+  'Total (incl. GST)': 'ಒಟ್ಟು (GST ಸೇರಿ)',
+  'Development test checkout': 'ಡೆವಲಪ್‌ಮೆಂಟ್ ಪರೀಕ್ಷಾ ಪಾವತಿ',
+  'No real payment is taken in this demo.': 'ಈ ಡೆಮೊದಲ್ಲಿ ಯಾವುದೇ ನೈಜ ಪಾವತಿ ತೆಗೆದುಕೊಳ್ಳಲಾಗುವುದಿಲ್ಲ.',
+  'Activate demo plan': 'ಡೆಮೊ ಪ್ಲಾನ್ ಸಕ್ರಿಯಗೊಳಿಸಿ',
+  'Online checkout is not available yet': 'ಆನ್‌ಲೈನ್ ಪಾವತಿ ಇನ್ನೂ ಲಭ್ಯವಿಲ್ಲ',
+  'No payment has been taken. Contact sales to buy this plan.': 'ಯಾವುದೇ ಪಾವತಿ ತೆಗೆದುಕೊಳ್ಳಲಾಗಿಲ್ಲ. ಈ ಪ್ಲಾನ್ ಖರೀದಿಸಲು ಸೇಲ್ಸ್ ತಂಡವನ್ನು ಸಂಪರ್ಕಿಸಿ.',
+  'Proceed to payment': 'ಪಾವತಿಗೆ ಮುಂದುವರಿಯಿರಿ',
+  'Details drivers see on your job listings and company page': 'ನಿಮ್ಮ ಉದ್ಯೋಗ ಪಟ್ಟಿಗಳು ಮತ್ತು ಕಂಪನಿ ಪುಟದಲ್ಲಿ ಚಾಲಕರು ನೋಡುವ ವಿವರಗಳು',
+  'Company details': 'ಕಂಪನಿ ವಿವರಗಳು',
+  'Website': 'ವೆಬ್‌ಸೈಟ್',
+  'About the company': 'ಕಂಪನಿಯ ಬಗ್ಗೆ',
+  'Available credits': 'ಲಭ್ಯವಿರುವ ಕ್ರೆಡಿಟ್ಸ್',
+  'jobs': 'ಉದ್ಯೋಗಗಳು',
+  'No jobs match this filter': 'ಈ ಫಿಲ್ಟರ್‌ಗೆ ಹೊಂದುವ ಉದ್ಯೋಗಗಳಿಲ್ಲ',
+  'Post a new job or choose another filter.': 'ಹೊಸ ಉದ್ಯೋಗ ಪೋಸ್ಟ್ ಮಾಡಿ ಅಥವಾ ಬೇರೆ ಫಿಲ್ಟರ್ ಆಯ್ಕೆಮಾಡಿ.',
+  'Posted on': 'ಪೋಸ್ಟ್ ದಿನಾಂಕ',
+  'Hiring lead': 'ನೇಮಕಾತಿ ಮುಖ್ಯಸ್ಥರು',
+  'mo': 'ತಿಂಗಳು',
+  'Your {category} job is live and receiving applications.': 'ನಿಮ್ಮ {category} ಉದ್ಯೋಗ ಲೈವ್ ಆಗಿದೆ ಮತ್ತು ಅರ್ಜಿಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತಿದೆ.',
+  'Finish and publish this job to start receiving applications.': 'ಅರ್ಜಿಗಳನ್ನು ಸ್ವೀಕರಿಸಲು ಈ ಉದ್ಯೋಗವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ ಪ್ರಕಟಿಸಿ.',
+  'Unlock matching drivers': 'ಹೊಂದಾಣಿಕೆಯಾಗುವ ಚಾಲಕರನ್ನು ಅನ್‌ಲಾಕ್ ಮಾಡಿ',
+  'All time': 'ಎಲ್ಲಾ ಅವಧಿ',
+  'Last': 'ಕಳೆದ',
+  'Download hiring reports for your applications and unlocked drivers': 'ನಿಮ್ಮ ಅರ್ಜಿಗಳು ಮತ್ತು ಅನ್‌ಲಾಕ್ ಮಾಡಿದ ಚಾಲಕರ ನೇಮಕಾತಿ ವರದಿಗಳನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
+  'Applications': 'ಅರ್ಜಿಗಳು',
+  'All applications received for your jobs ({count} records).': 'ನಿಮ್ಮ ಉದ್ಯೋಗಗಳಿಗೆ ಬಂದ ಎಲ್ಲಾ ಅರ್ಜಿಗಳು ({count} ದಾಖಲೆಗಳು).',
+  'Drivers whose contact details you have unlocked ({count} records).': 'ನೀವು ಸಂಪರ್ಕ ವಿವರಗಳನ್ನು ಅನ್‌ಲಾಕ್ ಮಾಡಿದ ಚಾಲಕರು ({count} ದಾಖಲೆಗಳು).',
+  "Can't find the data you need?": 'ನಿಮಗೆ ಬೇಕಾದ ಮಾಹಿತಿ ಸಿಗುತ್ತಿಲ್ಲವೇ?',
+
+  // English-text keys used across the app that had no Kannada entry
+  '{count} Yrs Exp': '{count} ವರ್ಷಗಳ ಅನುಭವ',
+  '{count} Years Exp': '{count} ವರ್ಷಗಳ ಅನುಭವ',
+  'License verified': 'ಪರವಾನಗಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ',
+  'Expected: ₹{amt}/mo': 'ನಿರೀಕ್ಷಿತ: ₹{amt}/ತಿಂಗಳು',
+  'View Candidate': 'ಅಭ್ಯರ್ಥಿಯನ್ನು ನೋಡಿ',
+  'Exp: {exp}': 'ಅನುಭವ: {exp}',
+  '{count} new': '{count} ಹೊಸ',
+  'Mark as read': 'ಓದಲಾಗಿದೆ ಎಂದು ಗುರುತಿಸಿ',
+  'Your changes are saved on this device, but could not be synced to the server. Check your connection and try saving again.': 'ನಿಮ್ಮ ಬದಲಾವಣೆಗಳನ್ನು ಈ ಸಾಧನದಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ, ಆದರೆ ಸರ್ವರ್‌ಗೆ ಸಿಂಕ್ ಮಾಡಲಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಉಳಿಸಲು ಪ್ರಯತ್ನಿಸಿ.',
+  'Heavy Motor Vehicle (HMV)': 'ಭಾರೀ ಮೋಟಾರು ವಾಹನ (HMV)',
+  'Light Motor Vehicle (LMV)': 'ಲಘು ಮೋಟಾರು ವಾಹನ (LMV)',
+  'Passwords do not match. Please verify and try again.': 'ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಹೊಂದಿಕೆಯಾಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  'Verified Fleet Employer': 'ಪರಿಶೀಲಿತ ಫ್ಲೀಟ್ ಉದ್ಯೋಗದಾತ',
+  'Why Choose DriverHub': 'DriverHub ಅನ್ನು ಏಕೆ ಆರಿಸಬೇಕು',
+  'View Jobs': 'ಉದ್ಯೋಗಗಳನ್ನು ನೋಡಿ',
+  'Enter the email for your account. We’ll send a secure recovery code.': 'ನಿಮ್ಮ ಖಾತೆಯ ಇಮೇಲ್ ನಮೂದಿಸಿ. ನಾವು ಸುರಕ್ಷಿತ ಮರುಪಡೆಯುವಿಕೆ ಕೋಡ್ ಕಳುಹಿಸುತ್ತೇವೆ.',
+  'The code is verified. Choose a new password for your account.': 'ಕೋಡ್ ಪರಿಶೀಲಿಸಲಾಗಿದೆ. ನಿಮ್ಮ ಖಾತೆಗೆ ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಆಯ್ಕೆಮಾಡಿ.',
+  'All Driver Types': 'ಎಲ್ಲಾ ಚಾಲಕ ಪ್ರಕಾರಗಳು',
+  'Live figures from active marketplace listings & verified records.': 'ಸಕ್ರಿಯ ಉದ್ಯೋಗ ಪಟ್ಟಿಗಳು ಮತ್ತು ಪರಿಶೀಲಿತ ದಾಖಲೆಗಳಿಂದ ನೇರ ಅಂಕಿಅಂಶಗಳು.',
+  'Explore by Vehicle & License Category': 'ವಾಹನ ಮತ್ತು ಪರವಾನಗಿ ವರ್ಗದ ಪ್ರಕಾರ ಅನ್ವೇಷಿಸಿ',
+  'Featured Driver Openings': 'ವಿಶೇಷ ಚಾಲಕ ಹುದ್ದೆಗಳು',
+  'Please log in as a driver to save jobs.': 'ಉದ್ಯೋಗಗಳನ್ನು ಉಳಿಸಲು ದಯವಿಟ್ಟು ಚಾಲಕರಾಗಿ ಲಾಗಿನ್ ಮಾಡಿ.',
+  'Could not update saved jobs. Check your connection and try again.': 'ಉಳಿಸಿದ ಉದ್ಯೋಗಗಳನ್ನು ನವೀಕರಿಸಲಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  'Save': 'ಉಳಿಸಿ',
+  'All India': 'ಸಂಪೂರ್ಣ ಭಾರತ',
+  'Filters ({count})': 'ಫಿಲ್ಟರ್‌ಗಳು ({count})',
+  'Active Filters ({count} Results):': 'ಸಕ್ರಿಯ ಫಿಲ್ಟರ್‌ಗಳು ({count} ಫಲಿತಾಂಶಗಳು):',
+  'Page {curr} of {total} ({count} Vacancies)': 'ಪುಟ {curr} / {total} ({count} ಹುದ್ದೆಗಳು)',
+  'Switch to {role} Sign In': '{role} ಲಾಗಿನ್‌ಗೆ ಬದಲಾಯಿಸಿ',
+  'Sign In as {role}': '{role} ಆಗಿ ಲಾಗಿನ್ ಮಾಡಿ',
+  'Register as {role}': '{role} ಆಗಿ ನೋಂದಾಯಿಸಿ',
+  'Years': 'ವರ್ಷಗಳು',
+  'Company profile incomplete': 'ಕಂಪನಿ ಪ್ರೊಫೈಲ್ ಅಪೂರ್ಣವಾಗಿದೆ'
+};
+
+// ============================================================================
+// ENGLISH CATALOG for identifier-style keys (camelCase / snake_case).
+// Most keys in this app are the English text itself; an identifier key (for
+// example approveAndPublish) must have an entry here so English, and the
+// Kannada fallback, never show the raw identifier. src/test/verify-i18n.ts
+// checks every literal key passed to t() in src against this catalog.
+// ============================================================================
+export const ENGLISH_CATALOG: Record<string, string> = {
+  // Shared statuses & actions
+  all: 'All',
+  active: 'Active',
+  pending: 'Pending',
+  draft: 'Draft',
+  closed: 'Closed',
+  expired: 'Expired',
+  rejected: 'Rejected',
+  verified: 'Verified',
+  unverified: 'Unverified',
+  blocked: 'Blocked',
+  applied: 'Applied',
+  underReview: 'Under Review',
+  shortlisted: 'Shortlisted',
+  interview: 'Interview',
+  selected: 'Selected',
+  withdrawn: 'Withdrawn',
+  success: 'Success',
+  loading: 'Loading…',
+  saving: 'Saving…',
+  refresh: 'Refresh',
+  retry: 'Retry',
+  view: 'View',
+  verify: 'Verify',
+  reject: 'Reject',
+  close: 'Close',
+  cancel: 'Cancel',
+  back: 'Back',
+  select: 'Select',
+  download: 'Download',
+  saveChanges: 'Save changes',
+  clearSearch: 'Clear search',
+  reasonOptional: 'Reason (optional)',
+
+  // Shared field labels
+  category: 'Category',
+  location: 'Location',
+  salary: 'Salary',
+  experience: 'Experience',
+  phone: 'Phone',
+  address: 'Address',
+  website: 'Website',
+  status: 'Status',
+  date: 'Date',
+  amount: 'Amount',
+  action: 'Action',
+  account: 'Account',
+  companyName: 'Company name',
+  contactPerson: 'Contact Person',
+  licenseNumber: 'License number',
+  licenseType: 'License type',
+  licenseExpiry: 'License expiry',
+  yearsExperience: 'years experience',
+  vacancies: 'Vacancies',
+  days: 'days',
+  jobsCount: 'jobs',
+  monthShort: 'mo',
+  candidates: 'candidates',
+  applications: 'Applications',
+  jobsLabel: 'Jobs',
+  documentsLabel: 'Documents',
+  companiesLabel: 'Companies',
+
+  // Admin: dashboard
+  superadminPortal: 'Superadmin Portal',
+  adminDashboardTitle: 'Driver Hub Administration & Moderation',
+  adminDashboardSubtitle: 'Real-time platform overview, moderation queues, and safety compliance audits',
+  reviewPendingJobs: 'Review Pending Jobs',
+  totalDrivers: 'Total Drivers',
+  manageCandidates: 'Manage candidates',
+  registeredFleets: 'Registered Fleets',
+  verifyCompanies: 'Verify companies',
+  activeJobs: 'Active Jobs',
+  liveOnPortal: 'Live on the portal',
+  pendingApprovals: 'Pending Approvals',
+  requiresAction: 'Requires action',
+  moderateQueue: 'Moderate Queue',
+  allJobsReviewed: 'All posted jobs have been reviewed!',
+  reviewAndApprove: 'Review & Approve',
+  employerAccounts: 'Employer Accounts',
+  viewAll: 'View All',
+  pendingJobs: 'Pending jobs',
+  pendingDocuments: 'Pending documents',
+  unverifiedCompanies: 'Unverified companies',
+  blockedAccounts: 'Blocked accounts',
+
+  // Admin: applications
+  globalApplicationsAuditLog: 'Applications Audit Log',
+  globalApplicationsSubtitle: 'Every driver application across all employers, with its current status',
+  searchApplicationsPlaceholder: 'Search by driver, job or company…',
+  noMatchingResults: 'No results match your search or filters.',
+  noCandidateApps: 'No candidate applications yet',
+  appliedFor: 'Applied for',
+  forEmployer: 'Employer',
+  appliedOn: 'Applied on',
+  scheduledInterview: 'Scheduled interview',
+  applicationsLoadFailed: 'Could not load applications.',
+  noApplicationsInFilter: 'No applications with this status.',
+  filterApplicationsByStatus: 'Filter applications by status',
+  showingNewest: 'Showing the newest {shown} of {total}.',
+  applicationId: 'Application ID',
+
+  // Admin: candidates
+  candidateModeration: 'Candidate Moderation',
+  candidateModerationSubtitle: 'Review registered drivers and block or unblock their accounts',
+  searchCandidatesPlaceholder: 'Search by name, email, category or location…',
+  noCandidatesFound: 'No drivers have registered yet.',
+  unblockAccount: 'Unblock account',
+  blockCandidate: 'Block driver',
+  blockDriverTitle: 'Block this driver?',
+  blockDriverBody: '{name} will not be able to apply for jobs until you unblock the account.',
+  confirmBlock: 'Block account',
+  blockReasonPlaceholder: 'Why is this account being blocked?',
+  driverBlockedNotice: 'Driver account blocked.',
+  driverUnblockedNotice: 'Driver account unblocked.',
+  accountUpdateFailed: 'The account status was not saved. Confirm your administrator access and database connection, then retry.',
+
+  // Admin: employers
+  fleetAccountsVerification: 'Fleet Accounts & Verification',
+  fleetAccountsSubtitle: 'Verify employer companies and manage their account access',
+  searchCompaniesPlaceholder: 'Search by company, industry or city…',
+  noEmployersFound: 'No employers have registered yet.',
+  companyProfileRequired: 'Company profile required',
+  revokeVerifiedBadge: 'Revoke verified badge',
+  approveVerifyCompany: 'Approve & verify company',
+  blockEmployer: 'Block employer',
+  blockEmployerTitle: 'Block this employer?',
+  blockEmployerBody: '{name} will be blocked from employer features until you unblock the account.',
+  employerBlockedNotice: 'Employer account blocked.',
+  employerUnblockedNotice: 'Employer account unblocked.',
+  verificationApprovedNotice: 'Company verified and listed.',
+  verificationRevokedNotice: 'Company verification revoked.',
+  verificationUpdateFailed: 'The verification change was not saved. Confirm your administrator access and database connection, then retry.',
+
+  // Admin: documents
+  driverDocReviews: 'Driver Document Reviews',
+  driverDocReviewsSubtitle: 'Check uploaded licenses and IDs, then verify or reject each document',
+  noDocumentsFound: 'No documents found',
+  newDriverUploadsAppearHere: 'New driver uploads will appear here.',
+  uploaded: 'Uploaded',
+  dateUnavailable: 'date unavailable',
+  openDocument: 'Open document',
+  opening: 'Opening…',
+  documentOpenFailed: 'Could not open this document. Try again.',
+  documentLocalOnly: "This file was saved only on the driver's device and cannot be opened. Ask the driver to upload it again.",
+  popupBlockedOpenLink: 'Your browser blocked the new tab. Tap the link to open the document.',
+  documentsLoadFailed: 'Could not load the driver document queue.',
+  reviewSaveFailed: 'The review was not saved. Check your administrator access and connection, then retry.',
+  documentMarkedVerified: '{name} marked as verified.',
+  documentMarkedRejected: '{name} marked as rejected.',
+  filterDocumentsByStatus: 'Filter documents by status',
+
+  // Admin: jobs
+  jobVacanciesModeration: 'Job Vacancies Moderation',
+  jobModerationSubtitle: 'Approve, reject or close job listings posted by employers',
+  noJobsInCategory: 'No jobs in this category',
+  allSubmissionsModerated: 'All submissions here have been moderated.',
+  posted: 'Posted',
+  inspect: 'Inspect',
+  approveAndPublish: 'Approve & publish',
+  suspendClose: 'Suspend / Close',
+  moderationInspection: 'Moderation inspection',
+  shifts: 'Shifts',
+  jobDescription: 'Job description',
+  approveJobNow: 'Approve job now',
+  jobId: 'Job ID',
+  expires: 'Expires',
+  rejectJobListing: 'Reject job listing',
+  rejectReasonLabel: 'Reason for rejection',
+  rejectReasonPlaceholder: 'For example: salary missing, duplicate listing, contact details in the description…',
+  rejectReasonHelp: 'Required. The reason is saved in the moderation log, and any job credit used is returned to the employer.',
+  rejectReasonRequired: 'Enter a reason for rejecting this job.',
+  confirmReject: 'Reject job',
+  jobUpdateFailed: 'The job status was not saved. Confirm your administrator access and database connection, then retry.',
+  jobApprovedNotice: 'Job approved and published.',
+  jobRejectedNotice: 'Job rejected.',
+  jobRejectedReasonNotSaved: 'Job rejected, but the reason could not be saved in the moderation log.',
+  jobClosedNotice: 'Job listing closed.',
+
+  // Admin: access & system status
+  moderateJobListings: 'Moderate job listings',
+  reviewDriverDocuments: 'Review driver documents',
+  manageDriverAccounts: 'Manage driver accounts',
+  verifyEmployerCompanies: 'Verify employer companies',
+  auditApplications: 'Audit applications',
+  adminAccountAccess: 'Access & System Status',
+  adminAccountAccessSubtitle: 'Your administrator session, database connection and moderation workload. This page is read-only.',
+  refreshAccessCheck: 'Refresh status',
+  liveSupabaseAccess: 'Live database access',
+  checkingAuthAndProfile: 'Checking your sign-in and profile…',
+  profileRole: 'Profile role',
+  accountStatus: 'Account status',
+  noAccountDetails: 'No account details available.',
+  adminWorkflows: 'Admin workflows',
+  adminWorkflowsSubtitle: 'Shortcuts to the moderation tools.',
+  adminRoleNotice: 'Administrator access is granted in the database (profile role "admin"). This app has no editable platform settings; role and configuration changes are made in Supabase.',
+  systemStatus: 'System status',
+  dataSource: 'Data source',
+  liveDatabase: 'Live Supabase database',
+  demoData: 'Demo data on this device',
+  supabaseNotConfigured: 'Supabase is not configured for this deployment.',
+  platformSettings: 'Platform settings',
+  noEditableSettings: 'There are no editable platform settings. This page saves nothing.',
+  moderationWorkload: 'Moderation workload',
+  accessConfirmed: 'Administrator access confirmed',
+  accessNotAdmin: 'This account is not an active administrator.',
+
+  // Employer: applications pipeline
+  candidatePipeline: 'Candidate Pipeline',
+  candidatePipelineDesc: 'Review applicants for your vacancies and move them through each hiring stage',
+  filterByVacancy: 'Filter by vacancy',
+  allJobs: 'All jobs',
+  appsWillAppearHere: 'Applications from drivers will appear here.',
+  driverCandidate: 'Driver candidate',
+  viewDetailsAndManage: 'View details & manage',
+  shortlist: 'Shortlist',
+  candidateProfile: 'Candidate profile',
+  callDriver: 'Call driver',
+  inAppChat: 'In-app chat',
+  notSpecified: 'Not specified',
+  appliedDate: 'Applied date',
+  currentStatus: 'Current status',
+  verifiedDriverSpecs: 'Verified driver details',
+  rtoVerified: 'RTO verified',
+  uploadedDocuments: 'Uploaded Documents',
+  cloudStorageEncrypted: 'Stored securely in the cloud',
+  noDocsUploadedYet: 'No documents uploaded yet.',
+  uploadedOn: 'Uploaded on',
+  companyAppHistory: 'Application history with your company',
+  trackedAcrossFleet: 'Tracked across all your vacancies',
+  current: 'Current',
+  coverNoteFromDriver: 'Cover note from driver',
+  updateStatusSchedule: 'Update status & schedule',
+  interviewTrialSlot: 'Interview / driving trial slot',
+  employerRemarks: 'Employer remarks',
+  employerRemarksPlaceholder: 'Add notes for the driver, such as documents to bring or the trial location…',
+  shortlistCandidate: 'Shortlist candidate',
+  scheduleInterview: 'Schedule interview',
+  selectHire: 'Select / Hire',
+
+  // Employer: billing
+  billing: 'Billing',
+  billingDesc: 'Manage your hiring credits, billing profile and payment history',
+  jobCredits: 'Job Credits',
+  dbUnlocks: 'Database Unlocks',
+  buyCreditsUpgrade: 'Buy Credits / Upgrade Plan',
+  billingProfile: 'Billing profile',
+  verificationPending: 'Verification pending',
+  updateGstin: 'Update GSTIN / ISD-GSTIN',
+  isdGstinNotice: 'Add your GSTIN or ISD-GSTIN to claim GST input credit on DriverHub invoices.',
+  billingHistory: 'Billing History',
+  activePlan: 'Active plan',
+  planDetails: 'Plan details',
+  appliesUntil: 'Applies until',
+  contactUs: 'Contact us',
+  driverHubHiringPlans: 'DriverHub hiring plans',
+  everythingToHireDrivers: 'Everything you need to hire drivers',
+  chooseCreditsOrSubscription: 'Choose job credits or a database plan that suits your hiring.',
+  idealForSmallTeams: 'Ideal for small teams',
+  forGrowingFleets: 'For growing fleets',
+  forLargerNeeds: 'For larger hiring needs',
+  quarterlyPlanSingleCity: 'Quarterly database plan for a single city',
+  recommended: 'Recommended',
+  listPrice: 'list price',
+  validForDays: 'Valid for {days} days',
+  gstAddedAtCheckout: 'GST added at checkout',
+  driverJobCreditsDesc: 'driver job post credits',
+  activeSlot90Days: 'active job slot for 90 days',
+  driverDbCreditsDesc: 'driver database unlocks',
+  chooseJobType: 'Choose any driver job type',
+  driverAppsFollowUp: 'Receive driver applications and follow up in the app',
+  validFor: 'Valid for',
+  viewOrder: 'View order',
+  needSingleCredit: 'Need just one credit?',
+  contactForOneCredit: 'Contact our sales team to buy a single job credit.',
+  contactSales: 'Contact sales',
+  creditUsageInfo: "A job credit is used when you publish a job and is returned if DriverHub rejects it. A database unlock is used when you unlock a driver's contact details.",
+  needCustomPlan: 'Need a custom plan?',
+  tellAboutLocations: 'Tell us about your locations and hiring volume and we will suggest a plan.',
+  faqs: 'FAQs',
+  faqCreditsWork: 'How do job credits work?',
+  faqCreditsAnswer: 'Each credit publishes one driver job listing. If DriverHub rejects the listing, the credit is returned to your account.',
+  faqMoreCandidates: 'How can I reach more candidates?',
+  faqMoreCandidatesAnswer: 'Give clear salary, location and license details in your job, and use database unlocks to contact matching drivers directly.',
+  orderSummary: 'Order summary',
+  subtotal: 'Subtotal',
+  totalInclGst: 'Total (incl. GST)',
+  devTestCheckout: 'Development test checkout',
+  noRealPaymentDemo: 'No real payment is taken in this demo.',
+  activateDemoPlan: 'Activate demo plan',
+  onlineCheckoutPending: 'Online checkout is not available yet',
+  noPaymentTaken: 'No payment has been taken. Contact sales to buy this plan.',
+  proceedToPayment: 'Proceed to payment',
+
+  // Employer: company profile
+  companyProfile: 'Company Profile',
+  companyProfileDesc: 'Details drivers see on your job listings and company page',
+  profileSaved: 'Profile Saved Successfully!',
+  companyDetails: 'Company details',
+  industrySector: 'Industry Sector',
+  companyLogoUrl: 'Company Logo URL',
+  aboutCompany: 'About the company',
+
+  // Employer: manage jobs
+  availableCredits: 'Available credits',
+  postNewJob: 'Post a new job',
+  startWithNewPost: 'Start with new post',
+  startWithNewPostDesc: 'Use our step-by-step blank form to create your driver job',
+  useJobTemplate: 'Use a job template',
+  useJobTemplateDesc: 'Save time and hire the right drivers using ready templates',
+  saveFiftyPercentTime: 'Save 50% more time',
+  allFilters: 'All Filters',
+  noJobsInFilter: 'No jobs match this filter',
+  createJobOrSwitchFilter: 'Post a new job or choose another filter.',
+  underAdminReview: 'Under Admin Review',
+  postedOn: 'Posted on',
+  hiringLead: 'Hiring lead',
+  approveAndMakeLive: 'Approve & Make Live',
+  instantApproveLive: 'Instant Approve Live',
+  viewApplicants: 'View Applicants',
+  viewPublicJobPage: 'View Public Job Page',
+  viewDatabaseMatches: 'View Database Matches',
+  viewApplications: 'View Applications',
+  closePauseJob: 'Close / Pause Job',
+  publishReopenJob: 'Publish / Reopen Job (1 Credit)',
+  appliedToJob: 'Applied to job',
+  activeLeads: 'Active leads',
+  databaseMatches: 'Database matches',
+  jobActiveReceivingApps: 'Your {category} job is live and receiving applications.',
+  finishJobPostingDesc: 'Finish and publish this job to start receiving applications.',
+  unlockMatchingDrivers: 'Unlock matching drivers',
+
+  // Employer: reports
+  downloadApplications: 'Download applications',
+  downloadAppsFromLast: 'Download applications from last {range}',
+  downloadAppsDesc: 'Download the driver applications received across all your active and closed jobs in one report ({count} records ready).',
+  allTime: 'All time',
+  lastDays: 'Last',
+  downloadNow: 'Download now',
+  reports: 'Reports',
+  reportsDesc: 'Download hiring reports for your applications and unlocked drivers',
+  applicationsReportDesc: 'All applications received for your jobs ({count} records).',
+  viewReport: 'View Report',
+  unlockedDrivers: 'Unlocked Database Drivers',
+  unlockedDriversDesc: 'Drivers whose contact details you have unlocked ({count} records).',
+  viewUnlockedDrivers: 'View Unlocked Drivers',
+  cantFindData: "Can't find the data you need?",
+  contactSalesTeam: 'Contact sales team'
 };
 
 // ============================================================================
@@ -585,11 +1241,63 @@ const DYNAMIC_RULES: Array<[RegExp, (...matches: string[]) => string]> = [
   [/^Switch to\s+(.+)\s+Sign In$/i, (_, role) => `${role} ಲಾಗಿನ್‌ಗೆ ಬದಲಾಯಿಸಿ`]
 ];
 
+const CAMEL_CASE_KEY = /^[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)+$/;
+const SNAKE_CASE_KEY = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$/;
+
+/** True for identifier-style keys (camelCase / snake_case) that are not English text themselves. */
+export function isIdentifierKey(key: string): boolean {
+  return CAMEL_CASE_KEY.test(key) || SNAKE_CASE_KEY.test(key);
+}
+
+/** Last-resort English for an unknown identifier key: "approveAndPublish" -> "Approve and publish". */
+export function humaniseKey(key: string): string {
+  const words = key
+    .replace(/_/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .trim()
+    .split(/\s+/)
+    .map(word => (/^[A-Z0-9]{2,}$/.test(word) ? word : word.toLowerCase()));
+  const sentence = words.join(' ');
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
+
+/** English text for a key: its EN catalog entry, the key itself, or a humanised identifier. */
+export function resolveEnglishText(key: string): string {
+  const trimmed = key.trim();
+  if (Object.prototype.hasOwnProperty.call(ENGLISH_CATALOG, trimmed)) return ENGLISH_CATALOG[trimmed];
+  return isIdentifierKey(trimmed) ? humaniseKey(trimmed) : trimmed;
+}
+
+function lookupKannada(text: string): string | undefined {
+  return Object.prototype.hasOwnProperty.call(KANNADA_CATALOG, text) ? KANNADA_CATALOG[text] : undefined;
+}
+
+function matchDynamicRule(text: string): string | undefined {
+  for (const [pattern, replacer] of DYNAMIC_RULES) {
+    const match = text.match(pattern);
+    if (match) return replacer(...match);
+  }
+  return undefined;
+}
+
+function interpolate(text: string, params?: Record<string, string | number>): string {
+  if (!params) return text;
+  let out = text;
+  for (const [paramKey, paramValue] of Object.entries(params)) {
+    out = out.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), () => String(paramValue));
+  }
+  return out;
+}
+
 /**
- * Clean parameterized translation function.
- * When lang is 'kn', looks up key in KANNADA_CATALOG or matches dynamic rules.
- * If not found, falls back gracefully to original English key.
- * Interpolates `{param}` placeholders if params are provided.
+ * Parameterized translation function.
+ * 1. The key is resolved to English: ENGLISH_CATALOG for identifier keys
+ *    (t('approveAndPublish')), the key itself for English-text keys, and a
+ *    humanised identifier as a last resort, so a raw key is never shown.
+ * 2. For 'kn', KANNADA_CATALOG is looked up by the key, then by its English
+ *    text, then the dynamic rules; if nothing matches, the English text is used.
+ * 3. `{param}` placeholders are interpolated.
  */
 export function translateText(
   key: string,
@@ -598,35 +1306,29 @@ export function translateText(
 ): string {
   if (!key) return key;
 
-  let text = key;
+  const trimmed = key.trim();
+  if (!trimmed) return key;
+  const english = resolveEnglishText(trimmed);
+  let text = english;
+  let translated = lang !== 'kn';
 
   if (lang === 'kn') {
-    const trimmed = key.trim();
-    if (KANNADA_CATALOG[trimmed]) {
-      text = key.replace(trimmed, KANNADA_CATALOG[trimmed]);
-    } else {
-      // Check dynamic patterns
-      let matched = false;
-      for (const [pattern, replacer] of DYNAMIC_RULES) {
-        const match = trimmed.match(pattern);
-        if (match) {
-          const result = replacer(...match);
-          text = key.replace(trimmed, result);
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
-        text = key;
-      }
+    const kannada = lookupKannada(trimmed) ?? lookupKannada(english) ?? matchDynamicRule(english);
+    if (kannada) {
+      text = kannada;
+      translated = true;
     }
   }
 
-  // Substitute {paramName}
-  if (params) {
-    for (const [paramKey, paramValue] of Object.entries(params)) {
-      text = text.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue));
-    }
+  // Keep any whitespace around the original key.
+  const resolved = text;
+  text = interpolate(key.replace(trimmed, () => resolved), params);
+
+  // Counts and amounts only exist after interpolation ("Filters (3)").
+  if (!translated && params) {
+    const core = text.trim();
+    const dynamic = matchDynamicRule(core);
+    if (dynamic) text = text.replace(core, () => dynamic);
   }
 
   return text;
@@ -663,7 +1365,7 @@ const LanguageContext = createContext<LanguageContextValue>({
   lang: 'en',
   setLang: () => {},
   toggleLang: () => {},
-  t: (key: string) => key
+  t: (key: string, params?: Record<string, string | number>) => translateText(key, 'en', params)
 });
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

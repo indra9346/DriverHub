@@ -1,18 +1,22 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  MapPin, IndianRupee, Briefcase, Heart, Building2, 
-  CheckCircle2, ArrowUpRight, ShieldCheck 
+import {
+  MapPin, IndianRupee, Briefcase, Heart, Building2,
+  CheckCircle2, ArrowUpRight, ShieldCheck
 } from 'lucide-react';
 import { Job } from '../../types';
+import { DataStore } from '../../services/store';
 import { useLanguage, formatSalaryDisplay } from '../../services/i18n';
 import { getJobCardBanner } from '../../services/cardBanners';
 
 interface JobCardProps {
   job: Job;
   isSaved?: boolean;
+  /** Pass only when the viewer may save (drivers) or should be sent to sign in. */
   onToggleSave?: (jobId: string) => void | Promise<void>;
   isApplied?: boolean;
+  /** Defaults to the cached employer's verification status. */
+  employerVerified?: boolean;
 }
 
 export const JobCard: React.FC<JobCardProps> = ({
@@ -20,9 +24,13 @@ export const JobCard: React.FC<JobCardProps> = ({
   isSaved = false,
   onToggleSave,
   isApplied = false,
+  employerVerified,
 }) => {
   const { t, lang } = useLanguage();
   const banner = getJobCardBanner(job);
+  // The badge is shown only for employers an administrator has verified.
+  const isEmployerVerified = employerVerified ?? Boolean(DataStore.getEmployerById(job.employerId)?.verified);
+  const employerJobsLink = `/jobs?employer=${encodeURIComponent(job.employerId)}`;
 
   return (
     <div className="group relative rounded-2xl overflow-hidden border border-slate-800/80 hover:border-slate-700 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-5 bg-slate-950 focus-within:ring-2 focus-within:ring-emerald-500">
@@ -40,9 +48,10 @@ export const JobCard: React.FC<JobCardProps> = ({
       <div className="relative z-10 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <Link
-            to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
+            to={employerJobsLink}
             title={`View all jobs from ${job.companyName}`}
-            className="w-9 h-9 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 p-1 flex items-center justify-center shrink-0 overflow-hidden hover:border-emerald-400 transition-colors"
+            aria-label={`View all jobs from ${job.companyName}`}
+            className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 p-1 flex items-center justify-center shrink-0 overflow-hidden hover:border-emerald-400 transition-colors"
           >
             {job.companyLogo ? (
               <img
@@ -59,13 +68,15 @@ export const JobCard: React.FC<JobCardProps> = ({
           </Link>
           <div className="min-w-0">
             <Link
-              to={`/jobs?q=${encodeURIComponent(job.companyName)}`}
-              className="text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-1 transition-colors truncate"
+              to={employerJobsLink}
+              className="min-h-[40px] text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-1 transition-colors truncate"
             >
               <span className="truncate">{job.companyName}</span>
-              <span title={t('Verified Employer')}>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              </span>
+              {isEmployerVerified && (
+                <span title={t('Verified Employer')}>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-label={t('Verified Employer')} />
+                </span>
+              )}
             </Link>
           </div>
         </div>
@@ -84,13 +95,13 @@ export const JobCard: React.FC<JobCardProps> = ({
               }}
               title={isSaved ? 'Remove from saved' : 'Save job'}
               aria-label={isSaved ? 'Remove from saved' : 'Save job'}
-              className={`p-1.5 rounded-lg backdrop-blur-md transition-all cursor-pointer border ${
+              className={`inline-flex items-center justify-center w-10 h-10 rounded-xl backdrop-blur-md transition-all cursor-pointer border ${
                 isSaved
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md'
                   : 'bg-white/10 text-white/80 hover:text-amber-400 hover:bg-white/20 border-white/15'
               }`}
             >
-              <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-slate-950' : ''}`} />
+              <Heart className={`w-4 h-4 ${isSaved ? 'fill-slate-950' : ''}`} />
             </button>
           )}
         </div>
@@ -101,7 +112,7 @@ export const JobCard: React.FC<JobCardProps> = ({
         <div>
           <Link
             to={`/jobs/${job.id}`}
-            className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors font-display line-clamp-1 block"
+            className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors font-display line-clamp-2 break-words block"
           >
             {job.title}
           </Link>
@@ -140,14 +151,14 @@ export const JobCard: React.FC<JobCardProps> = ({
             <span className="truncate">{job.location}</span>
           </div>
 
-          <div className="flex items-center gap-1 text-slate-300">
+          <div className="flex items-center gap-1 text-slate-300 min-w-0">
             <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
-            <span>{t('Exp: {exp}', { exp: job.experienceRequired })}</span>
+            <span className="truncate">{t('Exp: {exp}', { exp: job.experienceRequired || 'Not specified' })}</span>
           </div>
         </div>
 
         {job.description && (
-          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed break-words">
             {job.description}
           </p>
         )}
@@ -172,7 +183,7 @@ export const JobCard: React.FC<JobCardProps> = ({
           ) : (
             <Link
               to={`/jobs/${job.id}`}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white/90 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white/90 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"
               title={t('View Job')}
               aria-label={`${t('View Job')} ${job.title}`}
             >

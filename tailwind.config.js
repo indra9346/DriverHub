@@ -22,13 +22,37 @@ export default {
           bg: '#F5F8FB',
           emerald: '#10B981',
           danger: '#EF4444',
+          // Kebab-case aliases: pages use bg-brand-navy-light etc.
+          'navy-dark': '#051626',
+          'navy-light': '#0B2947',
+          'blue-light': '#245987',
+          'blue-accent': '#0066CC',
+          'amber-light': '#FFB51B',
+          'amber-dark': '#D97706',
         }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         display: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
       },
+      // Tailwind 4 scale steps the codebase uses that Tailwind 3.4 lacks
+      // (values match Tailwind 4): shadow-2xs/xs, backdrop-blur-xs,
+      // rounded-*-xs, border-*-3 and py-0.2.
+      spacing: {
+        '0.2': '0.05rem',
+      },
+      borderWidth: {
+        '3': '3px',
+      },
+      borderRadius: {
+        'xs': '0.125rem',
+      },
+      backdropBlur: {
+        'xs': '4px',
+      },
       boxShadow: {
+        '2xs': '0 1px rgb(0 0 0 / 0.05)',
+        'xs': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
         'subtle': '0 1px 3px 0 rgba(8, 35, 63, 0.05), 0 1px 2px -1px rgba(8, 35, 63, 0.05)',
         'card': '0 4px 16px -2px rgba(8, 35, 63, 0.06), 0 2px 6px -2px rgba(8, 35, 63, 0.04)',
         'elevated': '0 12px 30px -4px rgba(8, 35, 63, 0.10), 0 4px 12px -2px rgba(8, 35, 63, 0.05)',

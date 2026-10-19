@@ -34,34 +34,34 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 font-display">
               {t('Driver Categories')}
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-0 sm:space-y-2.5 text-xs">
               <li>
-                <Link to="/jobs?category=HMV" className="hover:text-amber-400 transition-colors">
+                <Link to="/jobs?category=HMV" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Heavy Truck (HMV)')}
                 </Link>
               </li>
               <li>
-                <Link to="/jobs?category=LMV" className="hover:text-amber-400 transition-colors">
+                <Link to="/jobs?category=LMV" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Personal & Sedan Chauffeur')}
                 </Link>
               </li>
               <li>
-                <Link to="/jobs?category=Cab+Driver" className="hover:text-amber-400 transition-colors">
+                <Link to="/jobs?category=Cab+Driver" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('App-based Cab Driver')}
                 </Link>
               </li>
               <li>
-                <Link to="/jobs?category=Delivery+Driver" className="hover:text-amber-400 transition-colors">
+                <Link to="/jobs?category=Delivery+Driver" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Hyperlocal Delivery Pilot')}
                 </Link>
               </li>
               <li>
-                <Link to="/jobs?category=Bus+Driver" className="hover:text-amber-400 transition-colors">
+                <Link to="/jobs?category=Bus+Driver" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('School & Staff Bus Driver')}
                 </Link>
               </li>
               <li>
-                <Link to="/jobs?category=Trailer+Driver" className="hover:text-amber-400 transition-colors">
+                <Link to="/jobs?category=Trailer+Driver" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('40ft Container Trailer Driver')}
                 </Link>
               </li>
@@ -73,39 +73,39 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 font-display">
               {t('Recruitment Portals')}
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-0 sm:space-y-2.5 text-xs">
               <li>
-                <Link to="/jobs" className="hover:text-amber-400 transition-colors">
+                <Link to="/jobs" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Search All Vacancies')}
                 </Link>
               </li>
               <li>
-                <Link to="/companies" className="hover:text-amber-400 transition-colors">
+                <Link to="/companies" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Verified Companies')}
                 </Link>
               </li>
               <li>
-                <Link to="/employer/post-job" className="hover:text-amber-400 transition-colors">
+                <Link to="/employer/post-job" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Post Driver Vacancy')}
                 </Link>
               </li>
               <li>
-                <Link to="/register" className="hover:text-amber-400 transition-colors">
+                <Link to="/register?role=driver" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Join as a Candidate')}
                 </Link>
               </li>
               <li>
-                <Link to="/login" className="hover:text-amber-400 transition-colors">
+                <Link to="/login?role=employer" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('Employer Sign In')}
                 </Link>
               </li>
               <li>
-                <Link to="/login?role=admin" className="text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold">
+                <Link to="/login?role=admin" className="text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1 font-semibold min-h-[40px] sm:min-h-0">
                   <ShieldCheck className="w-3.5 h-3.5" /> {t('Staff & Admin Portal')}
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-amber-400 transition-colors">
+                <Link to="/safety" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
                   {t('About Safety & Welfare')}
                 </Link>
               </li>
@@ -120,17 +120,17 @@ export const Footer: React.FC = () => {
             <div className="space-y-3 text-xs text-slate-400">
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <span>Electronic City Phase 1, Bengaluru, Karnataka - 560100</span>
+                <span className="break-words min-w-0">Electronic City Phase 1, Bengaluru, Karnataka - 560100</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <a href="tel:+918022008899" className="hover:text-white transition-colors">
+                <a href="tel:+918022008899" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-white transition-colors break-all">
                   +91 80 2200 8899
                 </a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-amber-400 shrink-0" />
-                <a href="mailto:support@driverhub.in" className="hover:text-white transition-colors">
+                <a href="mailto:support@driverhub.in" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-white transition-colors break-all">
                   support@driverhub.in
                 </a>
               </div>
@@ -144,10 +144,10 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright & attribution */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© {new Date().getFullYear()} Driver Hub Inc. {t('All rights reserved.')}</p>
-          <div className="flex items-center flex-wrap justify-center gap-5 text-xs">
-            <Link to="/about" className="hover:text-slate-400">{t('Privacy Policy')}</Link>
-            <Link to="/about" className="hover:text-slate-400">{t('Terms of Service')}</Link>
-            <Link to="/contact" className="hover:text-slate-400">{t('Driver Welfare')}</Link>
+          <div className="flex items-center flex-wrap justify-center gap-x-5 gap-y-0 text-xs">
+            <Link to="/privacy" className="inline-flex items-center min-h-[40px] hover:text-slate-400">{t('Privacy Policy')}</Link>
+            <Link to="/terms" className="inline-flex items-center min-h-[40px] hover:text-slate-400">{t('Terms of Service')}</Link>
+            <Link to="/safety" className="inline-flex items-center min-h-[40px] hover:text-slate-400">{t('Driver Welfare')}</Link>
           </div>
         </div>
 

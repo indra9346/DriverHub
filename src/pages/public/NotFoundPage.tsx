@@ -8,7 +8,7 @@ export const NotFoundPage: React.FC = () => {
 
   return (
     <div className="min-h-[72vh] bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-16">
-      <div className="max-w-xl w-full bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-8 sm:p-12 text-center">
+      <div className="max-w-xl w-full min-w-0 bg-white rounded-3xl border border-slate-200/80 shadow-xl shadow-slate-200/50 p-6 sm:p-12 text-center">
         <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200/70 text-amber-600 flex items-center justify-center mx-auto mb-6 shadow-sm">
           <Compass className="w-8 h-8" />
         </div>
@@ -22,7 +22,7 @@ export const NotFoundPage: React.FC = () => {
         </h1>
 
         <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-6">
-          The page <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-mono text-xs">{location.pathname}{location.search}</code> is unavailable or may have been moved. You can browse verified driver vacancies across India or return to the homepage.
+          The page <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-mono text-xs break-all [overflow-wrap:anywhere]">{location.pathname}{location.search}</code> is unavailable or may have been moved. You can browse verified driver vacancies across India or return to the homepage.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">

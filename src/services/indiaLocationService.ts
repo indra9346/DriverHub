@@ -836,6 +836,140 @@ function extractPrimaryName(label: string): string {
   return (match ? match[1] : label).trim();
 }
 
+/** Matches a trailing "Dist." / "District" marker added by formatStructuredLocation. */
+const DIST_SUFFIX = /\s*\b(?:dist\.?|district)\s*$/i;
+
+function stripDistrictSuffix(name: string): string {
+  return (name || '').replace(DIST_SUFFIX, '').trim();
+}
+
+/** Older / postal names of States & UTs (normalised) -> directory key. */
+const STATE_NAME_ALIASES: Record<string, string> = {
+  'delhi': 'Delhi NCR',
+  'new delhi': 'Delhi NCR',
+  'nct of delhi': 'Delhi NCR',
+  'nct delhi': 'Delhi NCR',
+  'national capital territory of delhi': 'Delhi NCR',
+  'j and k': 'Jammu & Kashmir',
+  'andaman and nicobar islands': 'Andaman & Nicobar',
+  'orissa': 'Odisha',
+  'pondicherry': 'Puducherry',
+  'uttaranchal': 'Uttarakhand',
+  'chattisgarh': 'Chhattisgarh',
+  'chhatisgarh': 'Chhattisgarh',
+  'telengana': 'Telangana',
+  'tamilnadu': 'Tamil Nadu',
+  'dadra and nagar haveli': 'Dadra and Nagar Haveli and Daman and Diu',
+  'daman and diu': 'Dadra and Nagar Haveli and Daman and Diu'
+};
+
+/**
+ * Returns the directory key for a State / UT name (accepting India Post and
+ * older spellings such as "Delhi", "Orissa", "Pondicherry"), or '' when the
+ * name is not a State / UT. Never matches on substrings ("Goa" is not "Goalpara").
+ */
+export function canonicalStateName(raw?: string): string {
+  const norm = normalizeName(raw || '');
+  if (!norm) return '';
+  for (const key of Object.keys(STATE_DISTRICTS_DIRECTORY)) {
+    if (normalizeName(key) === norm) return key;
+  }
+  return STATE_NAME_ALIASES[norm] || '';
+}
+
+/**
+ * India Post and older records still use pre-rename district names. Maps the
+ * normalised old name to the normalised primary name used by the directory.
+ */
+const DISTRICT_NAME_ALIASES: Record<string, string> = {
+  'bangalore': 'bengaluru urban',
+  'bangalore urban': 'bengaluru urban',
+  'bengaluru': 'bengaluru urban',
+  'bangalore rural': 'bengaluru rural',
+  'mysore': 'mysuru',
+  'belgaum': 'belagavi',
+  'bellary': 'ballari',
+  'gulbarga': 'kalaburagi',
+  'bijapur': 'vijayapura',
+  'shimoga': 'shivamogga',
+  'tumkur': 'tumakuru',
+  'chikmagalur': 'chikkamagaluru',
+  'chickmagalur': 'chikkamagaluru',
+  'chikkamagalur': 'chikkamagaluru',
+  'bagalkot': 'bagalkote',
+  'chamrajnagar': 'chamarajanagar',
+  'chamarajnagar': 'chamarajanagar',
+  'chikkaballapura': 'chikkaballapur',
+  'chickballapur': 'chikkaballapur',
+  'chikballapur': 'chikkaballapur',
+  'ramanagar': 'ramanagara',
+  'davangere': 'davanagere',
+  'hubli': 'dharwad',
+  'hubli dharwad': 'dharwad',
+  'hubballi dharwad': 'dharwad',
+  'mangalore': 'dakshina kannada',
+  'karwar': 'uttara kannada',
+  'coorg': 'kodagu',
+  'hospet': 'vijayanagara',
+  'gurgaon': 'gurugram',
+  'mewat': 'nuh',
+  'trivandrum': 'thiruvananthapuram',
+  'calicut': 'kozhikode'
+};
+
+const districtVariantCache = new Map<string, string[]>();
+
+/**
+ * All normalised names a district can be known by: its primary name, the
+ * alternate names in parentheses ("Dharwad (Hubballi)") and known old names.
+ * The first entry is always the primary name.
+ */
+function districtNameVariants(name: string): string[] {
+  const raw = stripDistrictSuffix(name);
+  if (!raw) return [];
+  const cached = districtVariantCache.get(raw);
+  if (cached) return cached;
+  const out = new Set<string>();
+  const primary = normalizeName(extractPrimaryName(raw));
+  if (primary) out.add(primary);
+  const full = normalizeName(raw);
+  if (full) out.add(full);
+  const paren = raw.match(/\(([^)]+)\)/);
+  if (paren) {
+    for (const alt of paren[1].split('/')) {
+      const normAlt = normalizeName(alt);
+      if (normAlt) out.add(normAlt);
+    }
+  }
+  for (const variant of Array.from(out)) {
+    const alias = DISTRICT_NAME_ALIASES[variant];
+    if (alias) out.add(alias);
+  }
+  const result = Array.from(out);
+  districtVariantCache.set(raw, result);
+  return result;
+}
+
+/**
+ * Maps any district spelling (directory label, India Post name, old name) to
+ * the directory label for that State, e.g. ("Karnataka", "Bangalore") ->
+ * "Bengaluru Urban". Returns '' when there is no confident match.
+ */
+export function matchDirectoryDistrict(stateName: string | undefined, rawDistrict: string | undefined): string {
+  const variants = districtNameVariants(rawDistrict || '');
+  if (variants.length === 0) return '';
+  const pool = stateName && stateName.trim()
+    ? getDistrictsForState(stateName)
+    : Object.values(STATE_DISTRICTS_DIRECTORY).flatMap(meta => meta.districts);
+  // Prefer a district whose primary name matches, then one known by an alternate name.
+  const byPrimary = pool.find(d => {
+    const primary = districtNameVariants(d)[0];
+    return Boolean(primary) && variants.includes(primary);
+  });
+  if (byPrimary) return byPrimary;
+  return pool.find(d => districtNameVariants(d).some(v => variants.includes(v))) || '';
+}
+
 export function getAllStatesAndUTs(): string[] {
   return Object.keys(STATE_DISTRICTS_DIRECTORY).sort((a, b) => a.localeCompare(b));
 }
@@ -845,9 +979,14 @@ export function getDistrictsForState(stateName: string): string[] {
   const exact = STATE_DISTRICTS_DIRECTORY[stateName];
   if (exact) return exact.districts;
 
+  const canonical = canonicalStateName(stateName);
+  if (canonical) return STATE_DISTRICTS_DIRECTORY[canonical].districts;
+
   const norm = normalizeName(stateName);
+  // x.includes('') is always true: never fuzzy-match an empty or very short name.
+  if (norm.length < 4) return [];
   for (const [key, val] of Object.entries(STATE_DISTRICTS_DIRECTORY)) {
-    if (normalizeName(key) === norm || normalizeName(key).includes(norm) || norm.includes(normalizeName(key))) {
+    if (normalizeName(key).includes(norm) || norm.includes(normalizeName(key))) {
       return val.districts;
     }
   }
@@ -859,12 +998,7 @@ export function getDistrictsForState(stateName: string): string[] {
  */
 export function isDistrictInState(stateName: string, districtName: string): boolean {
   if (!stateName || !districtName) return false;
-  const districts = getDistrictsForState(stateName);
-  const normDist = normalizeName(extractPrimaryName(districtName));
-  return districts.some(d => {
-    const nd = normalizeName(extractPrimaryName(d));
-    return nd === normDist || normalizeName(d) === normalizeName(districtName);
-  });
+  return Boolean(matchDirectoryDistrict(stateName, districtName));
 }
 
 /**
@@ -872,13 +1006,42 @@ export function isDistrictInState(stateName: string, districtName: string): bool
  */
 export function findStateForDistrict(districtName: string): string | null {
   if (!districtName) return null;
-  const normDist = normalizeName(extractPrimaryName(districtName));
+  const variants = districtNameVariants(districtName);
+  if (variants.length === 0) return null;
   for (const [st, meta] of Object.entries(STATE_DISTRICTS_DIRECTORY)) {
-    if (meta.districts.some(d => normalizeName(extractPrimaryName(d)) === normDist || normalizeName(d) === normalizeName(districtName))) {
-      return st;
-    }
+    if (meta.districts.some(d => variants.includes(districtNameVariants(d)[0]))) return st;
+  }
+  for (const [st, meta] of Object.entries(STATE_DISTRICTS_DIRECTORY)) {
+    if (meta.districts.some(d => districtNameVariants(d).some(v => variants.includes(v)))) return st;
   }
   return null;
+}
+
+/** Common old / alternate city spellings, compared as normalised words. */
+const CITY_ALIAS_GROUPS: string[][] = [
+  ['bengaluru', 'bangalore'], ['mysuru', 'mysore'], ['mangaluru', 'mangalore'], ['hubballi', 'hubli'],
+  ['belagavi', 'belgaum'], ['kalaburagi', 'gulbarga'], ['shivamogga', 'shimoga'], ['tumakuru', 'tumkur'],
+  ['ballari', 'bellary'], ['vijayapura', 'bijapur'], ['hosapete', 'hospet'], ['mumbai', 'bombay'],
+  ['chennai', 'madras'], ['kolkata', 'calcutta'], ['pune', 'poona'], ['gurugram', 'gurgaon'],
+  ['thiruvananthapuram', 'trivandrum'], ['kochi', 'cochin'], ['kozhikode', 'calicut'], ['vadodara', 'baroda'],
+  ['visakhapatnam', 'vizag'], ['puducherry', 'pondicherry'], ['prayagraj', 'allahabad'],
+  ['delhi ncr', 'delhi', 'new delhi']
+];
+
+function cityNameVariants(name: string): string[] {
+  const base = normalizeName(sanitizeLocalityName(name || ''));
+  if (!base) return [];
+  const out = new Set<string>([base]);
+  for (const group of CITY_ALIAS_GROUPS) {
+    if (group.includes(base)) group.forEach(alias => out.add(alias));
+  }
+  return Array.from(out);
+}
+
+/** True when the normalised `needle` appears in `haystack` as whole words. */
+function containsWords(haystack: string, needle: string): boolean {
+  if (!needle || !haystack) return false;
+  return ` ${haystack} `.includes(` ${needle} `);
 }
 
 /**
@@ -964,6 +1127,8 @@ export function getBaselineTownsForDistrict(stateName: string, districtName: str
   if (!stateName || !districtName) return [];
   const normState = normalizeName(stateName);
   const normDist = normalizeName(extractPrimaryName(districtName));
+  // The fuzzy includes below are always true for an empty name.
+  if (!normState || !normDist) return [];
 
   let verified: Array<{ town: string; aliases?: string[]; pins: Array<{ code: string; officeName: string }> }> | undefined;
 
@@ -1080,21 +1245,23 @@ export async function fetchDistrictTownsAndPinsLive(
         for (const po of first.PostOffice) {
           const poState = normalizeName(String(po.State || ''));
           const poDist = normalizeName(String(po.District || ''));
+          const canonicalPoState = canonicalStateName(String(po.State || ''));
           const stateMatches =
             !poState ||
             poState === normTargetState ||
-            poState.includes(normTargetState) ||
-            normTargetState.includes(poState) ||
+            (Boolean(canonicalPoState) && canonicalPoState === canonicalStateName(stateName)) ||
             (normTargetState.includes('delhi') && poState.includes('delhi'));
 
           // Exact word match for district, not arbitrary substring
-          // e.g. "thiruvananthapuram" must never match "ananthapur"
+          // e.g. "thiruvananthapuram" must never match "ananthapur".
+          // India Post still uses old names ("Bangalore" for Bengaluru Urban).
           const primaryPoDist = extractPrimaryName(poDist);
           const distMatches =
             !poDist ||
             poDist === normTargetDist ||
             primaryPoDist === normTargetDist ||
-            (altQuery && (poDist === normalizeName(altQuery) || primaryPoDist === normalizeName(altQuery)));
+            (altQuery && (poDist === normalizeName(altQuery) || primaryPoDist === normalizeName(altQuery))) ||
+            matchDirectoryDistrict(stateName, String(po.District || '')) === districtName;
 
           // Both state AND district MUST match if target is specified
           if (normTargetState && !stateMatches) continue;
@@ -1189,12 +1356,20 @@ export async function fetchPinsForTownLive(
     for (const po of first.PostOffice) {
       const poState = normalizeName(String(po.State || ''));
       const poDist = normalizeName(String(po.District || ''));
-      if (normState && poState && !poState.includes(normState) && !normState.includes(poState)) {
+      if (
+        normState && poState &&
+        poState !== normState &&
+        !(canonicalStateName(String(po.State || '')) && canonicalStateName(String(po.State || '')) === canonicalStateName(stateName))
+      ) {
         continue;
       }
       if (normDistrict && poDist) {
         const poPrimaryDist = normalizeName(extractPrimaryName(poDist));
-        if (poDist !== normDistrict && poPrimaryDist !== normDistrict) {
+        if (
+          poDist !== normDistrict &&
+          poPrimaryDist !== normDistrict &&
+          matchDirectoryDistrict(stateName, String(po.District || '')) !== districtName
+        ) {
           continue;
         }
       }
@@ -1499,22 +1674,9 @@ export async function searchPanIndiaPlacesLive(
               matchedState = townOverride.state;
               matchedDist = townOverride.district;
             } else {
-              matchedState =
-                getAllStatesAndUTs().find(
-                  s =>
-                    normalizeName(s) === normalizeName(poStateRaw) ||
-                    normalizeName(s).includes(normalizeName(poStateRaw)) ||
-                    normalizeName(poStateRaw).includes(normalizeName(s))
-                ) || poStateRaw;
-
-              const stateDists = getDistrictsForState(matchedState);
-              matchedDist =
-                stateDists.find(
-                  d =>
-                    normalizeName(d) === normalizeName(poDistRaw) ||
-                    normalizeName(extractPrimaryName(d)) === normalizeName(poDistRaw) ||
-                    d.toLowerCase().includes(poDistRaw.toLowerCase())
-                ) || poDistRaw;
+              // Empty India Post fields must not fuzzy-match ('x'.includes('') is true).
+              matchedState = canonicalStateName(poStateRaw) || poStateRaw;
+              matchedDist = (poDistRaw && matchDirectoryDistrict(matchedState, poDistRaw)) || poDistRaw;
             }
 
             if (normState && normalizeName(matchedState) !== normState) continue;
@@ -1606,18 +1768,18 @@ export function formatStructuredLocation(val: {
   pincode?: string;
 }): string {
   const parts: string[] = [];
-  if (val.addressLine && val.addressLine.trim()) {
-    parts.push(val.addressLine.trim());
+  const city = (val.city || '').trim();
+  // A district that already carries "Dist." must not become "X Dist. Dist.".
+  const district = stripDistrictSuffix(val.district || '');
+  const addressLine = (val.addressLine || '').trim();
+  if (addressLine && normalizeName(addressLine) !== normalizeName(city)) {
+    parts.push(addressLine);
   }
-  if (val.city && val.city.trim()) {
-    parts.push(val.city.trim());
+  if (city) {
+    parts.push(city);
   }
-  if (
-    val.district &&
-    val.district.trim() &&
-    normalizeName(val.district) !== normalizeName(val.city || '')
-  ) {
-    parts.push(`${val.district.trim()} Dist.`);
+  if (district && normalizeName(district) !== normalizeName(city)) {
+    parts.push(`${district} Dist.`);
   }
   if (val.state && val.state.trim()) {
     parts.push(val.state.trim());
@@ -1629,6 +1791,9 @@ export function formatStructuredLocation(val: {
   }
   return base;
 }
+
+/** Any standalone 6-digit PIN, with an optional "PIN" / "PIN code" label. */
+const STANDALONE_PIN = /(?:\bpin(?:\s*code)?\s*[:.#-]?\s*)?\b\d{6}\b/gi;
 
 /**
  * Safely parses any existing record (DriverProfile, EmployerProfile, Job) into
@@ -1669,24 +1834,43 @@ export function parseStructuredLocation(
 
   const rawLocation = (record.location || '').trim();
   const pinMatch = rawLocation.match(/\b(\d{6})\b/);
-  const extractedPin = (record.pincode || (pinMatch ? pinMatch[1] : '')).trim();
+  const extractedPin = ((record.pincode || '').trim() || (pinMatch ? pinMatch[1] : '')).trim();
 
-  // Remove trailing "- 560100" from rawLocation for parsing
-  const withoutPin = rawLocation.replace(/\s*-\s*\d{6}\b/, '').trim();
-  const segments = withoutPin.split(',').map(s => s.trim()).filter(Boolean);
+  // Drop every standalone PIN ("- 560001", "560001", "PIN 560001") before splitting.
+  const segments = rawLocation
+    .replace(STANDALONE_PIN, ' ')
+    .split(',')
+    .map(s => s.replace(/^[\s\-–]+|[\s\-–]+$/g, '').replace(/\s{2,}/g, ' ').trim())
+    .filter(Boolean);
+  const isDistSegment = (seg: string) => DIST_SUFFIX.test(seg);
+  const isStateSegment = (seg: string) => Boolean(canonicalStateName(seg));
+  // Some towns share their State / UT's name ("Chandigarh", "Puducherry",
+  // "New Delhi"): the name is also a district of that State / UT.
+  const isStateNamedTown = (seg: string) => {
+    const state = canonicalStateName(seg);
+    return Boolean(state) && getDistrictsForState(state).some(d => normalizeName(extractPrimaryName(d)) === normalizeName(seg));
+  };
+  // The State / UT itself is the last segment that names one.
+  let stateSegmentIndex = -1;
+  segments.forEach((seg, index) => {
+    if (isStateSegment(seg)) stateSegmentIndex = index;
+  });
 
   let resolvedState = (record.state || '').trim();
-  if (!resolvedState && segments.length > 0) {
-    const matchingState = getAllStatesAndUTs().find(st =>
-      segments.some(seg => normalizeName(seg) === normalizeName(st))
-    );
-    if (matchingState) resolvedState = matchingState;
+  if (!resolvedState) {
+    for (const seg of segments) {
+      const matchingState = canonicalStateName(seg);
+      if (matchingState) {
+        resolvedState = matchingState;
+        break;
+      }
+    }
   }
 
-  let resolvedDistrict = (record.district || '').trim();
-  const distSeg = segments.find(s => /\bdist\.?$/i.test(s));
+  let resolvedDistrict = stripDistrictSuffix(record.district || '');
+  const distSeg = segments.find(isDistSegment);
   if (!resolvedDistrict && distSeg) {
-    resolvedDistrict = distSeg.replace(/\s*dist\.?$/i, '').trim();
+    resolvedDistrict = stripDistrictSuffix(distSeg);
   }
 
   const stateDistricts = resolvedState ? getDistrictsForState(resolvedState) : [];
@@ -1699,9 +1883,29 @@ export function parseStructuredLocation(
     if (exactDist) resolvedDistrict = exactDist;
   }
 
+  // Town candidates are never a State / UT, an "X Dist." segment or a bare number.
+  const districtKey = resolvedDistrict ? normalizeName(extractPrimaryName(resolvedDistrict)) : '';
+  let cityCandidates = segments.filter(seg => !isDistSegment(seg) && !isStateSegment(seg) && !/^\d+$/.test(seg));
+  if (cityCandidates.length > 1 && districtKey) {
+    const withoutDistrictName = cityCandidates.filter(seg => normalizeName(seg) !== districtKey);
+    if (withoutDistrictName.length > 0) cityCandidates = withoutDistrictName;
+  }
+
+  // "Sector 17, Chandigarh, Chandigarh" / "Connaught Place, New Delhi, Delhi":
+  // a State-named town before the State segment, or the only segment there is.
+  const stateNamedTowns = segments.filter((seg, index) =>
+    !isDistSegment(seg) &&
+    isStateNamedTown(seg) &&
+    (index !== stateSegmentIndex || cityCandidates.length === 0)
+  );
+
   let resolvedCity = sanitizeLocalityName((record.city || '').trim());
-  if (!resolvedCity && segments.length > 0) {
-    resolvedCity = sanitizeLocalityName(segments[0]);
+  if (!resolvedCity && stateNamedTowns.length > 0) {
+    resolvedCity = sanitizeLocalityName(stateNamedTowns[stateNamedTowns.length - 1]);
+  } else if (!resolvedCity && cityCandidates.length > 0) {
+    // Our own format is "address, town, district Dist., state - PIN" and legacy
+    // text is "locality, city": the town is the last remaining segment.
+    resolvedCity = sanitizeLocalityName(cityCandidates[cityCandidates.length - 1]);
   }
 
   // Canonical PIN overrides for bifurcated/new districts (e.g. 561209 -> Chikkaballapur, not Kolar)
@@ -1709,7 +1913,7 @@ export function parseStructuredLocation(
     const pinOverride = CANONICAL_DISTRICT_PIN_OVERRIDES[extractedPin];
     resolvedState = pinOverride.state;
     resolvedDistrict = pinOverride.district;
-    if (!resolvedCity || resolvedCity.toLowerCase().includes(pinOverride.town?.toLowerCase() || '')) {
+    if (!resolvedCity || (pinOverride.town && resolvedCity.toLowerCase().includes(pinOverride.town.toLowerCase()))) {
       resolvedCity = pinOverride.town || resolvedCity;
     }
   }
@@ -1728,28 +1932,39 @@ export function parseStructuredLocation(
   const chikkaballapurTalukKeywords = ['gudibanda', 'gowribidanur', 'gauribidanur', 'gowaribid', 'bagepalli', 'chintamani', 'sidlaghatta', 'chikkaballapu', 'chickballapur'];
   if (
     resolvedDistrict.toLowerCase() === 'kolar' &&
-    (chikkaballapurTalukKeywords.some(kw => resolvedCity.toLowerCase().includes(kw)) ||
+    ((resolvedCity && chikkaballapurTalukKeywords.some(kw => resolvedCity.toLowerCase().includes(kw))) ||
      ['561209', '561208', '561207', '562101', '562105', '563125'].includes(extractedPin))
   ) {
     resolvedDistrict = 'Chikkaballapur';
     resolvedState = 'Karnataka';
   }
 
-  // If district is still empty but city matches a known district in that state, infer the district
+  // If district is still empty but the town is a district headquarters in that
+  // state, infer the district (whole names only: "Bengaluru" is Bengaluru Urban,
+  // never Bengaluru Rural).
   if (!resolvedDistrict && resolvedCity && stateDistricts.length > 0) {
-    const inferred = stateDistricts.find(
-      d =>
-        normalizeName(d) === normalizeName(resolvedCity) ||
-        normalizeName(extractPrimaryName(d)) === normalizeName(resolvedCity) ||
-        d.toLowerCase().includes(resolvedCity.toLowerCase())
-    );
+    const cityVariants = districtNameVariants(resolvedCity);
+    const inferred =
+      stateDistricts.find(d => cityVariants.includes(districtNameVariants(d)[0])) ||
+      stateDistricts.find(d => districtNameVariants(d).some(v => cityVariants.includes(v)));
     if (inferred) resolvedDistrict = inferred;
   }
 
-  // Extract optional address line (first segment if distinct from city/district/state)
+  // Optional address line: the segments before the town, without State / district parts.
   let addressLine = '';
-  if (segments.length > 1 && resolvedCity && normalizeName(segments[0]) !== normalizeName(resolvedCity)) {
-    addressLine = segments[0];
+  if (resolvedCity) {
+    const normCity = normalizeName(resolvedCity);
+    const normDistrict = resolvedDistrict ? normalizeName(extractPrimaryName(resolvedDistrict)) : '';
+    const cityIndex = segments.findIndex(seg => normalizeName(sanitizeLocalityName(seg)) === normCity);
+    const leading = cityIndex >= 0 ? segments.slice(0, cityIndex) : (segments.length > 1 ? [segments[0]] : []);
+    addressLine = leading
+      .filter(seg =>
+        !isDistSegment(seg) &&
+        !isStateSegment(seg) &&
+        normalizeName(seg) !== normCity &&
+        (!normDistrict || normalizeName(seg) !== normDistrict)
+      )
+      .join(', ');
   }
 
   const formattedLocation = formatStructuredLocation({
@@ -1773,9 +1988,56 @@ export function parseStructuredLocation(
   };
 }
 
+interface FilterableLocation {
+  state: string;
+  district: string;
+  city: string;
+  pincode: string;
+  /** Free text searched for the town name (address line, town, district, raw location). */
+  text: string;
+}
+
+interface NormalisedLocationFilter {
+  state: string;
+  district: string;
+  city: string;
+  pin: string;
+}
+
+function structuredLocationMatches(loc: FilterableLocation, filter: NormalisedLocationFilter): boolean {
+  if (filter.state) {
+    const target = canonicalStateName(filter.state) || filter.state;
+    const actual = canonicalStateName(loc.state) || loc.state;
+    if (!actual || normalizeName(actual) !== normalizeName(target)) return false;
+  }
+
+  if (filter.district) {
+    const targetVariants = districtNameVariants(filter.district);
+    // Records without a district still match when their town is the district
+    // headquarters (city "Mysuru" for the Mysuru district).
+    const actualVariants = districtNameVariants(loc.district || loc.city);
+    if (!actualVariants.some(v => targetVariants.includes(v))) return false;
+  }
+
+  if (filter.city) {
+    const targets = cityNameVariants(filter.city);
+    const haystack = normalizeName(loc.text);
+    if (!targets.some(target => containsWords(haystack, target))) return false;
+  }
+
+  if (filter.pin) {
+    const actualPin = (loc.pincode || '').replace(/\D/g, '');
+    if (!actualPin || !actualPin.startsWith(filter.pin)) return false;
+  }
+
+  return true;
+}
+
 /**
  * Evaluates whether a record (Job, DriverProfile, EmployerProfile) matches the active Pan-India filter
  * (State/UT -> District -> Town/City -> PIN code).
+ * State and district are compared as whole names (alternate / postal names
+ * accepted), the town on word boundaries, and the PIN exactly or as a prefix.
  */
 export function matchesPanIndiaLocationFilter(
   record: {
@@ -1793,72 +2055,49 @@ export function matchesPanIndiaLocationFilter(
     pincode?: string;
   }
 ): boolean {
-  const parsed = parseStructuredLocation(record);
-  const fullText = [
-    record.state,
-    record.district,
-    record.city,
-    record.pincode,
-    record.location,
-    record.preferredLocation,
-    parsed.state,
-    parsed.district,
-    parsed.city,
-    parsed.pincode
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  if (filter.state && filter.state.trim()) {
-    const targetState = normalizeName(filter.state);
-    const recordState = normalizeName(parsed.state);
-    if (
-      recordState !== targetState &&
-      !recordState.includes(targetState) &&
-      !fullText.includes(filter.state.toLowerCase())
-    ) {
-      return false;
-    }
+  const normalisedFilter: NormalisedLocationFilter = {
+    state: (filter.state || '').trim(),
+    district: (filter.district || '').trim(),
+    city: (filter.city || '').trim(),
+    pin: (filter.pincode || '').replace(/\D/g, '').slice(0, 6)
+  };
+  if (!normalisedFilter.state && !normalisedFilter.district && !normalisedFilter.city && !normalisedFilter.pin) {
+    return true;
   }
 
-  if (filter.district && filter.district.trim()) {
-    const primaryDist = extractPrimaryName(filter.district).toLowerCase();
-    const parenMatch = filter.district.match(/\(([^)]+)\)/);
-    const altNames = parenMatch ? parenMatch[1].split('/').map(s => s.trim().toLowerCase()) : [];
-    const candidateTerms = [filter.district.toLowerCase(), primaryDist, ...altNames].filter(Boolean);
+  const parsed = parseStructuredLocation({
+    state: record.state,
+    district: record.district,
+    city: record.city,
+    pincode: record.pincode,
+    location: record.location
+  });
+  const primary: FilterableLocation = {
+    state: parsed.state || record.state || '',
+    district: parsed.district || record.district || '',
+    city: parsed.city || record.city || '',
+    pincode: parsed.pincode || record.pincode || '',
+    // The town is matched as whole words in the address, town, district and raw location text.
+    text: [parsed.addressLine, parsed.city, record.city, parsed.district || record.district, record.location].filter(Boolean).join(' ')
+  };
+  if (structuredLocationMatches(primary, normalisedFilter)) return true;
 
-    // Special awareness for Chikkaballapur district and its 6 taluks
-    const isChikkaballapurFilter = primaryDist.includes('chikkaballapu') || primaryDist.includes('chikballapur');
-    const isCandidateInChikkaballapur =
-      parsed.district.toLowerCase().includes('chikkaballapu') ||
-      ['gudibanda', 'gowribidanur', 'gauribidanur', 'bagepalli', 'chintamani', 'sidlaghatta'].some(t => fullText.includes(t)) ||
-      ['561209', '561208', '561207', '562101', '562105', '563125'].some(p => fullText.includes(p));
-
-    if (isChikkaballapurFilter && isCandidateInChikkaballapur) {
-      // Matches Chikkaballapur taluk candidate
-    } else {
-      const matchesDist = candidateTerms.some(term => fullText.includes(term));
-      if (!matchesDist) return false;
-    }
+  // Drivers can also match on their preferred work location.
+  const preferred = (record.preferredLocation || '').trim();
+  if (preferred) {
+    const pref = parseStructuredLocation(preferred);
+    return structuredLocationMatches(
+      {
+        state: pref.state,
+        district: pref.district,
+        city: pref.city,
+        pincode: pref.pincode,
+        text: [pref.addressLine, pref.city, pref.district, preferred].filter(Boolean).join(' ')
+      },
+      normalisedFilter
+    );
   }
-
-  if (filter.city && filter.city.trim()) {
-    const targetCity = filter.city.trim().toLowerCase();
-    const primaryCity = extractPrimaryName(filter.city).toLowerCase();
-    if (!fullText.includes(targetCity) && !fullText.includes(primaryCity)) {
-      return false;
-    }
-  }
-
-  if (filter.pincode && filter.pincode.trim()) {
-    const targetPin = filter.pincode.trim();
-    if (!fullText.includes(targetPin)) {
-      return false;
-    }
-  }
-
-  return true;
+  return false;
 }
 
 /**
@@ -2179,9 +2418,39 @@ function saveSessionGeoCache(key: string, val: { lat: number; lng: number; displ
 }
 
 /**
+ * Nominatim's usage policy allows at most one request per second. Every call
+ * goes through this queue, so bursts (typing, several selectors on one page)
+ * are spaced out instead of being rate-limited or blocked.
+ */
+const NOMINATIM_MIN_INTERVAL_MS = 1100;
+let nominatimQueue: Promise<unknown> = Promise.resolve();
+let lastNominatimRequestAt = 0;
+
+function fetchNominatim(url: string): Promise<Response> {
+  const run = async () => {
+    const wait = lastNominatimRequestAt + NOMINATIM_MIN_INTERVAL_MS - Date.now();
+    if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+    lastNominatimRequestAt = Date.now();
+    return fetch(url, { headers: { Accept: 'application/json' } });
+  };
+  const request = nominatimQueue.then(run, run);
+  nominatimQueue = request.catch(() => undefined);
+  return request;
+}
+
+/** Lookups that found nothing, so the same miss is not re-sent to Nominatim. */
+const geoMissCache = new Set<string>();
+const geoInFlight = new Map<string, Promise<{ lat: number; lng: number; displayName: string } | null>>();
+
+/** A place this far from its State's reference point is the wrong namesake (Aurangabad, Bihar vs Maharashtra). */
+const MAX_KM_FROM_STATE_REFERENCE = 900;
+
+/**
  * Resolves latitude and longitude coordinates for any Pan-India location
  * (State, District, Town/City, Locality, or 6-digit PIN code).
  * Uses zero-latency directory lookup first, falling back to cached Nominatim lookup.
+ * Returns null when the place cannot be resolved; it never substitutes the
+ * State's centre for an unknown town or district.
  */
 export async function resolveLocationCoordinates(loc: {
   city?: string;
@@ -2190,32 +2459,49 @@ export async function resolveLocationCoordinates(loc: {
   pincode?: string;
   location?: string;
 }): Promise<{ lat: number; lng: number; displayName: string } | null> {
-  const normCity = loc.city ? normalizeName(extractPrimaryName(loc.city)) : '';
-  const normDist = loc.district ? normalizeName(extractPrimaryName(loc.district)) : '';
-  const normState = loc.state ? normalizeName(loc.state) : '';
+  const normCity = loc.city ? normalizeName(extractPrimaryName(sanitizeLocalityName(loc.city))) : '';
+  const normDist = loc.district ? normalizeName(extractPrimaryName(stripDistrictSuffix(loc.district))) : '';
+  const canonicalState = canonicalStateName(loc.state);
+  const normState = normalizeName(canonicalState || loc.state || '');
   const cleanPin = loc.pincode && /^\d{6}$/.test(loc.pincode.trim()) ? loc.pincode.trim() : '';
 
-  // 1. Check local authoritative table first (instant, 0 ms)
-  const lookupKeys = [
-    normCity,
-    normDist,
-    `${normCity} ${normState}`,
-    `${normDist} ${normState}`,
-    normState
-  ].filter(Boolean);
+  const stateReference =
+    (normState && INDIA_COORDINATES_DIRECTORY[normState]) ||
+    (loc.state ? INDIA_COORDINATES_DIRECTORY[normalizeName(loc.state)] : undefined) ||
+    undefined;
+  const toResult = (match: { lat: number; lng: number; name: string }) => ({
+    lat: match.lat,
+    lng: match.lng,
+    displayName: match.name
+  });
 
-  for (const k of lookupKeys) {
-    if (INDIA_COORDINATES_DIRECTORY[k]) {
-      const match = INDIA_COORDINATES_DIRECTORY[k];
-      return {
-        lat: match.lat,
-        lng: match.lng,
-        displayName: match.name
-      };
+  // 1. Local authoritative table, most specific first: "city state" and
+  //    "district state" before the bare names, so a namesake in another State
+  //    is not used.
+  for (const key of [
+    normCity && normState ? `${normCity} ${normState}` : '',
+    normDist && normState ? `${normDist} ${normState}` : ''
+  ]) {
+    if (key && INDIA_COORDINATES_DIRECTORY[key]) return toResult(INDIA_COORDINATES_DIRECTORY[key]);
+  }
+  for (const key of [normCity, normDist]) {
+    const match = key ? INDIA_COORDINATES_DIRECTORY[key] : undefined;
+    if (!match) continue;
+    if (
+      stateReference &&
+      calculateHaversineDistanceKm(stateReference.lat, stateReference.lng, match.lat, match.lng) > MAX_KM_FROM_STATE_REFERENCE
+    ) {
+      continue;
     }
+    return toResult(match);
   }
 
-  // 2. Check memory & session cache
+  // Only a State was given: its reference point is the honest answer.
+  if (!normCity && !normDist && !cleanPin) {
+    return stateReference ? toResult(stateReference) : null;
+  }
+
+  // 2. Memory & session cache
   const cacheKey = `${normCity}|${normDist}|${normState}|${cleanPin}`;
   if (geoCoordMemoryCache.has(cacheKey)) {
     return geoCoordMemoryCache.get(cacheKey)!;
@@ -2225,55 +2511,46 @@ export async function resolveLocationCoordinates(loc: {
     geoCoordMemoryCache.set(cacheKey, sessionCached);
     return sessionCached;
   }
+  if (geoMissCache.has(cacheKey)) return null;
+  const pending = geoInFlight.get(cacheKey);
+  if (pending) return pending;
 
-  // 3. Fallback: Query Nominatim OpenStreetMap (keyless, with India boundary filter)
-  const queryParts = [loc.city, loc.district, loc.state, cleanPin, 'India'].filter(Boolean);
+  // 3. Fallback: Query Nominatim OpenStreetMap (keyless, India only, throttled)
+  const queryParts = [loc.city, loc.district ? stripDistrictSuffix(loc.district) : '', loc.state, cleanPin, 'India']
+    .map(part => (part || '').trim())
+    .filter(Boolean);
   const query = queryParts.join(', ');
-  if (!query.trim()) return null;
 
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&q=${encodeURIComponent(
-      query
-    )}&limit=1`;
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'DriverHub-India/2.0'
-      }
-    });
-
-    if (res.ok) {
+  const lookup = (async () => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=in&q=${encodeURIComponent(
+        query
+      )}&limit=1`;
+      const res = await fetchNominatim(url);
+      if (!res.ok) return null;
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const item = data[0];
         const lat = parseFloat(item.lat);
         const lng = parseFloat(item.lon);
         if (!isNaN(lat) && !isNaN(lng)) {
-          const result = {
-            lat,
-            lng,
-            displayName: item.display_name || query
-          };
+          const result = { lat, lng, displayName: item.display_name || query };
           geoCoordMemoryCache.set(cacheKey, result);
           saveSessionGeoCache(cacheKey, result);
           return result;
         }
       }
+      geoMissCache.add(cacheKey);
+      return null;
+    } catch {
+      // Offline or blocked: report "unknown" rather than a wrong place.
+      return null;
+    } finally {
+      geoInFlight.delete(cacheKey);
     }
-  } catch {
-    // If offline or network error, fallback to state center if state is recognized
-  }
-
-  if (normState && INDIA_COORDINATES_DIRECTORY[normState]) {
-    const stateMatch = INDIA_COORDINATES_DIRECTORY[normState];
-    return {
-      lat: stateMatch.lat,
-      lng: stateMatch.lng,
-      displayName: stateMatch.name
-    };
-  }
-
-  return null;
+  })();
+  geoInFlight.set(cacheKey, lookup);
+  return lookup;
 }
 
 /**
@@ -2292,12 +2569,7 @@ export async function reverseGeocodeCoordinates(
 } | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'DriverHub-India/2.0'
-      }
-    });
+    const res = await fetchNominatim(url);
 
     if (!res.ok) return null;
     const data = await res.json();
@@ -2312,25 +2584,13 @@ export async function reverseGeocodeCoordinates(
     ).trim();
     const rawPin = String(addr.postcode || '').trim().replace(/\D/g, '').slice(0, 6);
 
-    // Match against canonical State & District in STATE_DISTRICTS_DIRECTORY
-    const allStates = getAllStatesAndUTs();
-    const matchedState =
-      allStates.find(
-        s =>
-          normalizeName(s) === normalizeName(rawState) ||
-          normalizeName(s).includes(normalizeName(rawState)) ||
-          normalizeName(rawState).includes(normalizeName(s))
-      ) || rawState;
-
-    const stateDists = matchedState ? getDistrictsForState(matchedState) : [];
+    // Match against canonical State & District names. Empty values are kept
+    // empty: '' must never fuzzy-match the first State or district in the list.
+    const matchedState = canonicalStateName(rawState) || rawState;
     const matchedDistrict =
-      stateDists.find(
-        d =>
-          normalizeName(d) === normalizeName(rawDistrict) ||
-          normalizeName(extractPrimaryName(d)) === normalizeName(rawDistrict) ||
-          d.toLowerCase().includes(rawDistrict.toLowerCase()) ||
-          rawDistrict.toLowerCase().includes(extractPrimaryName(d).toLowerCase())
-      ) || rawDistrict;
+      (rawDistrict && matchDirectoryDistrict(matchedState, rawDistrict)) ||
+      (!rawDistrict && rawCity ? matchDirectoryDistrict(matchedState, rawCity) : '') ||
+      rawDistrict;
 
     const formattedLocation = formatStructuredLocation({
       city: rawCity,
@@ -2342,7 +2602,7 @@ export async function reverseGeocodeCoordinates(
     return {
       state: matchedState,
       district: matchedDistrict,
-      city: rawCity || matchedDistrict,
+      city: rawCity || extractPrimaryName(matchedDistrict),
       pincode: rawPin,
       formattedLocation
     };
@@ -2351,4 +2611,3 @@ export async function reverseGeocodeCoordinates(
     return null;
   }
 }
-

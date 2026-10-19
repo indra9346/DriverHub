@@ -11,6 +11,7 @@ export const DriverSettings: React.FC = () => {
   const currentUser = DataStore.getCurrentUser();
   const userId = currentUser?.id || '';
   const isDemo = DataStore.isDemoMode();
+  const isEmployer = currentUser?.role === 'employer';
   const [prefsMessage, setPrefsMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [smsAlerts, setSmsAlerts] = useState(() => loadAlertPreferences(userId).sms);
   const [emailAlerts, setEmailAlerts] = useState(() => loadAlertPreferences(userId).email);
@@ -121,7 +122,7 @@ export const DriverSettings: React.FC = () => {
         <div className="bg-white p-4 sm:p-8 rounded-2xl border border-slate-200 shadow-card space-y-4">
           <div className="space-y-1">
             <h2 className="text-sm font-bold text-brand-navy uppercase tracking-wider flex items-center gap-2">
-              <Bell className="w-4 h-4 text-brand-amber shrink-0" /> {t('Job Alerts & Updates')}
+              <Bell className="w-4 h-4 text-brand-amber shrink-0" /> {isEmployer ? t('Hiring Alerts & Updates') : t('Job Alerts & Updates')}
             </h2>
             <p className="text-[11px] text-slate-500">These choices are stored in this browser only.</p>
           </div>
@@ -130,7 +131,7 @@ export const DriverSettings: React.FC = () => {
             <label className={`${toggleRowClass} pt-2 first:pt-0`}>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900">{t('WhatsApp Instant Alerts')}</p>
-                <p className="text-[11px] text-slate-500">{t('Get notified immediately when an employer shortlists you')}</p>
+                <p className="text-[11px] text-slate-500">{isEmployer ? t('Get notified immediately when a driver applies to your job') : t('Get notified immediately when an employer shortlists you')}</p>
               </div>
               <input
                 type="checkbox"
@@ -143,7 +144,7 @@ export const DriverSettings: React.FC = () => {
             <label className={`${toggleRowClass} pt-3`}>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900">{t('SMS Notifications')}</p>
-                <p className="text-[11px] text-slate-500">{t('Receive interview schedules and venue details via SMS')}</p>
+                <p className="text-[11px] text-slate-500">{isEmployer ? t('Receive candidate replies and interview reminders via SMS') : t('Receive interview schedules and venue details via SMS')}</p>
               </div>
               <input
                 type="checkbox"
@@ -156,7 +157,7 @@ export const DriverSettings: React.FC = () => {
             <label className={`${toggleRowClass} pt-3`}>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900">{t('Email Digest')}</p>
-                <p className="text-[11px] text-slate-500">{t('Weekly digest of high-paying jobs in your city')}</p>
+                <p className="text-[11px] text-slate-500">{isEmployer ? t('Weekly summary of applications and matching drivers') : t('Weekly digest of high-paying jobs in your city')}</p>
               </div>
               <input
                 type="checkbox"

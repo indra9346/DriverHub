@@ -420,7 +420,7 @@ export const JobsPage: React.FC = () => {
               {lang === 'kn' ? (
                 <>ಭಾರತದಾದ್ಯಂತ ಪರಿಶೀಲಿಸಿದ ಲಾಜಿಸ್ಟಿಕ್ಸ್ ಫ್ಲೀಟ್‌ಗಳು ಮತ್ತು ಉದ್ಯೋಗದಾತರಿಂದ <span className="font-bold text-amber-400">{filteredJobs.length}</span> ಸಕ್ರಿಯ ಹುದ್ದೆಗಳು ಲಭ್ಯವಿವೆ.</>
               ) : (
-                <>Showing <span className="font-bold text-amber-400">{filteredJobs.length}</span> active vacancies from verified logistics fleets, corporate employers, and transport operators across India.</>
+                <>Showing <span className="font-bold text-amber-400">{filteredJobs.length}</span> active {filteredJobs.length === 1 ? 'vacancy' : 'vacancies'} from verified logistics fleets, corporate employers, and transport operators across India.</>
               )}
             </p>
           </div>

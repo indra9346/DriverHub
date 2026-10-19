@@ -803,6 +803,14 @@ export const EmployerPostJob: React.FC = () => {
     );
   }
 
+  // The depot/landmark line is often the full address already ("Hindupur, Sri
+  // Sathya Sai Dist., Andhra Pradesh - 515201"): add town and State only if missing.
+  const previewLocation = [location, city, state]
+    .map(part => (part || '').trim())
+    .filter(Boolean)
+    .filter((part, index, parts) => !parts.slice(0, index).some(earlier => earlier.toLowerCase().includes(part.toLowerCase())))
+    .join(', ');
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16">
       {/* Top Header Bar */}
@@ -1763,7 +1771,7 @@ export const EmployerPostJob: React.FC = () => {
                   {title || `Senior ${category} Vacancy`}
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  <strong>{hiringForCompany}</strong> • 📍 {location}, {city}, {state} • 💰 ₹{salaryMin.toLocaleString('en-IN')} – ₹{salaryMax.toLocaleString('en-IN')}/month ({payType})
+                  <strong>{hiringForCompany}</strong> • 📍 {previewLocation} • 💰 ₹{salaryMin.toLocaleString('en-IN')} – ₹{salaryMax.toLocaleString('en-IN')}/month ({payType})
                 </p>
               </div>
               <span className="px-2.5 py-1 bg-blue-100 text-blue-900 rounded-lg text-xs font-bold shrink-0">

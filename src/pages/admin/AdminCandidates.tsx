@@ -223,7 +223,7 @@ export const AdminCandidates: React.FC = () => {
                   <p className="text-xs text-slate-500 break-words">
                     {[
                       driver.driverCategory ? t(driver.driverCategory) : '',
-                      `${driver.experienceYears || 0} ${t('yearsExperience')}`,
+                      `${driver.experienceYears || 0} ${(driver.experienceYears || 0) === 1 ? t('yearExperience') : t('yearsExperience')}`,
                       driver.location || [driver.city, driver.district, driver.state].filter(Boolean).join(', ')
                     ].filter(Boolean).join(' • ')}
                   </p>

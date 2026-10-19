@@ -119,7 +119,7 @@ export const DriverDashboard: React.FC = () => {
             {t('Welcome back')}, {profile?.fullName || t('Driver')}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 break-words">
-            {t(profile?.driverCategory || 'Driver')}{profile?.experienceYears ? ` Specialist • ${profile.experienceYears} Years Experience` : ''}{profile?.location ? ` • ${profile.location}` : ''}
+            {t(profile?.driverCategory || 'Driver')}{profile?.experienceYears ? ` Specialist • ${profile.experienceYears} ${profile.experienceYears === 1 ? 'Year' : 'Years'} Experience` : ''}{profile?.location ? ` • ${profile.location}` : ''}
           </p>
         </div>
 

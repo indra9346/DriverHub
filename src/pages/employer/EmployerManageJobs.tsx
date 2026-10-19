@@ -77,6 +77,27 @@ export const EmployerManageJobs: React.FC = () => {
     showToast({ text: reason, type: 'error', planLink: isPlanOrCreditError(reason) });
   };
 
+  const handleDeleteDraft = async (job: Job) => {
+    if (busyJobId) return;
+    setOpenActionMenuId(null);
+    if (!confirm(`Delete the draft "${job.title}"? This cannot be undone.`)) return;
+    setBusyJobId(job.id);
+    clearLastError();
+    let ok = false;
+    try {
+      ok = await DataStore.deleteDraftJob(job.id);
+    } catch (err) {
+      console.warn('Draft delete error:', err);
+    } finally {
+      setBusyJobId(null);
+    }
+    if (!ok) {
+      showFailure('This draft could not be deleted. Please try again.');
+      return;
+    }
+    showToast({ text: `Draft "${job.title}" deleted.`, type: 'success' });
+  };
+
   /** Message for the status the database actually saved (unverified companies stay pending). */
   const describePublished = (job: Job) => {
     const savedStatus = DataStore.getJobById(job.id)?.status;
@@ -460,13 +481,16 @@ export const EmployerManageJobs: React.FC = () => {
 
                       {openActionMenuId === job.id && (
                         <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-30 text-xs font-semibold animate-in fade-in zoom-in-95">
-                          <Link
-                            to={`/jobs/${job.id}`}
-                            onClick={() => setOpenActionMenuId(null)}
-                            className="block px-3.5 py-2.5 text-slate-700 hover:bg-slate-50 transition-colors"
-                          >
-                            👁️ {t('viewPublicJobPage')}
-                          </Link>
+                          {/* Only live jobs have a public page. */}
+                          {job.status === 'active' && (
+                            <Link
+                              to={`/jobs/${job.id}`}
+                              onClick={() => setOpenActionMenuId(null)}
+                              className="block px-3.5 py-2.5 text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                              👁️ {t('viewPublicJobPage')}
+                            </Link>
+                          )}
                           {job.status !== 'rejected' && (
                             <Link
                               to={`/employer/jobs/${job.id}/edit`}
@@ -516,6 +540,15 @@ export const EmployerManageJobs: React.FC = () => {
                               className="w-full text-left px-3.5 py-2.5 text-emerald-700 hover:bg-emerald-50 cursor-pointer font-bold transition-colors"
                             >
                               🚀 {t('publishReopenJob')}
+                            </button>
+                          )}
+                          {job.status === 'draft' && (
+                            <button
+                              onClick={() => handleDeleteDraft(job)}
+                              disabled={isBusy}
+                              className="w-full text-left px-3.5 py-2.5 text-red-600 hover:bg-red-50 cursor-pointer font-bold transition-colors"
+                            >
+                              🗑️ Delete draft
                             </button>
                           )}
                         </div>

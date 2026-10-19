@@ -373,7 +373,10 @@ RESET ROLE;
 SELECT tst.check('withdrawal: employer is told the driver withdrew',
   EXISTS (SELECT 1 FROM public.notifications WHERE user_id = :E1 AND title = 'Application withdrawn'));
 SELECT tst.check('withdrawal: driver is not notified about their own action',
-  NOT EXISTS (SELECT 1 FROM public.notifications WHERE user_id = :D1 AND message LIKE '%is now withdrawn%'));
+  NOT EXISTS (SELECT 1 FROM public.notifications WHERE user_id = :D1 AND message ILIKE '%withdrawn%'));
+SELECT tst.check('notifications: interview status is written as a sentence',
+  EXISTS (SELECT 1 FROM public.notifications WHERE user_id = :D1 AND message LIKE '%has an interview scheduled%')
+  AND NOT EXISTS (SELECT 1 FROM public.notifications WHERE message LIKE '% is now interview%'));
 
 -- ---------------------------------------------------------------- admin moderation
 SELECT tst.login(:ADM);

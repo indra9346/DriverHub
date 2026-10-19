@@ -5,7 +5,7 @@ import {
 import { DataStore } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { newId } from '../../lib/ids';
-import { fetchStoredAvailability } from '../../services/driverApi';
+import { fetchStoredAvailability, hasSavedDriverProfile } from '../../services/driverApi';
 import { DriverProfile, DriverCategory, DriverExperience } from '../../types';
 import { useLanguage } from '../../services/i18n';
 import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
@@ -125,6 +125,10 @@ export const DriverProfilePage: React.FC = () => {
   const [hydrated, setHydrated] = useState(() => DataStore.isDemoMode() || DataStore.getDrivers().some(d => d.id === userId));
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+  // The form unlocks only once this driver's saved row is in the cache, so a
+  // failed load can never be saved back as an empty profile.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const successTimerRef = useRef<number | null>(null);
@@ -171,17 +175,31 @@ export const DriverProfilePage: React.FC = () => {
     if (DataStore.isDemoMode()) {
       setHydrated(true);
     } else {
-      void SupabaseSync.fetchAndMergeRemoteData(DataStore).finally(() => {
-        if (!live) return;
-        setHydrated(true);
-        if (!dirtyRef.current) applyFromCache();
-      });
+      setLoadFailed(false);
+      void SupabaseSync.fetchAndMergeRemoteData(DataStore)
+        .catch(err => console.warn('Profile load error:', err))
+        .finally(async () => {
+          if (!live) return;
+          if (!DataStore.getDrivers().some(d => d.id === userId)) {
+            // No cached row: either a brand-new driver (nothing saved yet, safe
+            // to start the profile) or the load failed (keep editing locked).
+            const saved = await hasSavedDriverProfile(userId);
+            if (!live) return;
+            if (saved !== false) {
+              setHydrated(false);
+              setLoadFailed(true);
+              return;
+            }
+          }
+          setHydrated(true);
+          if (!dirtyRef.current) applyFromCache();
+        });
     }
     return () => {
       live = false;
       window.removeEventListener('driverhub_storage_updated', handleStorage);
     };
-  }, [userId, applyFromCache]);
+  }, [userId, applyFromCache, loadAttempt]);
 
   useEffect(() => () => {
     if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
@@ -460,10 +478,22 @@ export const DriverProfilePage: React.FC = () => {
           </div>
         )}
       </div>
-      {!hydrated && (
+      {!hydrated && !loadFailed && (
         <p role="status" className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
           <Loader2 className="w-4 h-4 animate-spin shrink-0" /> Loading your saved profile…
         </p>
+      )}
+      {loadFailed && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <span className="min-w-0 flex-1">Your saved profile could not be loaded, so editing is paused to protect it. Check your connection and try again.</span>
+          <button
+            type="button"
+            onClick={() => setLoadAttempt(n => n + 1)}
+            className="min-h-10 rounded-lg bg-[#08233F] px-4 text-xs font-bold text-white"
+          >
+            Try again
+          </button>
+        </div>
       )}
       {saveError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 break-words">{saveError}</p>}
 

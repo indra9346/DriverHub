@@ -183,6 +183,8 @@ SELECT tst.expect_ok('employer: save a search with radius and "any time" activit
   $q$INSERT INTO public.saved_searches (employer_id, title, category, city, district, pincode, radius_km, active_in_days, min_exp)
      VALUES (auth.uid(), 'Kolar 25km', '', '', 'Kolar', '563101', 25, NULL, 0)$q$);
 SELECT tst.expect_ok('employer: billing profile RPC', $q$SELECT public.update_driverhub_billing_profile('29ABCDE1234F1Z5', 'One Logistics Pvt Ltd', 'Peenya, Bengaluru')$q$);
+SELECT tst.expect_rows('employer: can read own hiring plan', $q$SELECT * FROM public.employer_subscriptions WHERE employer_id = auth.uid()$q$, 1);
+SELECT tst.expect_rows('employer: can read own billing history', $q$SELECT * FROM public.billing_transactions WHERE employer_id = auth.uid()$q$, 1);
 SELECT tst.expect_rows('employer: cannot top up own credits directly', $q$UPDATE public.employer_subscriptions SET job_credits = 999 WHERE employer_id = auth.uid()$q$, 0);
 SELECT tst.expect_error('employer: cannot fake a billing transaction', $q$INSERT INTO public.billing_transactions (employer_id, plan_details, amount, status) VALUES (auth.uid(), 'free', 0, 'Success')$q$);
 RESET ROLE;
@@ -234,6 +236,7 @@ SELECT tst.expect_ok('driver: upload document row',
 SELECT tst.expect_error('driver: cannot self-verify a document',
   $q$UPDATE public.driver_documents SET verification_status = 'verified' WHERE id = 'dd100000-0000-4000-8000-000000000001'$q$);
 SELECT tst.expect_error('driver: cannot search the candidate database', $q$SELECT * FROM public.search_driverhub_candidates()$q$);
+SELECT tst.expect_rows('driver: cannot read any employer hiring plan', $q$SELECT * FROM public.employer_subscriptions$q$, 0);
 SELECT tst.expect_error('driver: cannot message an employer they never applied to',
   $q$INSERT INTO public.direct_messages (sender_id, sender_name, sender_role, receiver_id, receiver_name, text) VALUES (auth.uid(), 'x', 'driver', 'e2000000-0000-4000-8000-000000000002', 'y', 'hello')$q$);
 SELECT tst.expect_ok('driver: message the employer of a job they applied to',

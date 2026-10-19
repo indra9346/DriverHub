@@ -1045,7 +1045,10 @@ export const SupabaseSync = {
     }
   },
 
+  // Demo mode only: in production credits and invoices are written solely by
+  // the trusted payment functions (the database refuses browser writes).
   async syncSubscription(sub: import('../types').EmployerSubscription) {
+    if (!DEMO_DATA_ENABLED) return;
     try {
       const empUUID = toUUID(sub.employerId);
       await supabase.from('employer_subscriptions').upsert({
@@ -1068,6 +1071,7 @@ export const SupabaseSync = {
   },
 
   async syncBillingTransaction(txn: import('../types').BillingTransaction) {
+    if (!DEMO_DATA_ENABLED) return;
     try {
       const empUUID = toUUID(txn.employerId);
       await supabase.from('billing_transactions').upsert({

@@ -84,6 +84,21 @@ export async function markConversationRead(userId: string, partnerId: string): P
 }
 
 /**
+ * Whether this driver has a saved driver_profiles row: true / false, or
+ * undefined when the database could not be reached (do not unlock editing).
+ */
+export async function hasSavedDriverProfile(userId: string): Promise<boolean | undefined> {
+  if (!userId || !isSupabaseConfigured) return undefined;
+  try {
+    const { data, error } = await supabase.from('driver_profiles').select('user_id').eq('user_id', userId).maybeSingle();
+    if (error) return undefined;
+    return Boolean(data);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The driver's own availability exactly as stored. The shared cache maps an
  * unset (NULL) availability to 'Flexible', so the profile form reads the raw
  * value to show "not set" honestly. Returns undefined when it cannot tell

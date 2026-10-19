@@ -251,13 +251,19 @@ ALTER TABLE public.saved_searches ALTER COLUMN active_in_days DROP NOT NULL;
 -- ---------------------------------------------------------------------
 -- public.profiles is the canonical source for a driver's current location.
 -- Repair old denormalized driver rows that still contain an earlier district/PIN.
+-- updated_at doubles as the driver's "last active" time in employer searches,
+-- so this maintenance update must not touch it (pause the auto-timestamp trigger).
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.driver_profiles'::regclass AND tgname = 'set_updated_at') THEN
+    ALTER TABLE public.driver_profiles DISABLE TRIGGER set_updated_at;
+  END IF;
+END $$;
 UPDATE public.driver_profiles AS d
 SET district = COALESCE(NULLIF(BTRIM(p.district), ''), d.district),
     pincode = COALESCE(NULLIF(BTRIM(p.pincode), ''), d.pincode),
     preferred_location = COALESCE(NULLIF(BTRIM(p.location), ''), d.preferred_location),
     latitude = COALESCE(p.latitude, d.latitude),
-    longitude = COALESCE(p.longitude, d.longitude),
-    updated_at = now()
+    longitude = COALESCE(p.longitude, d.longitude)
 FROM public.profiles AS p
 WHERE p.id = d.user_id
   AND p.role::text = 'driver'
@@ -268,6 +274,11 @@ WHERE p.id = d.user_id
     (p.latitude IS NOT NULL AND d.latitude IS DISTINCT FROM p.latitude) OR
     (p.longitude IS NOT NULL AND d.longitude IS DISTINCT FROM p.longitude)
   );
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.driver_profiles'::regclass AND tgname = 'set_updated_at') THEN
+    ALTER TABLE public.driver_profiles ENABLE TRIGGER set_updated_at;
+  END IF;
+END $$;
 
 -- 3. Replace search_driverhub_candidates RPC with Spatial Distance & Radius Filter
 DO $drop$ DECLARE r record; BEGIN
@@ -511,6 +522,33 @@ END $$;
 DROP POLICY IF EXISTS profile_self_all ON public.profiles;
 DROP POLICY IF EXISTS company_self_all ON public.companies;
 DROP POLICY IF EXISTS driver_self_all ON public.driver_profiles;
+-- Legacy supabase-schema.sql policies that leak data if that file was re-run:
+-- every signed-in user could read all driver profiles, and unverified
+-- companies were publicly listed.
+DROP POLICY IF EXISTS "profiles employers read drivers" ON public.profiles;
+DROP POLICY IF EXISTS "companies public read" ON public.companies;
+
+-- Owner/admin read access (and notification read/mark-read/delete) must not
+-- depend on the ALL policies removed above.
+DROP POLICY IF EXISTS subscription_owner_read ON public.employer_subscriptions;
+CREATE POLICY subscription_owner_read ON public.employer_subscriptions FOR SELECT TO authenticated
+  USING (employer_id = auth.uid() OR public.is_driverhub_admin());
+DROP POLICY IF EXISTS billing_owner_read ON public.billing_transactions;
+CREATE POLICY billing_owner_read ON public.billing_transactions FOR SELECT TO authenticated
+  USING (employer_id = auth.uid() OR public.is_driverhub_admin());
+DROP POLICY IF EXISTS entitlement_owner_admin_read ON public.job_entitlement_events;
+CREATE POLICY entitlement_owner_admin_read ON public.job_entitlement_events FOR SELECT TO authenticated
+  USING (employer_id = auth.uid() OR public.is_driverhub_admin());
+DROP POLICY IF EXISTS driverhub_notification_read ON public.notifications;
+CREATE POLICY driverhub_notification_read ON public.notifications FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.is_driverhub_admin());
+DROP POLICY IF EXISTS driverhub_notification_update ON public.notifications;
+CREATE POLICY driverhub_notification_update ON public.notifications FOR UPDATE TO authenticated
+  USING (user_id = auth.uid() OR public.is_driverhub_admin())
+  WITH CHECK (user_id = auth.uid() OR public.is_driverhub_admin());
+DROP POLICY IF EXISTS driverhub_notification_delete ON public.notifications;
+CREATE POLICY driverhub_notification_delete ON public.notifications FOR DELETE TO authenticated
+  USING (user_id = auth.uid() OR public.is_driverhub_admin());
 
 -- Writes to credits, invoices, entitlement events and notifications must come
 -- from SECURITY DEFINER functions/triggers (which run as the function owner),
@@ -1041,6 +1079,10 @@ BEGIN
     RAISE EXCEPTION 'Payment order is not payable';
   END IF;
 
+  -- Two orders for the same employer completing at once must not both read the
+  -- old plan and overwrite each other's credits or expiry.
+  PERFORM pg_advisory_xact_lock(hashtextextended('driverhub_plan:' || payment_order.employer_id::text, 0));
+  PERFORM 1 FROM public.employer_subscriptions WHERE employer_id = payment_order.employer_id FOR UPDATE;
   SELECT expires_at INTO old_expiry FROM public.employer_subscriptions
     WHERE employer_id = payment_order.employer_id AND status = 'active' AND expires_at > now();
   next_expiry := greatest(COALESCE(old_expiry, now()), now()) + make_interval(days => payment_order.validity_days);

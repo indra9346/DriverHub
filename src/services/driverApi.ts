@@ -75,10 +75,8 @@ export function markConversationReadLocally(userId: string, partnerId: string): 
  */
 export async function markConversationRead(userId: string, partnerId: string): Promise<boolean> {
   if (!userId || !partnerId) return false;
-  if (!DataStore.isDemoMode()) {
-    const saved = await SupabaseSync.markMessagesRead(partnerId);
-    if (!saved) return false;
-  }
+  const saved = await SupabaseSync.markMessagesRead(partnerId);
+  if (!saved) return false;
   markConversationReadLocally(userId, partnerId);
   return true;
 }
@@ -102,10 +100,10 @@ export async function hasSavedDriverProfile(userId: string): Promise<boolean | u
  * The driver's own availability exactly as stored. The shared cache maps an
  * unset (NULL) availability to 'Flexible', so the profile form reads the raw
  * value to show "not set" honestly. Returns undefined when it cannot tell
- * (demo mode, offline, no driver row yet).
+ * (offline, no driver row yet).
  */
 export async function fetchStoredAvailability(userId: string): Promise<string | null | undefined> {
-  if (!userId || DataStore.isDemoMode() || !isSupabaseConfigured) return undefined;
+  if (!userId || !isSupabaseConfigured) return undefined;
   try {
     const { data, error } = await supabase
       .from('driver_profiles')

@@ -47,7 +47,7 @@ const gstFor = (amount: number) => Math.round(amount * 0.18);
 
 const formatDay = (date: Date) => date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
-/** Transactions store a UTC date (YYYY-MM-DD) and time (HH:MM); demo rows store display text. */
+/** Transactions store a UTC date (YYYY-MM-DD) and time (HH:MM); older rows may hold display text. */
 function formatTxnWhen(txn: BillingTransaction): { date: string; time: string } {
   let when: Date | null = null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(txn.date)) {
@@ -90,7 +90,6 @@ export const EmployerBilling: React.FC = () => {
   const [showGstinModal, setShowGstinModal] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SelectedPlan | null>(null);
-  const demoCheckoutAvailable = DataStore.isDemoMode();
 
   // GSTIN Form
   const [gstinInput, setGstinInput] = useState('');
@@ -155,10 +154,8 @@ export const EmployerBilling: React.FC = () => {
     clearLastError();
     let saved = false;
     try {
-      saved = DataStore.isDemoMode()
-        ? (DataStore.updateSubscription(employerId, billing), true)
-        : await SupabaseSync.updateEmployerBillingProfile(employerId, billing);
-      if (saved && !DataStore.isDemoMode()) {
+      saved = await SupabaseSync.updateEmployerBillingProfile(employerId, billing);
+      if (saved) {
         await SupabaseSync.fetchAndMergeRemoteData(DataStore);
       }
     } catch (err) {
@@ -180,17 +177,6 @@ export const EmployerBilling: React.FC = () => {
   const selectPlan = (plan: PlanCard) => {
     setCheckoutError('');
     setSelectedPlan({ ...plan, validity: `${t('validFor')} ${plan.days} ${t('days')}` });
-  };
-
-  const activateDemoPlan = () => {
-    if (!selectedPlan || !demoCheckoutAvailable) return;
-    const activated = DataStore.activateDemoPlan(employerId, selectedPlan.name, selectedPlan.amount,
-      selectedPlan.jobs, selectedPlan.drivers, selectedPlan.days, selectedPlan.slots);
-    if (!activated) return;
-    showToast('Development demo plan activated. This is not a payment or production entitlement.', 'info');
-    setShowPlansModal(false);
-    setSelectedPlan(null);
-    refreshData();
   };
 
   const finishCheckout = () => {
@@ -684,25 +670,15 @@ export const EmployerBilling: React.FC = () => {
                   </div>
                 </div>
                 <div className="md:text-right">
-                  {demoCheckoutAvailable ? (
-                    <>
-                      <p className="text-xs text-amber-800 font-semibold">{t('devTestCheckout')}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">{t('noRealPaymentDemo')}</p>
-                      <button onClick={activateDemoPlan} className="mt-3 w-full md:w-auto min-h-10 px-5 py-2.5 rounded-xl bg-[#19745B] text-white text-xs font-bold">{t('activateDemoPlan')}</button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-[11px] text-slate-500">Secure payment by Razorpay (UPI, cards, net banking).</p>
-                      <button
-                        onClick={startCheckout}
-                        disabled={checkoutBusy}
-                        className="mt-3 w-full md:w-auto min-h-10 px-5 py-2.5 rounded-xl bg-[#19745B] hover:bg-[#135A46] disabled:opacity-60 disabled:cursor-wait text-white text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        {checkoutBusy && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {checkoutBusy ? 'Processing payment…' : `${t('proceedToPayment')} · ₹${(selectedPlan.amount + gstFor(selectedPlan.amount)).toLocaleString('en-IN')}`}
-                      </button>
-                    </>
-                  )}
+                  <p className="text-[11px] text-slate-500">Secure payment by Razorpay (UPI, cards, net banking).</p>
+                  <button
+                    onClick={startCheckout}
+                    disabled={checkoutBusy}
+                    className="mt-3 w-full md:w-auto min-h-10 px-5 py-2.5 rounded-xl bg-[#19745B] hover:bg-[#135A46] disabled:opacity-60 disabled:cursor-wait text-white text-xs font-bold inline-flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {checkoutBusy && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {checkoutBusy ? 'Processing payment…' : `${t('proceedToPayment')} · ₹${(selectedPlan.amount + gstFor(selectedPlan.amount)).toLocaleString('en-IN')}`}
+                  </button>
                 </div>
                 {checkoutError && (
                   <p role="alert" className="md:col-span-2 text-xs font-semibold text-rose-700 bg-rose-50 p-2.5 rounded-xl border border-rose-200 break-words">

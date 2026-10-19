@@ -3,7 +3,6 @@ import { UploadCloud, FileText, X, AlertCircle, Loader2 } from 'lucide-react';
 import { DocumentType, DriverDocument } from '../../types';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { useLanguage } from '../../services/i18n';
-import { newId } from '../../lib/ids';
 
 interface FileUploaderProps {
   driverId: string;
@@ -48,17 +47,7 @@ export const FileUploader: React.FC<FileUploaderProps> = ({ driverId, onUploadCo
     setUploading(true);
     setError(null);
     try {
-      const isDemo = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
-      let document: DriverDocument;
-      if (isDemo) {
-        document = {
-          id: newId(), driverId, name: file.name, type: docType,
-          fileUrl: URL.createObjectURL(file), fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          uploadDate: new Date().toISOString().slice(0, 10), verificationStatus: 'pending'
-        };
-      } else {
-        document = await SupabaseSync.uploadDriverDocument(driverId, file, docType);
-      }
+      const document: DriverDocument = await SupabaseSync.uploadDriverDocument(driverId, file, docType);
       await onUploadComplete(document);
       setFile(null);
     } catch (e) {

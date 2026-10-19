@@ -99,9 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // Remove the signed-out user's cached contacts, messages and directories.
     DataStore.clearSessionCaches();
     if (onCloseMobile) onCloseMobile();
-    if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
-      try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Always finish local logout navigation. */ }
-    }
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Always finish local logout navigation. */ }
     navigate(getLoginPathForRole(role), { replace: true });
   };
 

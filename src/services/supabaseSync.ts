@@ -19,8 +19,6 @@ export function toUUID(id: string): string {
   return `00000000-${tail}`;
 }
 
-const DEMO_AUTH_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true';
-const DEMO_DATA_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
 
 /** Drop undefined keys so a partial save never overwrites unrelated columns. */
 function definedOnly<T extends Record<string, unknown>>(payload: T): Partial<T> {
@@ -696,7 +694,7 @@ export const SupabaseSync = {
       if (!job.employerId) return this.fail(null, 'This job has no employer.');
       const employerUUID = toUUID(job.employerId);
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return DEMO_AUTH_ENABLED || this.fail(null, 'Your session has expired. Please sign in again.');
+      if (!authData.user) return this.fail(null, 'Your session has expired. Please sign in again.');
       const { data: currentProfile } = await supabase.from('profiles').select('role').eq('id', authData.user.id).maybeSingle();
       const isAdmin = currentProfile?.role === 'admin';
       if (authData.user.id !== employerUUID && !isAdmin) return this.fail(null, 'You can only edit your own company jobs.');
@@ -769,7 +767,7 @@ export const SupabaseSync = {
       const driverUUID = toUUID(app.driverId);
       const jobUUID = toUUID(app.jobId);
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return DEMO_AUTH_ENABLED || this.fail(null, 'Your session has expired. Please sign in again.');
+      if (!authData.user) return this.fail(null, 'Your session has expired. Please sign in again.');
       if (authData.user.id !== driverUUID) return this.fail(null, 'Sign in with your driver account to apply.');
 
       const { error } = await supabase.from('applications').insert({
@@ -798,10 +796,10 @@ export const SupabaseSync = {
    */
   async registerUser(user: User, profileData?: DriverProfile | EmployerProfile): Promise<boolean> {
     try {
-      if (!isSupabaseConfigured) return DEMO_DATA_ENABLED || this.fail(null, 'Supabase is not configured for this deployment.');
+      if (!isSupabaseConfigured) return this.fail(null, 'Supabase is not configured for this deployment.');
       const userUUID = toUUID(user.id);
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return DEMO_AUTH_ENABLED || this.fail(null, 'Your session has expired. Please sign in again.');
+      if (!authData.user) return this.fail(null, 'Your session has expired. Please sign in again.');
       if (authData.user.id !== userUUID) return this.fail(null, 'A different account is signed in on this device. Sign in again to save.');
 
       const driver = user.role === 'driver' ? profileData as DriverProfile | undefined : undefined;
@@ -942,9 +940,7 @@ export const SupabaseSync = {
   async deleteDriverExperience(driverId: string, experienceId: string): Promise<boolean> {
     try {
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user || authData.user.id !== toUUID(driverId)) {
-        return Boolean(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true');
-      }
+      if (!authData.user || authData.user.id !== toUUID(driverId)) return false;
       const { error } = await supabase.from('driver_experiences').delete()
         .eq('id', toUUID(experienceId)).eq('driver_id', authData.user.id);
       if (error) console.warn('Supabase deleteDriverExperience error:', error.message);
@@ -1008,7 +1004,7 @@ export const SupabaseSync = {
   async syncApplicationStatus(appId: string, status: string, options?: { employerNotes?: string; interviewDate?: string; interviewMode?: string; interviewLocation?: string }): Promise<boolean> {
     try {
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return DEMO_AUTH_ENABLED || this.fail(null, 'Your session has expired. Please sign in again.');
+      if (!authData.user) return this.fail(null, 'Your session has expired. Please sign in again.');
       let interviewDate: string | undefined;
       if (options?.interviewDate) {
         const parsed = new Date(options.interviewDate);
@@ -1061,51 +1057,6 @@ export const SupabaseSync = {
     }
   },
 
-  // Demo mode only: in production credits and invoices are written solely by
-  // the trusted payment functions (the database refuses browser writes).
-  async syncSubscription(sub: import('../types').EmployerSubscription) {
-    if (!DEMO_DATA_ENABLED) return;
-    try {
-      const empUUID = toUUID(sub.employerId);
-      await supabase.from('employer_subscriptions').upsert({
-        id: empUUID,
-        employer_id: empUUID,
-        plan_name: sub.planName,
-        job_credits: sub.jobCredits,
-        db_unlock_credits: sub.dbUnlockCredits,
-        total_job_credits: sub.totalJobCredits,
-        total_db_unlock_credits: sub.totalDbUnlockCredits,
-        gstin: sub.gstin,
-        gstin_verified: sub.gstinVerified,
-        billing_company_name: sub.billingCompanyName,
-        billing_address: sub.billingAddress,
-        status: sub.status
-      }, { onConflict: 'employer_id' });
-    } catch (e) {
-      console.warn('syncSubscription error:', e);
-    }
-  },
-
-  async syncBillingTransaction(txn: import('../types').BillingTransaction) {
-    if (!DEMO_DATA_ENABLED) return;
-    try {
-      const empUUID = toUUID(txn.employerId);
-      await supabase.from('billing_transactions').upsert({
-        id: toUUID(txn.id),
-        employer_id: empUUID,
-        plan_details: txn.planDetails,
-        applies_until: txn.appliesUntil,
-        amount: txn.amount,
-        status: txn.status,
-        invoice_id: txn.invoiceId || 'INV-DH-2026',
-        job_credits_added: txn.jobCreditsAdded || 0,
-        db_credits_added: txn.dbCreditsAdded || 0
-      }, { onConflict: 'id' });
-    } catch (e) {
-      console.warn('syncBillingTransaction error:', e);
-    }
-  },
-
   /**
    * Create a credit-backed unlock. The database trigger takes one credit for a
    * new driver; an existing unlock is left untouched (no second charge).
@@ -1113,7 +1064,7 @@ export const SupabaseSync = {
   async syncCandidateUnlock(unlock: import('../types').CandidateUnlock) {
     try {
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) return DEMO_AUTH_ENABLED || this.fail(null, 'Your session has expired. Please sign in again.');
+      if (!authData.user) return this.fail(null, 'Your session has expired. Please sign in again.');
       if (authData.user.id !== toUUID(unlock.employerId)) return this.fail(null, 'Sign in with your employer account to unlock drivers.');
       const { error } = await supabase.from('candidate_unlocks').upsert({
         employer_id: authData.user.id,

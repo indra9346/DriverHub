@@ -20,8 +20,8 @@ const groupOf = (status: ApplicationStatus): StatusGroup => {
   return status;
 };
 
-// Demo builds (and deployments without Supabase) read the local cache instead.
-const LIVE_DATA = isSupabaseConfigured && !DataStore.isDemoMode();
+// Deployments without Supabase read the local cache instead.
+const LIVE_DATA = isSupabaseConfigured;
 
 export const AdminApplications: React.FC = () => {
   const { t, lang } = useLanguage();

@@ -51,7 +51,6 @@ export const AdminSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [workload, setWorkload] = useState<Workload>(readWorkload);
-  const demoMode = DataStore.isDemoMode();
 
   const loadAccess = useCallback(async () => {
     setLoading(true);
@@ -164,7 +163,7 @@ export const AdminSettings: React.FC = () => {
             <div className="min-w-0">
               <dt className="text-xs text-slate-500">{t('dataSource')}</dt>
               <dd className="mt-1 font-semibold text-slate-800 break-words">
-                {demoMode ? t('demoData') : isSupabaseConfigured ? t('liveDatabase') : t('supabaseNotConfigured')}
+                {isSupabaseConfigured ? t('liveDatabase') : t('supabaseNotConfigured')}
               </dd>
             </div>
           </div>

@@ -43,7 +43,7 @@ A driver recruitment and job portal connecting **Drivers / Candidates**, **Emplo
 ## 🛠️ Tech Stack
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router v6, TanStack Query
 - **Backend & Storage**: Supabase (PostgreSQL, Auth, Storage, RLS)
-- **State & Resilience**: Dual-mode data layer with persistent local storage sync for instant demo review
+- **State & Resilience**: Supabase is the source of truth; a local cache keeps screens fast and works with live updates
 - **Mobile**: React Native, Expo
 
 ---
@@ -57,7 +57,7 @@ A driver recruitment and job portal connecting **Drivers / Candidates**, **Emplo
 2. Create `.env.local` from `.env.example`. Set only the Supabase project URL and public anon/publishable key in this browser environment. Never put a Supabase service-role/secret key in a `VITE_` variable or browser env file.
 3. Start the app with `npm run dev`; create a production build with `npm run build`.
 
-The production app requires a configured Supabase project and the SQL files below. Demo data, authentication, and checkout are disabled by default and are for local development only. Do not use the demo settings for a live deployment.
+The app requires a configured Supabase project and the SQL files below. It has no built-in sample data or demo accounts: every account, job and application lives in Supabase.
 
 ## Production Database and Hiring Plans
 
@@ -142,12 +142,3 @@ https://YOUR_PROJECT_REF.supabase.co/functions/v1/razorpay-webhook
 ```
 
 Use the same webhook secret in Razorpay and Supabase. Verify the complete flow with Razorpay test mode before setting live keys, configure the frontend's `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the hosting provider, then deploy the web build. Payment-provider activation and a Supabase deployment still require account access and credentials outside this repository.
-
----
-
-## Development Demo Accounts
-
-Only use these demo identities with local demo authentication enabled. They are not production accounts.
-- **Driver**: `ravi.kumar@driverhub.in`
-- **Employer**: `deepa@bharatlogistics.in`
-- **Admin**: `admin@driverhub.in`

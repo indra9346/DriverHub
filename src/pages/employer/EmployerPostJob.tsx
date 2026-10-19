@@ -599,22 +599,8 @@ export const EmployerPostJob: React.FC = () => {
     setEntitlementIsPlan(false);
     if (!validateForm()) return;
 
-    let creditUsed = false;
-    let slotUsed = false;
-
-    // Demo mode keeps credits locally. In production the database takes the
-    // credit (or a plan slot) and returns the reason when none is left.
-    if (targetStatus !== 'draft' && DataStore.isDemoMode()) {
-      const entitlement = DataStore.consumeJobCredit(employerId);
-      if (!entitlement.success) {
-        setEntitlementIsPlan(true);
-        setEntitlementError(entitlement.message);
-        return;
-      }
-      creditUsed = entitlement.creditUsed === true;
-      slotUsed = entitlement.slotUsed === true;
-    }
-
+    // The database takes the credit (or a plan slot) when the job is
+    // published and returns the reason when none is left.
     const newJob: Job = {
       id: newId(),
       employerId,
@@ -624,8 +610,8 @@ export const EmployerPostJob: React.FC = () => {
       status: targetStatus,
       postedDate: new Date().toISOString().slice(0, 10),
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      creditConsumed: creditUsed,
-      slotConsumed: slotUsed,
+      creditConsumed: false,
+      slotConsumed: false,
       applicationsCount: 0
     };
 
@@ -641,7 +627,6 @@ export const EmployerPostJob: React.FC = () => {
     }
 
     if (!saved) {
-      if (creditUsed) DataStore.refundJobCredit(employerId);
       // Stay on the form so nothing typed is lost.
       showSaveError('The job could not be saved. Please try again.');
       return;

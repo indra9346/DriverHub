@@ -115,10 +115,6 @@ export function formatDateTimeIN(iso?: string): string {
  * when unlocked). Throws the database's reason when search is refused.
  */
 export async function fetchCandidateById(driverId: string): Promise<DriverProfile | null> {
-  if (DataStore.isDemoMode()) {
-    const [local] = DataStore.searchDriversLocally({ userId: driverId, limit: 1 });
-    return local || null;
-  }
   const [row] = await SupabaseSync.searchDriverCandidates({ userId: driverId, limit: 1 });
   return row || null;
 }

@@ -1,16 +1,24 @@
-# Apache / LiteSpeed (cPanel) settings for the Driver Hub build (dist/).
-# Upload the whole dist/ folder, including this file, to the site's web root.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
 
-Options -MultiViews
-RewriteEngine On
-RewriteBase /
-# Real files (scripts, images, manifest) are served as they are; every other
-# address is a page of the app.
-RewriteCond %{REQUEST_FILENAME} !-f
-# A missing script from an older upload stays a 404 instead of becoming a page.
-RewriteCond %{REQUEST_URI} !^/assets/
-RewriteRule ^ index.html [L]
+  # Preserve existing files, directories, and symbolic links (assets, images, logos, banners)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d [OR]
+  RewriteCond %{REQUEST_FILENAME} -l
+  RewriteRule ^ - [L]
 
+  # A missing script from an older upload stays a 404 instead of becoming a page
+  RewriteRule ^assets/ - [R=404,L]
+
+  # Rewrite all SPA routes (e.g. /jobs, /jobs?category=HMV, /employer/post-job) to /index.html
+  RewriteRule ^ index.html [QSA,L]
+</IfModule>
+
+# Fallback if mod_rewrite is disabled on the server
+ErrorDocument 404 /index.html
+
+# Web app manifest ("Download App" on phones)
 AddType application/manifest+json .webmanifest
 
 <IfModule mod_headers.c>

@@ -101,6 +101,11 @@ export const RegisterPage: React.FC = () => {
       });
       if (authError) throw authError;
       if (!authResult.user) throw new Error(lang === 'kn' ? 'ನೋಂದಣಿ ಪೂರ್ಣಗೊಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.' : 'Registration could not be completed. Please try again.');
+      // With email confirmation on, Supabase answers an already-registered email
+      // with a user that has no identities instead of an error.
+      if (Array.isArray(authResult.user.identities) && authResult.user.identities.length === 0) {
+        throw new Error('An account with this email already exists. Sign in instead, or reset your password.');
+      }
       if (!authResult.session) {
         setSuccessMessage(lang === 'kn' ? 'ನಿಮ್ಮ ಖಾತೆ ರಚನೆಯಾಗಿದೆ! ನಿಮ್ಮ ಇಮೇಲ್ ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಸೈನ್ ಇನ್ ಮಾಡಿ.' : 'Your account was created! If email confirmation is enabled, check your inbox to activate it, then click Sign In below.');
         setLoading(false);
@@ -117,7 +122,9 @@ export const RegisterPage: React.FC = () => {
         createdAt: new Date().toISOString().slice(0, 10),
       };
 
+      DataStore.clearSessionCaches();
       DataStore.addUser(newUser);
+      let profileSaved = false;
 
       if (role === 'driver') {
         const newDriver: DriverProfile = {
@@ -141,19 +148,8 @@ export const RegisterPage: React.FC = () => {
           experiences: [],
           documents: []
         };
-        DataStore.updateDriverProfile(newDriver);
-
-        DataStore.addNotification({
-          id: 'notif-welcome-' + Date.now(),
-          userId: userId,
-          title: 'Welcome to Driver Hub! 🚗',
-          message: `Welcome aboard, ${driverName}! Your ${driverCategory} driver profile is now active. Complete your verification to apply for premium high-pay jobs.`,
-          type: 'system',
-          read: false,
-          createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-          link: '/driver/profile'
-        });
-        SupabaseSync.registerUser(newUser, newDriver);
+        DataStore.setDriverProfileLocal(newDriver);
+        profileSaved = await SupabaseSync.registerUser(newUser, newDriver);
       } else {
         const newEmployer: EmployerProfile = {
           id: userId,
@@ -171,23 +167,14 @@ export const RegisterPage: React.FC = () => {
           status: 'active',
           createdAt: new Date().toISOString().slice(0, 10)
         };
-        DataStore.updateEmployerProfile(newEmployer);
-
-        DataStore.addNotification({
-          id: 'notif-welcome-' + Date.now(),
-          userId: userId,
-          title: 'Welcome to Driver Hub Employer Portal! 🏢',
-          message: `Welcome ${companyName}! You can now post driver job vacancies and review applications from drivers who apply to your listings.`,
-          type: 'system',
-          read: false,
-          createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-          link: '/employer/post-job'
-        });
-
-        SupabaseSync.registerUser(newUser, newEmployer);
+        DataStore.setEmployerProfileLocal(newEmployer);
+        profileSaved = await SupabaseSync.registerUser(newUser, newEmployer);
       }
 
       DataStore.setCurrentUser(newUser);
+      // The account exists either way; profile details can be completed later.
+      if (!profileSaved) console.warn('Profile details were not fully saved during registration:', SupabaseSync.lastError);
+      await SupabaseSync.fetchAndMergeRemoteData(DataStore);
       setLoading(false);
 
       navigate(getPostLoginPath(role, searchParams.get('redirect')), { replace: true });

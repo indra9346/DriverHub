@@ -36,7 +36,8 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = async () => {
     const role = currentUser?.role || inferRoleFromPath(location.pathname) || 'driver';
-    DataStore.setCurrentUser(null);
+    // Remove the signed-out user's cached contacts, messages and directories.
+    DataStore.clearSessionCaches();
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
     if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {

@@ -8,6 +8,7 @@ import {
 } from '../data/mockData';
 import { SupabaseSync } from './supabaseSync';
 import { matchesPanIndiaLocationFilter, calculateHaversineDistanceKm, parseStructuredLocation } from './indiaLocationService';
+import { newId } from '../lib/ids';
 
 const allDefaultDrivers: DriverProfile[] = [...initialDrivers, ...additionalDrivers];
 const DEMO_DATA_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_DATA === 'true';
@@ -42,6 +43,9 @@ function getStorage<T>(key: string, fallback: T): T {
     if (item) {
       const parsed = JSON.parse(item);
       if (!DEMO_DATA_ENABLED && Array.isArray(parsed)) {
+        // Only the bundled mock records and the seeded demo accounts
+        // (00000000-0000-4000-8000-0000000000NN) are hidden. Real rows are never
+        // filtered, whatever their id looks like.
         const isDemoId = (id: any) =>
           typeof id === 'string' &&
           (id.startsWith('job-') ||
@@ -49,7 +53,7 @@ function getStorage<T>(key: string, fallback: T): T {
            id.startsWith('emp-') ||
            id.startsWith('app-') ||
            id.startsWith('user-') ||
-           id.startsWith('00000000-0000-4000-8000-'));
+           /^00000000-0000-4000-8000-0000000000\d{2}$/.test(id));
         return parsed.filter((entry: any) => !isDemoId(entry?.id)) as T;
       }
       return parsed;
@@ -70,6 +74,21 @@ function setStorage<T>(key: string, value: T): void {
   } catch (e) {
     console.error('Storage write error:', e);
   }
+}
+
+/** A job a driver can apply to right now: live, not expired, deadline not passed. */
+export function isJobOpenForApplications(job: Pick<Job, 'status' | 'expiresAt' | 'applicationDeadline'>): boolean {
+  if (job.status !== 'active') return false;
+  if (job.expiresAt && Date.parse(job.expiresAt) <= Date.now()) return false;
+  if (job.applicationDeadline) {
+    // Deadlines are dates: the job stays open until the end of that day.
+    const deadline = new Date(job.applicationDeadline);
+    if (!Number.isNaN(deadline.getTime())) {
+      deadline.setHours(23, 59, 59, 999);
+      if (deadline.getTime() < Date.now()) return false;
+    }
+  }
+  return true;
 }
 
 export const DataStore = {
@@ -97,6 +116,29 @@ export const DataStore = {
     return null;
   },
 
+  /**
+   * Remove every cached record of the previous session (profiles, contacts,
+   * messages, unlocks, admin directories). Call on sign-out and before a
+   * different account signs in on the same device. The language choice is
+   * stored separately and is kept.
+   */
+  clearSessionCaches(): void {
+    try {
+      Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new Event('driverhub_storage_updated'));
+  },
+
+  /** Merge many accounts into the cached list in one write (one storage event). */
+  mergeRemoteUsers(remoteUsers: User[]): void {
+    if (!remoteUsers.length) return;
+    const byId = new Map<string, User>(this.getUsers().map((user): [string, User] => [user.id, user]));
+    for (const user of remoteUsers) byId.set(user.id, { ...byId.get(user.id), ...user });
+    setStorage(STORAGE_KEYS.USERS, [...byId.values()]);
+  },
+
   // Users
   getUsers(): User[] {
     return getStorage<User[]>(STORAGE_KEYS.USERS, initialUsers);
@@ -115,6 +157,8 @@ export const DataStore = {
   },
 
   updateUserPassword(email: string, newPassword: string): boolean {
+    // Passwords live only in Supabase Auth. The local copy exists for demo mode.
+    if (!DEMO_DATA_ENABLED) return true;
     const users = this.getUsers();
     const cleanEmail = email.trim().toLowerCase();
     const index = users.findIndex(u => u.email.toLowerCase() === cleanEmail);
@@ -356,17 +400,19 @@ export const DataStore = {
     }
   },
 
-  updateDriverProfile(profile: DriverProfile): void {
-    this.setDriverProfileLocal(profile);
+  async updateDriverProfile(profile: DriverProfile): Promise<boolean> {
     const user = this.getUsers().find(u => u.id === profile.id) || {
       id: profile.id,
       email: profile.email,
       role: 'driver' as const,
       status: profile.status || 'active',
       phone: profile.phone,
-      createdAt: '2026-08-15'
+      createdAt: new Date().toISOString().slice(0, 10)
     };
-    void SupabaseSync.registerUser(user, profile);
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.registerUser(user, profile))) return false;
+    this.setDriverProfileLocal(profile);
+    if (profile.phone && user.phone !== profile.phone) this.addUser({ ...user, phone: profile.phone });
+    return true;
   },
 
   mergeRemoteDrivers(remoteDrivers: DriverProfile[]): void {
@@ -429,7 +475,7 @@ export const DataStore = {
     return this.getEmployers().find(employer => employer.id === id);
   },
 
-  updateEmployerProfile(profile: EmployerProfile): void {
+  setEmployerProfileLocal(profile: EmployerProfile): void {
     const employers = this.getEmployers();
     const index = employers.findIndex(e => e.id === profile.id);
     if (index >= 0) {
@@ -438,17 +484,22 @@ export const DataStore = {
     } else {
       setStorage(STORAGE_KEYS.EMPLOYERS, [...employers, profile]);
     }
+  },
 
-    // Sync to Supabase DB in real-time
+  async updateEmployerProfile(profile: EmployerProfile): Promise<boolean> {
     const user = this.getUsers().find(u => u.id === profile.id) || {
       id: profile.id,
       email: profile.email,
       role: 'employer' as const,
       status: profile.status || 'active',
       phone: profile.phone,
-      createdAt: '2026-08-10'
+      createdAt: new Date().toISOString().slice(0, 10)
     };
-    SupabaseSync.registerUser(user, profile);
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.registerUser(user, profile))) return false;
+    // Verification and listing status are owned by administration.
+    const existing = this.getEmployerById(profile.id);
+    this.setEmployerProfileLocal(existing ? { ...profile, verified: existing.verified, status: existing.status } : profile);
+    return true;
   },
 
   mergeRemoteEmployers(remoteEmployers: EmployerProfile[]): void {
@@ -466,7 +517,11 @@ export const DataStore = {
     if (!actor || actor.role !== 'admin') return false;
     if (!DEMO_DATA_ENABLED && !(await SupabaseSync.syncEmployerVerification(id, verified))) return false;
 
-    const employers = this.getEmployers().map(e => e.id === id ? { ...e, verified } : e);
+    const employers = this.getEmployers().map(e => {
+      if (e.id !== id) return e;
+      const status: EmployerProfile['status'] = verified && e.status === 'pending' ? 'active' : (!verified && e.status === 'active' ? 'pending' : e.status);
+      return { ...e, verified, status };
+    });
     setStorage(STORAGE_KEYS.EMPLOYERS, employers);
     return employers.some(employer => employer.id === id);
   },
@@ -519,10 +574,11 @@ export const DataStore = {
     setStorage(STORAGE_KEYS.JOBS, [...remoteJobs, ...baseList.filter(job => !remoteIds.has(job.id))]);
   },
 
-  updateJob(job: Job): void {
-    const jobs = this.getJobs().map(j => j.id === job.id ? job : j);
-    setStorage(STORAGE_KEYS.JOBS, jobs);
-    SupabaseSync.syncJob(job);
+  async updateJob(job: Job): Promise<boolean> {
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.syncJob(job))) return false;
+    setStorage(STORAGE_KEYS.JOBS, this.getJobs().map(j => j.id === job.id ? job : j));
+    if (!DEMO_DATA_ENABLED) await SupabaseSync.fetchAndMergeRemoteData(this);
+    return true;
   },
 
   async updateJobStatus(jobId: string, status: Job['status']): Promise<boolean> {
@@ -531,16 +587,22 @@ export const DataStore = {
     if (!original || !actor) return false;
     if (actor.role === 'employer' && original.employerId !== actor.id) return false;
     if (actor.role === 'driver') return false;
-    const allowed: Record<Job['status'], Job['status'][]> = {
-      draft: ['pending', 'active', 'closed'], pending: ['active', 'rejected', 'closed'],
-      active: ['closed'], closed: ['active'], rejected: []
-    };
-    if (original.status !== status && !allowed[original.status].includes(status)) return false;
+    // Employers publish, close and re-open; only administration approves or rejects.
+    const allowed: Record<Job['status'], Job['status'][]> = actor.role === 'admin'
+      ? { draft: ['pending', 'active', 'closed'], pending: ['active', 'rejected', 'closed'], active: ['closed'], closed: ['active'], rejected: [] }
+      : { draft: ['pending', 'active', 'closed'], pending: ['closed'], active: ['closed'], closed: ['active'], rejected: [] };
+    if (original.status !== status && !allowed[original.status].includes(status)) {
+      SupabaseSync.lastError = original.status === 'pending' && status === 'active'
+        ? 'This job is waiting for DriverHub review and goes live after approval.'
+        : `A ${original.status} job cannot be moved to ${status}.`;
+      return false;
+    }
     if (!DEMO_DATA_ENABLED && actor.role === 'admin') {
       // Moderation changes only the status. Sending a full job payload from the
       // admin UI could overwrite employer fields with client defaults.
       const saved = await SupabaseSync.updateAdminJobStatus(jobId, status);
       if (!saved) return false;
+      setStorage(STORAGE_KEYS.JOBS, this.getJobs().map(job => job.id === jobId ? { ...job, status } : job));
       await SupabaseSync.fetchAndMergeRemoteData(this);
       return true;
     }
@@ -560,9 +622,11 @@ export const DataStore = {
     if (status === 'rejected' && actor.role === 'admin') slotConsumed = false;
     const updated = { ...original, status, creditConsumed, slotConsumed };
     if (!DEMO_DATA_ENABLED) {
-      const synced = await SupabaseSync.syncJob(updated);
-      if (!synced) return false;
-      setStorage(STORAGE_KEYS.JOBS, this.getJobs().map(job => job.id === jobId ? updated : job));
+      // Send only the status: the database applies entitlement, review and
+      // expiry rules, and a stale cached row must not overwrite newer edits.
+      const savedStatus = await SupabaseSync.updateEmployerJobStatus(jobId, status);
+      if (!savedStatus) return false;
+      setStorage(STORAGE_KEYS.JOBS, this.getJobs().map(job => job.id === jobId ? { ...job, status: savedStatus } : job));
       await SupabaseSync.fetchAndMergeRemoteData(this);
       return true;
     }
@@ -584,9 +648,16 @@ export const DataStore = {
     const applications = this.getApplications();
     const user = this.getCurrentUser();
     const job = this.getJobById(app.jobId);
-    if (!user || user.role !== 'driver' || user.id !== app.driverId || !job || job.status !== 'active') return false;
-    if (applications.some(existing => existing.jobId === app.jobId && existing.driverId === app.driverId && existing.status !== 'withdrawn')) return false;
-    if (job.applicationDeadline && new Date(job.applicationDeadline).getTime() < Date.now()) return false;
+    if (!user || user.role !== 'driver' || user.id !== app.driverId || !job || !isJobOpenForApplications(job)) {
+      SupabaseSync.lastError = 'This job is no longer accepting applications.';
+      return false;
+    }
+    // One application per job and driver (the database enforces this too), so a
+    // withdrawn application cannot be re-submitted.
+    if (applications.some(existing => existing.jobId === app.jobId && existing.driverId === app.driverId)) {
+      SupabaseSync.lastError = 'You have already applied to this job.';
+      return false;
+    }
 
     if (!DEMO_DATA_ENABLED) {
       const synced = await SupabaseSync.syncApplication(app);
@@ -718,7 +789,7 @@ export const DataStore = {
     if (exists) {
       updated = favs.filter(f => !(f.driverId === driverId && f.jobId === jobId));
     } else {
-      updated = [...favs, { id: 'fav-' + Date.now(), driverId, jobId, createdAt: new Date().toISOString() }];
+      updated = [...favs, { id: newId(), driverId, jobId, createdAt: new Date().toISOString() }];
     }
     if (!DEMO_DATA_ENABLED) {
       const synced = await SupabaseSync.syncFavorite(driverId, jobId, !exists);
@@ -769,11 +840,7 @@ export const DataStore = {
   },
 
   async markAllNotificationsAsRead(userId: string): Promise<boolean> {
-    if (!DEMO_DATA_ENABLED) {
-      const pending = this.getNotifications(userId).filter(notification => !notification.read);
-      const results = await Promise.all(pending.map(notification => SupabaseSync.markNotificationRead(notification.id)));
-      if (results.some(result => !result)) return false;
-    }
+    if (!DEMO_DATA_ENABLED && !(await SupabaseSync.markAllNotificationsRead(userId))) return false;
     const notifs = getStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, initialNotifications).map(n =>
       n.userId === userId ? { ...n, read: true } : n
     );
@@ -786,7 +853,10 @@ export const DataStore = {
   // =======================================================================
   getSubscription(employerId: string): EmployerSubscription {
     const subs = getStorage<Record<string, EmployerSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, DEMO_DATA_ENABLED ? initialEmployerSubscriptions : {});
-    if (subs[employerId] && subs[employerId].status === 'active') return subs[employerId];
+    const stored = subs[employerId];
+    if (stored && stored.status === 'active') return stored;
+    // Production keeps the real (expired) record so billing details stay visible.
+    if (stored && !DEMO_DATA_ENABLED) return stored;
     const employer = this.getEmployerById(employerId);
     const defaultSub: EmployerSubscription = {
       employerId,
@@ -965,7 +1035,7 @@ export const DataStore = {
     }
 
     const newUnlock: CandidateUnlock = {
-      id: 'unl-' + Date.now(),
+      id: newId(),
       employerId,
       driverId,
       unlockedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
@@ -995,26 +1065,14 @@ export const DataStore = {
     return { success: true, message: 'Phone number unlocked! 1 Database Credit used.' };
   },
 
-  markDriversDownloadedExcel(employerId: string, driverIds: string[]): void {
-    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, initialCandidateUnlocks);
-    const updated = [...unlocks];
-    for (const dId of driverIds) {
-      const idx = updated.findIndex(u => u.employerId === employerId && u.driverId === dId);
-      if (idx >= 0) {
-        updated[idx] = { ...updated[idx], downloadedExcel: true };
-        SupabaseSync.syncCandidateUnlock(updated[idx]);
-      } else {
-        const created: CandidateUnlock = {
-          id: 'unl-dl-' + Date.now() + '-' + dId,
-          employerId,
-          driverId: dId,
-          unlockedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-          downloadedExcel: true
-        };
-        updated.push(created);
-        SupabaseSync.syncCandidateUnlock(created);
-      }
-    }
+  /** Mark already-unlocked drivers as exported. Never creates (paid) unlocks. */
+  async markDriversDownloadedExcel(employerId: string, driverIds: string[]): Promise<void> {
+    const unlocks = getStorage<CandidateUnlock[]>(STORAGE_KEYS.UNLOCKS, DEMO_DATA_ENABLED ? initialCandidateUnlocks : []);
+    const wanted = new Set(driverIds);
+    const updated = unlocks.map(unlock => unlock.employerId === employerId && wanted.has(unlock.driverId)
+      ? { ...unlock, downloadedExcel: true }
+      : unlock);
+    if (!DEMO_DATA_ENABLED) await SupabaseSync.markUnlocksExported(employerId, driverIds);
     setStorage(STORAGE_KEYS.UNLOCKS, updated);
   },
 
@@ -1091,7 +1149,17 @@ export const DataStore = {
 
   // Reset demo state if needed
   resetDemoData(): void {
+    if (!DEMO_DATA_ENABLED) return;
     Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
     window.location.reload();
+  },
+
+  isDemoMode(): boolean {
+    return DEMO_DATA_ENABLED;
+  },
+
+  /** Message from the last failed Supabase write, for user-facing errors. */
+  getLastError(fallback = 'Something went wrong. Please try again.'): string {
+    return SupabaseSync.lastError || fallback;
   }
 };

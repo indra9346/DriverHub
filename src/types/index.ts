@@ -245,6 +245,10 @@ export interface Application {
   driverEmail?: string;
   driverCategory?: DriverCategory;
   driverExperienceYears?: number;
+  driverLicenseType?: string;
+  driverSkills?: string[];
+  driverPoliceVerified?: boolean;
+  driverExpectedSalary?: number;
   driverLocation?: string;
   resumeUrl?: string;
   coverMessage?: string;

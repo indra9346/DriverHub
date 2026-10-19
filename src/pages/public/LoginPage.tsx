@@ -43,7 +43,7 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setSuggestedRole(null);
     setLoading(true);
-    DataStore.setCurrentUser(null);
+    const previousUserId = DataStore.getCurrentUser()?.id || null;
 
     try {
       const cleanEmail = email.trim().toLowerCase();
@@ -75,30 +75,8 @@ export const LoginPage: React.FC = () => {
           phone: profile.phone || '', createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)
         };
         DataStore.addUser(matched);
-        if (matched.role === 'driver') {
-          const { data: row } = await supabase.from('driver_profiles').select('*').eq('user_id', authData.user.id).maybeSingle();
-          DataStore.updateDriverProfile({
-            id: matched.id, fullName: profile.full_name || 'Driver', phone: matched.phone || '', email: matched.email,
-            location: profile.location || profile.city || '', city: profile.city || '', state: profile.state || '',
-            driverCategory: row?.driver_category || '', licenseNumber: row?.license_number || '',
-            licenseType: row?.license_type || '', licenseExpiry: row?.license_expiry || '',
-            experienceYears: row?.years_experience || 0, skills: row?.skills || [], availability: row?.availability || 'Flexible',
-            status: matched.status, experiences: [], documents: []
-          });
-        } else if (matched.role === 'employer') {
-          const { data: company } = await supabase.from('companies').select('*').eq('user_id', authData.user.id).maybeSingle();
-          const metadata = authData.user.user_metadata || {};
-          DataStore.updateEmployerProfile({
-            id: matched.id, companyName: company?.company_name || metadata.company_name || `${profile.full_name || 'New'} Fleet`,
-            contactPerson: company?.contact_person || profile.full_name || '', email: company?.email || matched.email,
-            phone: company?.phone || matched.phone || '', industry: company?.industry || metadata.industry || 'Driver Hiring',
-            location: company?.location || profile.location || profile.city || '', city: company?.city || profile.city || '',
-            state: company?.state || profile.state || '', address: company?.address || '', website: company?.website || '',
-            description: company?.description || '', verified: company?.verified === true,
-            status: company?.status === 'suspended' ? 'blocked' : company?.status || 'pending',
-            createdAt: company?.created_at?.slice(0, 10) || matched.createdAt
-          });
-        }
+        // Profile details are loaded by fetchAndMergeRemoteData after the role
+        // checks below. Never write a partial profile back to the database here.
       }
 
       if (!matched) throw new Error(lang === 'kn' ? 'ಖಾತೆ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ನೋಂದಾಯಿಸಿ.' : 'No account found. Please sign up first.');
@@ -114,6 +92,7 @@ export const LoginPage: React.FC = () => {
         throw new Error(`This account is registered as ${matched.role}. Switch to that sign-in role.`);
       }
 
+      if (previousUserId && previousUserId !== matched.id) DataStore.clearSessionCaches();
       DataStore.setCurrentUser(matched);
       if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_AUTH === 'true')) {
         await SupabaseSync.fetchAndMergeRemoteData(DataStore);

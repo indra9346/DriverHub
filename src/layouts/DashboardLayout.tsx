@@ -11,6 +11,7 @@ import { AIChatbot } from '../components/common/AIChatbot';
 import { RoutePageBoundary } from '../components/common/RoutePageBoundary';
 import { DataStore } from '../services/store';
 import { supabase } from '../services/supabaseClient';
+import { SupabaseSync } from '../services/supabaseSync';
 import { useLanguage } from '../services/i18n';
 import { UserRole } from '../types';
 import { getDashboardPathForRole, getLoginPathForRole, inferRoleFromPath, isUserRole } from '../services/authRouting';
@@ -34,13 +35,32 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
       setSessionReady(true);
       return () => { live = false; };
     }
+    const signOutLocally = async () => {
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* local sign-out only */ }
+      DataStore.clearSessionCaches();
+      setCurrentUser(null);
+    };
     void (async () => {
-      const { data, error: authError } = await supabase.auth.getUser();
+      // The stored session decides whether anyone is signed in; a network
+      // failure while verifying it must not sign the user out.
+      const { data: sessionData } = await supabase.auth.getSession();
       if (!live) return;
-      if (authError) throw authError;
-      if (!data.user) {
+      if (!sessionData.session) {
         DataStore.setCurrentUser(null);
         setCurrentUser(null);
+        setSessionReady(true);
+        return;
+      }
+      const { data, error: authError } = await supabase.auth.getUser();
+      if (!live) return;
+      if (authError || !data.user) {
+        const status = (authError as { status?: number } | null)?.status;
+        if (!authError || status === 401 || status === 403) {
+          await signOutLocally();
+        } else {
+          // Offline or a transient error: keep the cached account for now.
+          setCurrentUser(DataStore.getCurrentUser());
+        }
         setSessionReady(true);
         return;
       }
@@ -50,11 +70,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         .eq('id', data.user.id)
         .maybeSingle();
       if (!live) return;
-      if (profileError || !profile || !isUserRole(profile.role) || profile.status === 'blocked' || profile.status === 'suspended') {
-        await supabase.auth.signOut({ scope: 'local' });
-        DataStore.setCurrentUser(null);
-        setCurrentUser(null);
+      if (profileError && !profile) {
+        setCurrentUser(DataStore.getCurrentUser());
+        setSessionReady(true);
+        return;
+      }
+      if (!profile || !isUserRole(profile.role) || profile.status === 'blocked' || profile.status === 'suspended'
+        || (profile.role === 'admin' && profile.status !== 'active')) {
+        await signOutLocally();
       } else {
+        const cachedUserId = DataStore.getCurrentUser()?.id;
         const verified = {
           id: data.user.id,
           email: data.user.email || profile.email || '',
@@ -63,15 +88,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
           phone: profile.phone || undefined,
           createdAt: profile.created_at?.slice(0, 10) || new Date().toISOString().slice(0, 10),
         };
+        if (cachedUserId && cachedUserId !== verified.id) DataStore.clearSessionCaches();
         DataStore.addUser(verified);
         DataStore.setCurrentUser(verified);
         setCurrentUser(verified);
+        // Restored session (new tab, cleared cache): load this account's data.
+        if (cachedUserId !== verified.id) {
+          void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
+            window.dispatchEvent(new Event('driverhub_storage_updated'));
+          });
+        }
       }
       setSessionReady(true);
     })().catch(() => {
       if (!live) return;
-      DataStore.setCurrentUser(null);
-      setCurrentUser(null);
+      // Unexpected failure: keep whatever account is cached rather than logging out.
+      setCurrentUser(DataStore.getCurrentUser());
       setSessionReady(true);
     });
     return () => { live = false; };
@@ -84,6 +116,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     window.addEventListener('driverhub_storage_updated', handleStorage);
     return () => window.removeEventListener('driverhub_storage_updated', handleStorage);
   }, []);
+
+  // An administrator can block an account while it is signed in.
+  useEffect(() => {
+    if (!sessionReady || currentUser?.status !== 'blocked') return;
+    void (async () => {
+      try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* local sign-out only */ }
+      DataStore.clearSessionCaches();
+      setCurrentUser(null);
+    })();
+  }, [currentUser?.status, sessionReady]);
 
   useEffect(() => {
     if (!sessionReady) return;
@@ -106,7 +148,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
   }, [location.pathname]);
 
   if (!sessionReady || !currentUser || (requiredRole && currentUser.role !== requiredRole)) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm font-medium text-slate-500">
+        {sessionReady ? 'Redirecting…' : 'Checking your session…'}
+      </div>
+    );
   }
 
   const unreadNotifs = DataStore.getNotifications(currentUser.id).filter(n => !n.read).length;

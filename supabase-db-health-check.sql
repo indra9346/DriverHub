@@ -58,19 +58,28 @@ column_checks AS (
          CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns c
                            WHERE c.table_schema = 'public' AND c.table_name = tbl AND c.column_name = col)
               THEN 'PASS' ELSE 'FAIL' END AS status,
-         'used by the app' AS detail
+         'fix: run ' || fix_file AS detail
   FROM (VALUES
-    ('profiles','district'), ('profiles','pincode'), ('profiles','latitude'), ('profiles','longitude'),
-    ('driver_profiles','months_experience'), ('driver_profiles','latitude'), ('driver_profiles','longitude'),
-    ('driver_profiles','district'), ('driver_profiles','pincode'), ('driver_profiles','languages'), ('driver_profiles','vehicle_types'),
-    ('companies','district'), ('companies','pincode'),
-    ('jobs','expires_at'), ('jobs','closed_at'), ('jobs','credit_consumed'), ('jobs','slot_consumed'),
-    ('jobs','entitlement_consumed_at'), ('jobs','application_deadline'), ('jobs','district'), ('jobs','pincode'),
-    ('employer_subscriptions','active_job_slots'), ('driver_documents','upload_date'),
-    ('saved_searches','district'), ('saved_searches','pincode'), ('saved_searches','radius_km'),
-    ('saved_searches','state'), ('saved_searches','keyword'), ('saved_searches','vehicle_type'), ('saved_searches','active_in_days'),
-    ('direct_messages','sender_name'), ('direct_messages','receiver_name'), ('direct_messages','sender_role'), ('direct_messages','job_title')
-  ) v(tbl, col)
+    ('profiles','district','supabase-pan-india-locations.sql'), ('profiles','pincode','supabase-pan-india-locations.sql'),
+    ('profiles','latitude','supabase-radius-search.sql'), ('profiles','longitude','supabase-radius-search.sql'),
+    ('driver_profiles','months_experience','supabase-profile-sync-rls-fix.sql'),
+    ('driver_profiles','latitude','supabase-radius-search.sql'), ('driver_profiles','longitude','supabase-radius-search.sql'),
+    ('driver_profiles','district','supabase-radius-search.sql'), ('driver_profiles','pincode','supabase-radius-search.sql'),
+    ('driver_profiles','languages','supabase-apnahire-upgrade.sql'), ('driver_profiles','vehicle_types','supabase-apnahire-upgrade.sql'),
+    ('companies','district','supabase-pan-india-locations.sql'), ('companies','pincode','supabase-pan-india-locations.sql'),
+    ('jobs','expires_at','supabase-security-hardening.sql'), ('jobs','closed_at','supabase-security-hardening.sql'),
+    ('jobs','credit_consumed','supabase-security-hardening.sql'), ('jobs','slot_consumed','supabase-security-hardening.sql'),
+    ('jobs','entitlement_consumed_at','supabase-security-hardening.sql'), ('jobs','application_deadline','supabase-security-hardening.sql'),
+    ('jobs','district','supabase-pan-india-locations.sql'), ('jobs','pincode','supabase-pan-india-locations.sql'),
+    ('employer_subscriptions','active_job_slots','supabase-security-hardening.sql'), ('driver_documents','upload_date','supabase-admin-live-fix.sql'),
+    ('applications','interview_mode','supabase-schema.sql'), ('applications','interview_location','supabase-schema.sql'),
+    ('saved_searches','district','supabase-live-repair-2026-10.sql'), ('saved_searches','pincode','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','radius_km','supabase-live-repair-2026-10.sql'), ('saved_searches','state','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','keyword','supabase-live-repair-2026-10.sql'), ('saved_searches','vehicle_type','supabase-live-repair-2026-10.sql'),
+    ('saved_searches','active_in_days','supabase-live-repair-2026-10.sql'),
+    ('direct_messages','sender_name','supabase-schema.sql'), ('direct_messages','receiver_name','supabase-schema.sql'),
+    ('direct_messages','sender_role','supabase-schema.sql'), ('direct_messages','job_title','supabase-schema.sql')
+  ) v(tbl, col, fix_file)
   UNION ALL
   SELECT 31, 'saved_searches.active_in_days allows "any time" (NULL)',
          CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_schema = 'public'
@@ -81,21 +90,24 @@ function_checks AS (
   SELECT 40 AS ord, 'function present: ' || fn AS check_name,
          CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
                            WHERE n.nspname = 'public' AND p.proname = fn) THEN 'PASS' ELSE 'FAIL' END AS status,
-         '' AS detail
+         'fix: run ' || fix_file AS detail
   FROM (VALUES
-    ('is_driverhub_admin'), ('driverhub_user_applied_to_job'), ('search_driverhub_candidates'),
-    ('get_driverhub_public_stats'), ('review_driverhub_document'), ('update_driverhub_billing_profile'),
-    ('complete_driverhub_payment'), ('driverhub_employer_has_active_plan'), ('enforce_driverhub_job_entitlement'),
-    ('refund_rejected_driverhub_job_credit'), ('notify_driverhub_job_moderation'), ('guard_driverhub_application_insert'),
-    ('enforce_driverhub_application_update'), ('protect_driverhub_company_verification'),
-    ('notify_driverhub_company_verification'), ('guard_driverhub_trusted_write'), ('apply_driverhub_signup_location'),
-    ('handle_new_driverhub_user'), ('revoke_driverhub_free_employer_entitlements')
-  ) v(fn)
+    ('is_driverhub_admin','supabase-security-hardening.sql'), ('driverhub_user_applied_to_job','supabase-fix-rls-recursion.sql'),
+    ('search_driverhub_candidates','supabase-radius-search.sql'), ('get_driverhub_public_stats','supabase-live-repair-2026-10.sql'),
+    ('review_driverhub_document','supabase-live-repair-2026-10.sql'), ('update_driverhub_billing_profile','supabase-marketplace-flows.sql'),
+    ('complete_driverhub_payment','supabase-live-repair-2026-10.sql'), ('driverhub_employer_has_active_plan','supabase-employer-driver-doc-access.sql'),
+    ('enforce_driverhub_job_entitlement','supabase-live-repair-2026-10.sql'), ('refund_rejected_driverhub_job_credit','supabase-live-repair-2026-10.sql'),
+    ('notify_driverhub_job_moderation','supabase-live-repair-2026-10.sql'), ('guard_driverhub_application_insert','supabase-live-repair-2026-10.sql'),
+    ('enforce_driverhub_application_update','supabase-live-repair-2026-10.sql'), ('protect_driverhub_company_verification','supabase-live-repair-2026-10.sql'),
+    ('notify_driverhub_company_verification','supabase-live-repair-2026-10.sql'), ('guard_driverhub_trusted_write','supabase-live-repair-2026-10.sql'),
+    ('apply_driverhub_signup_location','supabase-live-repair-2026-10.sql'), ('handle_new_driverhub_user','supabase-schema.sql'),
+    ('revoke_driverhub_free_employer_entitlements','supabase-marketplace-flows.sql')
+  ) v(fn, fix_file)
   UNION ALL
   SELECT 41, 'candidate search has radius signature (16 args)',
          CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
                            WHERE n.nspname = 'public' AND p.proname = 'search_driverhub_candidates' AND p.pronargs = 16)
-              THEN 'PASS' ELSE 'FAIL' END, 'from supabase-radius-search.sql'
+              THEN 'PASS' ELSE 'FAIL' END, 'fix: run supabase-radius-search.sql'
   UNION ALL
   SELECT 42, 'visitors can call public stats',
          CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -130,7 +142,7 @@ trigger_checks AS (
          CASE WHEN EXISTS (SELECT 1 FROM pg_trigger tr JOIN pg_class c ON c.oid = tr.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
                            WHERE n.nspname = sch AND c.relname = tbl AND tr.tgname = trg AND NOT tr.tgisinternal AND tr.tgenabled <> 'D')
               THEN 'PASS' ELSE 'FAIL' END AS status,
-         '' AS detail
+         'fix: run the README SQL files in order, ending with supabase-live-repair-2026-10.sql' AS detail
   FROM (VALUES
     ('auth','users','on_auth_user_created_driverhub'), ('auth','users','zz_revoke_driverhub_free_employer_entitlements'),
     ('auth','users','zzz_apply_driverhub_signup_location'),
@@ -216,7 +228,7 @@ data_checks AS (
   UNION ALL
   SELECT 94, 'live jobs have an expiry date', CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'WARN' END,
          count(*)::text || ' active jobs without expires_at (they never expire)'
-  FROM public.jobs WHERE status::text = 'active' AND expires_at IS NULL
+  FROM public.jobs j WHERE j.status::text = 'active' AND (to_jsonb(j) ->> 'expires_at') IS NULL
   UNION ALL
   SELECT 95, 'applications only on real driver accounts', CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'WARN' END,
          count(*)::text || ' applications made by non-driver accounts'
@@ -230,8 +242,9 @@ data_checks AS (
          count(*) FILTER (WHERE status::text = 'active')::text || ' active admin account(s); inactive admins have no admin rights'
   FROM public.profiles WHERE role::text = 'admin'
   UNION ALL
-  SELECT 98, 'drivers have map coordinates', CASE WHEN count(*) FILTER (WHERE p.latitude IS NULL AND d.latitude IS NULL) = 0 THEN 'PASS' ELSE 'WARN' END,
-         count(*) FILTER (WHERE p.latitude IS NULL AND d.latitude IS NULL)::text || ' of ' || count(*)::text
+  -- to_jsonb(...) ->> keeps this check working on databases without the radius-search columns.
+  SELECT 98, 'drivers have map coordinates', CASE WHEN count(*) FILTER (WHERE (to_jsonb(p) ->> 'latitude') IS NULL AND (to_jsonb(d) ->> 'latitude') IS NULL) = 0 THEN 'PASS' ELSE 'WARN' END,
+         count(*) FILTER (WHERE (to_jsonb(p) ->> 'latitude') IS NULL AND (to_jsonb(d) ->> 'latitude') IS NULL)::text || ' of ' || count(*)::text
            || ' drivers have no coordinates (hidden from "within X km" searches until they re-save their profile)'
   FROM public.profiles p JOIN public.driver_profiles d ON d.user_id = p.id WHERE p.role::text = 'driver'
 ),

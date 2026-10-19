@@ -207,8 +207,10 @@ BEGIN
     UPDATE public.companies c SET verified = false, status = 'pending'::public.user_status, updated_at = now()
       FROM public.employer_subscriptions s
      WHERE s.employer_id = c.user_id AND s.plan_name ILIKE 'Starter Fleet Hiring Plan%' AND c.verified
+       -- Compared as text: target_id is uuid on some databases, text on others.
        AND NOT EXISTS (SELECT 1 FROM public.admin_actions a
-                        WHERE a.target_type = 'employer' AND a.target_id = c.user_id::text AND a.action = 'verify');
+                        WHERE a.target_type::text = 'employer' AND a.target_id::text = c.user_id::text
+                          AND a.action::text = 'verify');
   ELSE
     UPDATE public.companies c SET verified = false, status = 'pending'::public.user_status, updated_at = now()
       FROM public.employer_subscriptions s

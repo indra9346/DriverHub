@@ -29,6 +29,7 @@ for f in supabase-schema.sql supabase-apnahire-upgrade.sql supabase-security-har
 done
 [ "${1:-}" = "--missing-grants" ] && apply "$HERE/01_simulate_missing_grants.sql"
 apply "$ROOT/supabase-live-repair-2026-10.sql"
+apply "$ROOT/supabase-signup-fix-2026-10.sql"
 
 # Exit status: 0 only when every business-flow check passed, the test script
 # itself raised no SQL error, and the health check has no FAIL row.

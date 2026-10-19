@@ -79,7 +79,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         || (profile.role === 'admin' && profile.status !== 'active')) {
         await signOutLocally();
       } else {
-        const cachedUserId = DataStore.getCurrentUser()?.id;
+        const cachedUser = DataStore.getCurrentUser();
+        const cachedUserId = cachedUser?.id;
         const verified = {
           id: data.user.id,
           email: data.user.email || profile.email || '',
@@ -92,8 +93,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         DataStore.addUser(verified);
         DataStore.setCurrentUser(verified);
         setCurrentUser(verified);
-        // Restored session (new tab, cleared cache): load this account's data.
-        if (cachedUserId !== verified.id) {
+        // Restored session (new tab, cleared cache) or a role changed in the
+        // database (an employer repaired, an account made admin): load this
+        // account's data for its current role.
+        if (cachedUserId !== verified.id || cachedUser?.role !== verified.role) {
           void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(() => {
             window.dispatchEvent(new Event('driverhub_storage_updated'));
           });

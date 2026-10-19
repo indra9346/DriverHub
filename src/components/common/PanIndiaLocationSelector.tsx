@@ -35,6 +35,7 @@ import {
   CANONICAL_TOWN_DISTRICT_OVERRIDES
 } from '../../services/indiaLocationService';
 import { LocateFixed } from 'lucide-react';
+import { useLanguage } from '../../services/i18n';
 
 /** Filters wait for a pause in typing before they change results / the URL. */
 const FREE_TEXT_DEBOUNCE_MS = 350;
@@ -438,6 +439,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
   showCurrentLocation = false,
   onCurrentLocationSuccess
 }) => {
+  const { t } = useLanguage();
   const statesList = useMemo(() => getAllStatesAndUTs(), []);
   const allDistrictsWithState = useMemo(() => getAllDistrictsWithState(), []);
   const districtsList = useMemo(() => getDistrictsForState(value.state), [value.state]);
@@ -809,7 +811,8 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
               district: res.district,
               city: res.city,
               pincode: res.pincode,
-              addressLine: value.addressLine,
+              // Fill the street only where the form shows it, and never over typed text.
+              addressLine: value.addressLine || (showAddressLine ? res.addressLine : value.addressLine),
               latitude: lat,
               longitude: lng,
               radiusKm: radiusKm
@@ -1086,7 +1089,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
               ) : (
                 <LocateFixed className="w-3.5 h-3.5 text-blue-600" />
               )}
-              <span>{isDetectingGps ? 'Detecting GPS…' : 'Use My Current Location'}</span>
+              <span>{isDetectingGps ? t('Detecting GPS…') : t('Use My Current Location')}</span>
             </button>
           )}
 
@@ -1110,7 +1113,7 @@ export const PanIndiaLocationSelector: React.FC<PanIndiaLocationSelectorProps> =
       {gpsError && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{gpsError}</span>
+          <span>{t(gpsError)}</span>
         </div>
       )}
 

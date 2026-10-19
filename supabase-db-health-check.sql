@@ -139,8 +139,8 @@ function_checks AS (
     ('notify_driverhub_job_moderation','supabase-live-repair-2026-10.sql'), ('guard_driverhub_application_insert','supabase-live-repair-2026-10.sql'),
     ('enforce_driverhub_application_update','supabase-live-repair-2026-10.sql'), ('protect_driverhub_company_verification','supabase-live-repair-2026-10.sql'),
     ('notify_driverhub_company_verification','supabase-live-repair-2026-10.sql'), ('guard_driverhub_trusted_write','supabase-live-repair-2026-10.sql'),
-    ('apply_driverhub_signup_location','supabase-live-repair-2026-10.sql'), ('handle_new_driverhub_user','supabase-schema.sql'),
-    ('revoke_driverhub_free_employer_entitlements','supabase-marketplace-flows.sql')
+    ('apply_driverhub_signup_location','supabase-live-repair-2026-10.sql'), ('handle_new_driverhub_user','supabase-signup-fix-2026-10.sql'),
+    ('revoke_driverhub_free_employer_entitlements','supabase-marketplace-flows.sql'), ('enforce_driverhub_signup_role','supabase-signup-fix-2026-10.sql')
   ) v(fn, fix_file)
   UNION ALL
   SELECT 41, 'candidate search has radius signature (16 args)',
@@ -175,16 +175,22 @@ function_checks AS (
                            WHERE n.nspname = 'public' AND p.proname = 'get_driverhub_public_stats' AND p.prosrc LIKE '%live_jobs%')
               THEN 'PASS' ELSE 'FAIL' END,
          'older versions fail with "column vacancies does not exist", so homepage counters show 0'
+  UNION ALL
+  SELECT 47, 'sign-up keeps the chosen role and grants no free plan',
+         CASE WHEN EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                           WHERE n.nspname = 'public' AND p.proname = 'handle_new_driverhub_user' AND p.prosrc LIKE '%driverhub-signup-v2%')
+              THEN 'PASS' ELSE 'FAIL' END,
+         'older versions can save employers as drivers with a free Starter plan (fix: run supabase-signup-fix-2026-10.sql)'
 ),
 trigger_checks AS (
   SELECT 50 AS ord, 'trigger present: ' || tbl || '.' || trg AS check_name,
          CASE WHEN EXISTS (SELECT 1 FROM pg_trigger tr JOIN pg_class c ON c.oid = tr.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
                            WHERE n.nspname = sch AND c.relname = tbl AND tr.tgname = trg AND NOT tr.tgisinternal AND tr.tgenabled <> 'D')
               THEN 'PASS' ELSE 'FAIL' END AS status,
-         'fix: run the README SQL files in order, ending with supabase-live-repair-2026-10.sql' AS detail
+         'fix: run the README SQL files in order, ending with supabase-signup-fix-2026-10.sql' AS detail
   FROM (VALUES
     ('auth','users','on_auth_user_created_driverhub'), ('auth','users','zz_revoke_driverhub_free_employer_entitlements'),
-    ('auth','users','zzz_apply_driverhub_signup_location'),
+    ('auth','users','zzz_apply_driverhub_signup_location'), ('auth','users','zzzz_enforce_driverhub_signup_role'),
     ('public','jobs','enforce_driverhub_job_entitlement'), ('public','jobs','record_driverhub_job_entitlement'),
     ('public','jobs','refund_rejected_driverhub_job_credit'), ('public','jobs','notify_driverhub_job_moderation'),
     ('public','applications','guard_driverhub_application_insert'), ('public','applications','enforce_driverhub_application_update'),
@@ -251,7 +257,24 @@ realtime_checks AS (
                ('employer_subscriptions'), ('billing_transactions'), ('companies')) v(t)
 ),
 data_checks AS (
-  SELECT 90 AS ord, 'verified companies listed (not stuck pending)' AS check_name,
+  SELECT 86 AS ord, 'employer sign-ups kept the employer role' AS check_name,
+         CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END AS status,
+         count(*)::text || ' accounts registered as employers are saved as drivers (fix: run supabase-signup-fix-2026-10.sql)' AS detail
+  FROM public.profiles p JOIN auth.users u ON u.id = p.id
+  WHERE lower(u.raw_user_meta_data ->> 'role') = 'employer' AND p.role::text = 'driver'
+    AND EXISTS (SELECT 1 FROM public.companies c WHERE c.user_id = p.id)
+  UNION ALL
+  SELECT 87, 'no free Starter plans', CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+         count(*)::text || ' employers hold unpaid Starter credits (fix: run supabase-signup-fix-2026-10.sql)'
+  FROM public.employer_subscriptions
+  WHERE plan_name ILIKE 'Starter Fleet Hiring Plan%' AND (job_credits > 0 OR db_unlock_credits > 0)
+  UNION ALL
+  SELECT 88, 'no sample GSTIN on accounts', CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
+         count(*)::text || ' plans or companies carry the demo GSTIN 29AAKCB0612Q1ZC (fix: run supabase-signup-fix-2026-10.sql)'
+  FROM (SELECT gstin FROM public.employer_subscriptions UNION ALL SELECT to_jsonb(c) ->> 'gstin' FROM public.companies c) g
+  WHERE g.gstin = '29AAKCB0612Q1ZC'
+  UNION ALL
+  SELECT 90, 'verified companies listed (not stuck pending)',
          CASE WHEN count(*) = 0 THEN 'PASS' ELSE 'FAIL' END AS status,
          count(*)::text || ' verified companies still have status pending' AS detail
   FROM public.companies WHERE verified AND status::text = 'pending'

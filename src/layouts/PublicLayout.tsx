@@ -8,7 +8,8 @@ import { RoutePageBoundary } from '../components/common/RoutePageBoundary';
 // event and the recovery link before the reset page itself has loaded.
 import '../services/publicApi';
 
-export const PublicLayout: React.FC = () => {
+/** Renders `children` in place of the routed page when given. */
+export const PublicLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   return (
     // overflow-x-clip (not hidden) guards phones against sideways scrolling
@@ -19,7 +20,7 @@ export const PublicLayout: React.FC = () => {
           a page loads and then jumps down (layout shift). */}
       <main className="flex-1 min-h-[calc(100vh-4rem)] supports-[height:100dvh]:min-h-[calc(100dvh-4rem)]">
         <RoutePageBoundary key={location.pathname}>
-          <Outlet />
+          {children ?? <Outlet />}
         </RoutePageBoundary>
       </main>
       <Footer />

@@ -123,7 +123,6 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'Manage Jobs': 'ಉದ್ಯೋಗಗಳ ನಿರ್ವಹಣೆ',
   'Manage Vacancy': 'ಹುದ್ದೆ ನಿರ್ವಹಿಸಿ',
   'View Pipeline': 'ಅರ್ಜಿಗಳ ಪಟ್ಟಿ ನೋಡಿ',
-  'Staff & Admin Portal': 'ಅಡ್ಮಿನ್ ಪೋರ್ಟಲ್',
   'Admin Login': 'ಅಡ್ಮಿನ್ ಲಾಗಿನ್',
   'Driver Portal': 'ಚಾಲಕರ ಪೋರ್ಟಲ್',
   'Employer Desk': 'ಉದ್ಯೋಗದಾತರ ಪೋರ್ಟಲ್',

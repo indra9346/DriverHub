@@ -4,6 +4,8 @@ import {
   Menu, LayoutDashboard, Search, FileText, FileCheck, User,
   PlusCircle, Briefcase, Users, Building2, ShieldCheck
 } from 'lucide-react';
+import { PublicLayout } from './PublicLayout';
+import { NotFoundPage } from '../pages/public/NotFoundPage';
 import { Navbar } from '../components/common/Navbar';
 import { Footer } from '../components/common/Footer';
 import { Sidebar, getNavLinks } from '../components/common/Sidebar';
@@ -127,6 +129,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
 
   useEffect(() => {
     if (!sessionReady) return;
+    // The admin portal is not advertised: anyone but a signed-in admin gets the
+    // not-found page (rendered below), never a sign-in page or a redirect.
+    if (requiredRole === 'admin' && currentUser?.role !== 'admin') return;
 
     if (!currentUser) {
       const role = requiredRole || inferRoleFromPath(location.pathname) || 'driver';
@@ -161,6 +166,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
       window.removeEventListener('keydown', onKey);
     };
   }, [isMobileSidebarOpen]);
+
+  if (sessionReady && requiredRole === 'admin' && currentUser?.role !== 'admin') {
+    return <PublicLayout><NotFoundPage /></PublicLayout>;
+  }
 
   if (!sessionReady || !currentUser || (requiredRole && currentUser.role !== requiredRole)) {
     return (

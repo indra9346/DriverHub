@@ -9,6 +9,7 @@ import { supabase } from '../../services/supabaseClient';
 import { DataStore } from '../../services/store';
 import { UserRole } from '../../types';
 import { useLanguage } from '../../services/i18n';
+import { getLoginPathForRole } from '../../services/authRouting';
 import {
   endPasswordRecovery,
   getInitialRecoveryError,
@@ -64,11 +65,7 @@ export const ForgotPasswordPage: React.FC = () => {
   const redirect = requestedRedirect.startsWith('/') && !requestedRedirect.startsWith('//')
     ? requestedRedirect
     : '';
-  const loginPath = useMemo(() => {
-    const params = new URLSearchParams({ role });
-    if (redirect) params.set('redirect', redirect);
-    return `/login?${params.toString()}`;
-  }, [role, redirect]);
+  const loginPath = useMemo(() => getLoginPathForRole(role, redirect || undefined), [role, redirect]);
   const roleLabel = role === 'admin' ? t('Admin') : role === 'employer' ? t('Employer') : t('Driver');
   const isResetPath = location.pathname === '/reset-password';
 

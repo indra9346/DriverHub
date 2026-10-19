@@ -3,8 +3,19 @@ import type { UserRole } from '../types';
 const ROLES: UserRole[] = ['driver', 'employer', 'admin'];
 const REDIRECT_BASE = 'https://driverhub.invalid';
 
+/**
+ * Admins sign in only on this page. Nothing in the app links to it, and the
+ * public sign-in page does not accept admin accounts: give the full link to
+ * admins directly. Keep in sync with the static routes in vite.config.ts.
+ */
+export const ADMIN_LOGIN_PATH = '/dh-admin-access';
+
 export const isUserRole = (value: unknown): value is UserRole =>
   typeof value === 'string' && ROLES.includes(value as UserRole);
+
+/** Roles that sign in and register on the public pages. */
+export const isPublicRole = (value: unknown): value is Exclude<UserRole, 'admin'> =>
+  value === 'driver' || value === 'employer';
 
 export const inferRoleFromPath = (path: string): UserRole | null => {
   for (const role of ROLES) {
@@ -20,6 +31,9 @@ export const getDashboardPathForRole = (role: UserRole): string => {
 };
 
 export const getLoginPathForRole = (role: UserRole, redirect?: string): string => {
+  if (role === 'admin') {
+    return redirect ? `${ADMIN_LOGIN_PATH}?${new URLSearchParams({ redirect }).toString()}` : ADMIN_LOGIN_PATH;
+  }
   const params = new URLSearchParams({ role });
   if (redirect) params.set('redirect', redirect);
   return `/login?${params.toString()}`;

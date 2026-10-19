@@ -45,7 +45,7 @@ export const Logo: React.FC<LogoProps> = ({
 
       {/* Typography */}
       <div className="flex flex-col leading-none">
-        <div className="flex items-center tracking-tight font-extrabold font-display">
+        <div className="flex items-center tracking-tight font-extrabold font-display whitespace-nowrap">
           <span className={variant === 'dark' ? 'text-white' : 'text-[#08233F]'}>
             DRIVER
           </span>

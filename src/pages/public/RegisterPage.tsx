@@ -11,7 +11,7 @@ import { useLanguage } from '../../services/i18n';
 import { UserRole, DriverCategory, DriverProfile, EmployerProfile, User as UserType } from '../../types';
 import { getLoginPathForRole, getPostLoginPath } from '../../services/authRouting';
 import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
-import { StructuredPanIndiaLocation, formatStructuredLocation } from '../../services/indiaLocationService';
+import { StructuredPanIndiaLocation, formatStructuredLocation, resolveLocationCoordinates } from '../../services/indiaLocationService';
 
 export const RegisterPage: React.FC = () => {
   const { t, lang } = useLanguage();
@@ -90,6 +90,19 @@ export const RegisterPage: React.FC = () => {
       const selectedState = locationSelection.state;
       const selectedDistrict = locationSelection.district;
       const selectedPincode = locationSelection.pincode;
+      // Coordinates let employers find this driver in "within X km" searches.
+      let latitude = locationSelection.latitude;
+      let longitude = locationSelection.longitude;
+      if (role === 'driver' && (latitude === undefined || longitude === undefined)) {
+        try {
+          const coords = await resolveLocationCoordinates({
+            city: selectedCity, district: selectedDistrict, state: selectedState, pincode: selectedPincode
+          });
+          if (coords) { latitude = coords.lat; longitude = coords.lng; }
+        } catch (err) {
+          console.warn('Coordinate resolution notice:', err);
+        }
+      }
 
       const { data: authResult, error: authError } = await supabase.auth.signUp({
         email: cleanEmail,
@@ -146,6 +159,8 @@ export const RegisterPage: React.FC = () => {
           district: selectedDistrict,
           state: selectedState,
           pincode: selectedPincode,
+          latitude,
+          longitude,
           driverCategory: driverCategory as DriverCategory,
           licenseNumber: '',
           licenseType: licenseType || driverCategory,

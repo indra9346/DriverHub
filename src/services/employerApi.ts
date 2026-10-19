@@ -171,6 +171,11 @@ export async function invokeEdgeFunction<T>(name: string, body: Record<string, u
         // body was not JSON
       }
     }
+    if (!message && status === 404) {
+      // The payment functions have not been deployed to this Supabase project.
+      message = 'Online payment is not available yet. Please contact DriverHub support to activate a plan.';
+    }
+    if (!message && /non-2xx/i.test(error.message || '')) message = 'The payment service could not process this request. Please try again or contact DriverHub support.';
     return { data: null, error: message || error.message || 'The request failed. Please try again.', status };
   } catch (e) {
     return { data: null, error: e instanceof Error ? e.message : 'Network error. Check your connection and try again.', status: 0 };

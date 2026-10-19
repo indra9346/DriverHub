@@ -385,16 +385,20 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center gap-1.5 min-[400px]:gap-2 lg:hidden shrink-0">
             <button
               type="button"
               onClick={toggleLang}
               aria-label={lang === 'kn' ? 'Switch language to English' : 'Switch language to Kannada'}
-              className="flex items-center gap-1 min-h-[40px] bg-slate-100 border border-slate-300 rounded-full px-3 py-1 text-[11px] font-extrabold text-slate-800 shadow-xs"
+              className="flex items-center gap-1 min-h-[40px] bg-slate-100 border border-slate-300 rounded-full px-2.5 min-[400px]:px-3 py-1 text-[11px] font-extrabold text-slate-800 shadow-xs"
             >
-              <span className={lang === 'kn' ? 'text-amber-600 font-black' : 'text-slate-500'}>ಕನ್ನಡ</span>
-              <span className="text-slate-400">⇄</span>
-              <span className={lang === 'en' ? 'text-[#08233F] font-black' : 'text-slate-500'}>EN</span>
+              {/* Narrow phones show only the language you can switch to. */}
+              <span className="min-[400px]:hidden text-[#08233F] font-black">{lang === 'kn' ? 'EN' : 'ಕನ್ನಡ'}</span>
+              <span className="hidden min-[400px]:inline-flex items-center gap-1">
+                <span className={lang === 'kn' ? 'text-amber-600 font-black' : 'text-slate-500'}>ಕನ್ನಡ</span>
+                <span className="text-slate-400">⇄</span>
+                <span className={lang === 'en' ? 'text-[#08233F] font-black' : 'text-slate-500'}>EN</span>
+              </span>
             </button>
             {currentUser && <NotificationBell userId={currentUser.id} />}
             <button

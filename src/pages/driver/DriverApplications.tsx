@@ -150,7 +150,7 @@ export const DriverApplications: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="min-w-0">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono break-all">
-                      {t('Application ID')}: #{app.id}
+                      {t('Application ID')}: #{app.id.slice(0, 8).toUpperCase()}
                     </span>
                     <h3 className="text-base font-bold text-brand-navy font-display mt-0.5 break-words">
                       {app.jobTitle || 'Driver vacancy'}

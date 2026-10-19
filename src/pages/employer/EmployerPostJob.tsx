@@ -541,13 +541,16 @@ export const EmployerPostJob: React.FC = () => {
     const structuredFormatted = formatStructuredLocation({ state, district, city, pincode });
     // Prefix only the landmark parts that the structured address doesn't
     // already contain (a landmark of "Bengaluru, Karnataka" adds nothing).
+    const normalisePart = (part: string) => part.trim().toLowerCase()
+      .replace(/\s*-\s*\d{6}$/, '')
+      .replace(/\s+dist(rict)?\.?$/, '');
     const known = new Set(
-      [...structuredFormatted.split(','), city, district, state]
-        .map(part => part.trim().toLowerCase().replace(/\s+dist\.?$/, ''))
+      [...structuredFormatted.split(','), city, district, state, pincode]
+        .map(part => normalisePart(part || ''))
         .filter(Boolean)
     );
     const landmark = location.split(',').map(part => part.trim())
-      .filter(part => part && !known.has(part.toLowerCase()))
+      .filter(part => part && !known.has(normalisePart(part)))
       .join(', ');
     const fullLocationString = structuredFormatted
       ? (landmark ? `${landmark}, ${structuredFormatted}` : structuredFormatted)
@@ -753,7 +756,7 @@ export const EmployerPostJob: React.FC = () => {
         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1 text-left max-w-md mx-auto break-words">
           <p><strong>Company:</strong> {hiringForCompany}</p>
           <p><strong>Designation:</strong> {title} ({category})</p>
-          <p><strong>Location:</strong> {[location, city, state].filter(Boolean).join(', ')}</p>
+          <p><strong>Location:</strong> {buildJobFields().location}</p>
           <p><strong>Salary Range:</strong> ₹{salaryMin.toLocaleString('en-IN')} – ₹{salaryMax.toLocaleString('en-IN')}/month</p>
           <p>
             <strong>Status:</strong>{' '}

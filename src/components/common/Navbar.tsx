@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Menu, X, Briefcase, Building2, User, LogIn, LogOut, ChevronDown, 
-  Shield, Heart, FileText, Settings, LayoutDashboard, PlusCircle, Sparkles, Globe 
+import {
+  Menu, X, Briefcase, Building2, User, LogIn, LogOut, ChevronDown,
+  Shield, Heart, FileText, Settings, LayoutDashboard, PlusCircle, Sparkles, Globe
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
@@ -34,6 +34,41 @@ export const Navbar: React.FC = () => {
     setIsUserMenuOpen(false);
   }, [location.pathname]);
 
+  // While the mobile menu is open the page behind it does not scroll, and
+  // Escape closes it.
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isMobileMenuOpen]);
+
+  // Names shown in the account menu come from the saved profile; without one
+  // the account email is shown (never a made-up name or number).
+  const profileName = currentUser
+    ? currentUser.role === 'employer'
+      ? (DataStore.getEmployerById(currentUser.id)?.contactPerson || '').trim()
+      : currentUser.role === 'driver'
+      ? (DataStore.getDriverById(currentUser.id)?.fullName || '').trim()
+      : ''
+    : '';
+  const accountLabel = currentUser
+    ? profileName || (currentUser.role === 'admin' ? 'Platform Admin' : currentUser.email)
+    : '';
+  const accountShortLabel = currentUser
+    ? profileName.split(' ')[0] || (currentUser.role === 'admin' ? 'Admin' : currentUser.email.split('@')[0])
+    : '';
+  const accountSecondaryLine = currentUser
+    ? (profileName || currentUser.role === 'admin' ? currentUser.email : currentUser.phone || '')
+    : '';
+
   const handleLogout = async () => {
     const role = currentUser?.role || inferRoleFromPath(location.pathname) || 'driver';
     // Remove the signed-out user's cached contacts, messages and directories.
@@ -63,16 +98,16 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo */}
-          <div className="flex items-center gap-6 lg:gap-8">
-            <Logo size="md" />
+          <div className="flex items-center gap-6 lg:gap-8 min-w-0">
+            <Logo size="md" hideTaglineOnMobile />
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1" aria-label="Main">
               <Link
                 to="/"
-                className={`px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
-                  isActive('/') 
-                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold' 
+                className={`px-2.5 xl:px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
+                  isActive('/')
+                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold'
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
@@ -80,9 +115,9 @@ export const Navbar: React.FC = () => {
               </Link>
               <Link
                 to="/jobs"
-                className={`px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
-                  isActive('/jobs') 
-                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold' 
+                className={`px-2.5 xl:px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
+                  isActive('/jobs')
+                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold'
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
@@ -90,9 +125,9 @@ export const Navbar: React.FC = () => {
               </Link>
               <Link
                 to="/companies"
-                className={`px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
-                  isActive('/companies') 
-                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold' 
+                className={`px-2.5 xl:px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
+                  isActive('/companies')
+                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold'
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
@@ -100,9 +135,9 @@ export const Navbar: React.FC = () => {
               </Link>
               <Link
                 to="/about"
-                className={`px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
-                  isActive('/about') 
-                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold' 
+                className={`px-2.5 xl:px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
+                  isActive('/about')
+                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold'
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
@@ -110,9 +145,9 @@ export const Navbar: React.FC = () => {
               </Link>
               <Link
                 to="/contact"
-                className={`px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
-                  isActive('/contact') 
-                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold' 
+                className={`px-2.5 xl:px-3.5 py-2 text-xs font-bold tracking-tight uppercase transition-all duration-150 ${
+                  isActive('/contact')
+                    ? 'text-[#08233F] border-b-2 border-amber-500 font-extrabold'
                     : 'text-slate-600 hover:text-[#08233F] hover:bg-slate-50/80 rounded-lg'
                 }`}
               >
@@ -122,7 +157,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Right Action Area */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             {/* Attractive Kannada <-- 0 --> English Language Toggle Switch */}
             <div
               onClick={toggleLang}
@@ -137,7 +172,8 @@ export const Navbar: React.FC = () => {
                   e.stopPropagation();
                   setLang('kn');
                 }}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold tracking-tight transition-all duration-200 cursor-pointer ${
+                aria-pressed={lang === 'kn'}
+                className={`min-h-[40px] px-3 py-1 rounded-full text-[11px] font-extrabold tracking-tight transition-all duration-200 cursor-pointer ${
                   lang === 'kn'
                     ? 'bg-amber-500 text-slate-950 shadow-sm scale-[1.02]'
                     : 'text-slate-600 hover:text-slate-900'
@@ -163,7 +199,8 @@ export const Navbar: React.FC = () => {
                   e.stopPropagation();
                   setLang('en');
                 }}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold tracking-tight transition-all duration-200 cursor-pointer ${
+                aria-pressed={lang === 'en'}
+                className={`min-h-[40px] px-3 py-1 rounded-full text-[11px] font-extrabold tracking-tight transition-all duration-200 cursor-pointer ${
                   lang === 'en'
                     ? 'bg-[#08233F] text-white shadow-sm scale-[1.02]'
                     : 'text-slate-600 hover:text-slate-900'
@@ -180,7 +217,7 @@ export const Navbar: React.FC = () => {
                   <>
                     <Link
                       to="/employer/billing"
-                      className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-2xs transition-colors"
+                      className="hidden xl:flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold text-xs shadow-2xs transition-colors"
                     >
                       <span className="text-slate-700">{t('💳 Available credits')}</span>
                       <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-extrabold">
@@ -204,21 +241,20 @@ export const Navbar: React.FC = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    aria-haspopup="menu"
+                    aria-expanded={isUserMenuOpen}
+                    aria-label="Account menu"
                     className="flex items-center gap-2 p-1 pr-2.5 rounded-full border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors focus:outline-none cursor-pointer"
                   >
                     <div className="w-8 h-8 rounded-full bg-[#3A2E39] text-white font-bold flex items-center justify-center text-xs shadow-xs">
                       {currentUser.email.charAt(0).toUpperCase()}
                     </div>
                     <div className="text-left text-xs">
-                      <div className="font-semibold text-slate-900 capitalize leading-tight">
-                        {currentUser.role === 'employer'
-                          ? DataStore.getEmployerById(currentUser.id)?.contactPerson?.split(' ')[0] || 'Employer'
-                          : currentUser.role === 'driver'
-                          ? DataStore.getDriverById(currentUser.id)?.fullName?.split(' ')[0] || 'Driver'
-                          : 'Admin'}
+                      <div className="font-semibold text-slate-900 leading-tight truncate max-w-[110px]">
+                        {accountShortLabel}
                       </div>
-                      <div className="text-[10px] text-slate-500 truncate max-w-[100px]">
-                        {currentUser.phone || currentUser.email.split('@')[0]}
+                      <div className="text-[10px] text-slate-500 truncate max-w-[110px] capitalize">
+                        {currentUser.role}
                       </div>
                     </div>
                     <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
@@ -232,15 +268,13 @@ export const Navbar: React.FC = () => {
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-extrabold text-slate-900 truncate">
-                            {currentUser.role === 'employer'
-                              ? DataStore.getEmployerById(currentUser.id)?.contactPerson || 'Deepa Nair'
-                              : currentUser.role === 'driver'
-                              ? DataStore.getDriverById(currentUser.id)?.fullName || 'Ravi Kumar'
-                              : 'Platform Admin'}
+                            {accountLabel}
                           </p>
-                          <p className="text-[11px] text-slate-500 truncate">
-                            {currentUser.phone || '9341556688'}
-                          </p>
+                          {accountSecondaryLine && (
+                            <p className="text-[11px] text-slate-500 truncate">
+                              {accountSecondaryLine}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -351,11 +385,12 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex items-center gap-2 lg:hidden">
             <button
               type="button"
               onClick={toggleLang}
-              className="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-full px-2.5 py-1 text-[11px] font-extrabold text-slate-800 shadow-xs"
+              aria-label={lang === 'kn' ? 'Switch language to English' : 'Switch language to Kannada'}
+              className="flex items-center gap-1 min-h-[40px] bg-slate-100 border border-slate-300 rounded-full px-3 py-1 text-[11px] font-extrabold text-slate-800 shadow-xs"
             >
               <span className={lang === 'kn' ? 'text-amber-600 font-black' : 'text-slate-500'}>ಕನ್ನಡ</span>
               <span className="text-slate-400">⇄</span>
@@ -363,8 +398,12 @@ export const Navbar: React.FC = () => {
             </button>
             {currentUser && <NotificationBell userId={currentUser.id} />}
             <button
+              type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 text-slate-700 hover:text-[#08233F] rounded-xl hover:bg-slate-100"
+              aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-navigation"
+              className="inline-flex items-center justify-center w-11 h-11 text-slate-700 hover:text-[#08233F] rounded-xl hover:bg-slate-100"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -374,13 +413,13 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Drawer Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 top-16 z-50 md:hidden">
+        <div className="fixed inset-0 top-16 z-[60] lg:hidden">
           {/* Backdrop */}
-          <div 
+          <div
             className="fixed inset-0 top-16 bg-slate-950/50 backdrop-blur-xs transition-opacity"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="relative bg-white border-b border-slate-200 px-4 pt-3 pb-6 space-y-4 max-h-[calc(100vh-4.5rem)] overflow-y-auto shadow-2xl animate-in slide-in-from-top-2 duration-150">
+          <div id="mobile-navigation" className="relative bg-white border-b border-slate-200 px-4 pt-3 pb-6 space-y-4 max-h-[calc(100vh-4rem)] supports-[height:100dvh]:max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain shadow-2xl animate-in slide-in-from-top-2 duration-150">
             {/* User Profile Header (Mobile) */}
             {currentUser ? (
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2.5">
@@ -389,7 +428,8 @@ export const Navbar: React.FC = () => {
                     {currentUser.role === 'admin' ? 'AD' : currentUser.role === 'employer' ? 'EM' : 'DR'}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-900 truncate">{currentUser.email}</p>
+                    <p className="text-xs font-bold text-slate-900 truncate">{accountLabel}</p>
+                    {profileName && <p className="text-[11px] text-slate-500 truncate">{currentUser.email}</p>}
                     <span className="inline-block text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60 mt-0.5">
                       {currentUser.role} {t('Dashboard')}
                     </span>
@@ -401,7 +441,7 @@ export const Navbar: React.FC = () => {
                   <Link
                     to={getDashboardPath()}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                    className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                   >
                     <LayoutDashboard className="w-3.5 h-3.5 text-[#08233F] shrink-0" />
                     <span className="truncate">{t('Dashboard')}</span>
@@ -412,7 +452,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/driver/applications"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                         <span className="truncate">{t('My Applications')}</span>
@@ -420,7 +460,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/driver/profile"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         <span className="truncate">{t('My Profile')}</span>
@@ -428,7 +468,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/driver/saved"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                         <span className="truncate">{t('Saved Jobs')}</span>
@@ -441,7 +481,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/employer/post-job"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-amber-950 bg-amber-100/80 border border-amber-300 hover:bg-amber-200 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-amber-950 bg-amber-100/80 border border-amber-300 hover:bg-amber-200 transition-colors"
                       >
                         <PlusCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
                         <span className="truncate">{t('Post Vacancy')}</span>
@@ -449,7 +489,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/employer/jobs"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <Briefcase className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         <span className="truncate">{t('Manage Jobs')}</span>
@@ -457,7 +497,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/employer/applications"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                         <span className="truncate">{t('Applications Pipeline')}</span>
@@ -470,7 +510,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/admin/jobs"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <Shield className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                         <span className="truncate">{t('Job Moderation Queue')}</span>
@@ -478,7 +518,7 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/admin/employers"
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
+                        className="flex items-center gap-2 min-h-[44px] p-2 rounded-xl text-xs font-bold text-slate-800 hover:bg-white bg-slate-100/70 border border-slate-200/60 transition-colors"
                       >
                         <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                         <span className="truncate">{t('Employer Verification')}</span>
@@ -492,14 +532,14 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/login"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-center px-4 py-2.5 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors"
+                  className="flex items-center justify-center min-h-[44px] px-4 py-2.5 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors"
                 >
                   {t('Sign In')}
                 </Link>
                 <Link
                   to="/register"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-center px-4 py-2.5 bg-[#08233F] text-white font-bold rounded-xl text-xs shadow-xs hover:bg-[#051626] transition-colors"
+                  className="flex items-center justify-center min-h-[44px] px-4 py-2.5 bg-[#08233F] text-white font-bold rounded-xl text-xs shadow-xs hover:bg-[#051626] transition-colors"
                 >
                   {t('Register')}
                 </Link>
@@ -512,7 +552,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  className={`flex items-center min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
                     isActive('/') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -521,7 +561,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/jobs"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  className={`flex items-center min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
                     isActive('/jobs') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -530,7 +570,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/companies"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  className={`flex items-center min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
                     isActive('/companies') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -539,7 +579,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/about"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  className={`flex items-center min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
                     isActive('/about') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -548,7 +588,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/contact"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
+                  className={`flex items-center min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold tracking-tight uppercase ${
                     isActive('/contact') ? 'bg-slate-100 text-[#08233F]' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -564,7 +604,7 @@ export const Navbar: React.FC = () => {
                     handleLogout();
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 font-bold rounded-xl text-xs border border-red-200 transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 text-red-600 hover:bg-red-50 font-bold rounded-xl text-xs border border-red-200 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>{t('Sign Out')}</span>

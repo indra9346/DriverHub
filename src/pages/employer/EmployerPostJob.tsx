@@ -539,9 +539,19 @@ export const EmployerPostJob: React.FC = () => {
   /** The form's job fields (shared by create and edit). */
   const buildJobFields = () => {
     const structuredFormatted = formatStructuredLocation({ state, district, city, pincode });
-    const fullLocationString = location && !structuredFormatted.toLowerCase().includes(location.toLowerCase())
-      ? `${location}, ${structuredFormatted}`
-      : structuredFormatted || `${location}, ${city}, ${state}`;
+    // Prefix only the landmark parts that the structured address doesn't
+    // already contain (a landmark of "Bengaluru, Karnataka" adds nothing).
+    const known = new Set(
+      [...structuredFormatted.split(','), city, district, state]
+        .map(part => part.trim().toLowerCase().replace(/\s+dist\.?$/, ''))
+        .filter(Boolean)
+    );
+    const landmark = location.split(',').map(part => part.trim())
+      .filter(part => part && !known.has(part.toLowerCase()))
+      .join(', ');
+    const fullLocationString = structuredFormatted
+      ? (landmark ? `${landmark}, ${structuredFormatted}` : structuredFormatted)
+      : [location, city, state].filter(Boolean).join(', ');
     return {
       companyName: hiringForCompany.trim(),
       title: title.trim(),

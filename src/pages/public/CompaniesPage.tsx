@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Building2, MapPin, ShieldCheck, Search, RefreshCw, Globe, ArrowRight, ArrowUpRight, Sparkles 
+import { Link, useParams } from 'react-router-dom';
+import {
+  Building2, MapPin, ShieldCheck, Search, RefreshCw, Globe, ArrowRight, ArrowUpRight, Sparkles
 } from 'lucide-react';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { EmployerProfile } from '../../types';
@@ -9,9 +9,13 @@ import { useLanguage } from '../../services/i18n';
 import { getCompanyCardBanner } from '../../services/cardBanners';
 import { PanIndiaLocationSelector } from '../../components/common/PanIndiaLocationSelector';
 import { matchesPanIndiaLocationFilter, StructuredPanIndiaLocation } from '../../services/indiaLocationService';
+import { toSafeExternalUrl, externalUrlLabel } from '../../services/publicApi';
 
 export const CompaniesPage: React.FC = () => {
   const { t, lang } = useLanguage();
+  // /companies/:id opens the directory at that employer's card.
+  const { id: highlightedCompanyId } = useParams<{ id: string }>();
+  const scrolledToCompanyRef = React.useRef('');
   const [directory, setDirectory] = useState<Array<{ employer: EmployerProfile; activeVacancyCount: number }>>([]);
   const [search, setSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState<StructuredPanIndiaLocation>({
@@ -28,6 +32,7 @@ export const CompaniesPage: React.FC = () => {
   const loadDirectory = useCallback(async () => {
     const version = ++requestVersion.current;
     setError('');
+    setLoading(true);
     try {
       const rows = await SupabaseSync.fetchPublicEmployerDirectory();
       if (version !== requestVersion.current) return;
@@ -119,6 +124,7 @@ export const CompaniesPage: React.FC = () => {
     return suggestions.slice(0, 7);
   }, [directory, search]);
 
+  const hasLocationFilter = Boolean(locationFilter.state || locationFilter.district || locationFilter.city || locationFilter.pincode);
   const filtered = directory.filter(({ employer: e }) => {
     const matchesSearch =
       !search.trim() ||
@@ -137,6 +143,21 @@ export const CompaniesPage: React.FC = () => {
       locationFilter
     );
   });
+
+  const highlightedVisible = Boolean(highlightedCompanyId) && filtered.some(({ employer }) => employer.id === highlightedCompanyId);
+  const highlightedInDirectory = Boolean(highlightedCompanyId) && directory.some(({ employer }) => employer.id === highlightedCompanyId);
+
+  useEffect(() => {
+    if (!highlightedCompanyId || !highlightedVisible || scrolledToCompanyRef.current === highlightedCompanyId) return;
+    scrolledToCompanyRef.current = highlightedCompanyId;
+    const card = document.getElementById(`company-${highlightedCompanyId}`);
+    card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightedCompanyId, highlightedVisible]);
+
+  const clearFilters = () => {
+    setSearch('');
+    setLocationFilter({ state: '', district: '', city: '', pincode: '', formattedLocation: '' });
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -168,13 +189,14 @@ export const CompaniesPage: React.FC = () => {
                 setShowSuggestions(true);
               }}
               placeholder={lang === 'kn' ? 'ಕಂಪನಿ, ಉದ್ಯಮದ ಹೆಸರು ಹುಡುಕಿ...' : 'Search company, industry...'}
-              className="w-full pl-10 pr-8 py-2.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 backdrop-blur-sm"
+              className="w-full min-h-[44px] pl-10 pr-11 py-2.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 backdrop-blur-sm"
             />
             {search && (
               <button
                 type="button"
+                aria-label="Clear search"
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-white text-xs cursor-pointer"
+                className="absolute right-0.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-10 h-10 text-slate-400 hover:text-white text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -188,8 +210,9 @@ export const CompaniesPage: React.FC = () => {
                 <span>Matching Employers & Fleets</span>
                 <button
                   type="button"
+                  aria-label="Close suggestions"
                   onClick={() => setShowSuggestions(false)}
-                  className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                  className="inline-flex items-center justify-center w-10 h-10 -my-3 -mr-3 text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
                   ✕
                 </button>
@@ -202,7 +225,7 @@ export const CompaniesPage: React.FC = () => {
                     setSearch(item.title);
                     setShowSuggestions(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-xs hover:bg-amber-50 hover:text-amber-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
+                  className="w-full min-h-[44px] px-3 py-2 text-left text-xs hover:bg-amber-50 hover:text-amber-950 flex items-center justify-between group transition-colors cursor-pointer border-b border-slate-50 last:border-0"
                 >
                   <div className="min-w-0 pr-2">
                     <span className="font-bold text-slate-900 group-hover:text-amber-900 truncate block">
@@ -219,8 +242,8 @@ export const CompaniesPage: React.FC = () => {
           )}
 
           <div className="flex items-center justify-between px-1">
-            <button onClick={() => void loadDirectory()} className="inline-flex items-center gap-1.5 text-xs text-white/80 hover:text-white cursor-pointer" disabled={loading}>
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> {lang === 'kn' ? 'ಪಟ್ಟಿಯನ್ನು ನವೀಕರಿಸಿ' : 'Refresh directory'}
+            <button onClick={() => void loadDirectory()} className="inline-flex items-center gap-1.5 min-h-[40px] text-xs text-white/80 hover:text-white cursor-pointer disabled:opacity-70 disabled:cursor-wait" disabled={loading} aria-busy={loading}>
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> {loading && directory.length > 0 ? 'Refreshing…' : (lang === 'kn' ? 'ಪಟ್ಟಿಯನ್ನು ನವೀಕರಿಸಿ' : 'Refresh directory')}
             </button>
             <span className="text-[11px] text-amber-300 font-bold">
               {filtered.length} {filtered.length === 1 ? 'Fleet' : 'Fleets'}
@@ -240,14 +263,35 @@ export const CompaniesPage: React.FC = () => {
         />
       </div>
 
+      {highlightedCompanyId && !loading && !error && directory.length > 0 && !highlightedVisible && (
+        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex flex-wrap items-center justify-between gap-3">
+          <span>
+            {highlightedInDirectory
+              ? 'The employer you opened is hidden by the current search or location filter.'
+              : 'The employer you opened is not in the verified employer directory.'}
+          </span>
+          {highlightedInDirectory && (
+            <button type="button" onClick={clearFilters} className="min-h-[40px] px-3 font-bold underline cursor-pointer">
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Companies Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" aria-busy={loading}>
         {filtered.map(({ employer: company, activeVacancyCount: openVacancies }) => {
           const banner = getCompanyCardBanner(company);
+          const websiteUrl = toSafeExternalUrl(company.website);
+          const employerJobsLink = `/jobs?employer=${encodeURIComponent(company.id)}`;
+          const isHighlighted = company.id === highlightedCompanyId;
           return (
             <div
               key={company.id}
-              className="group relative rounded-2xl overflow-hidden border border-slate-800/80 hover:border-slate-700 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-5 bg-slate-950 focus-within:ring-2 focus-within:ring-emerald-500"
+              id={`company-${company.id}`}
+              className={`group relative rounded-2xl overflow-hidden border shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between p-5 bg-slate-950 focus-within:ring-2 focus-within:ring-emerald-500 scroll-mt-24 min-w-0 ${
+                isHighlighted ? 'border-amber-400 ring-2 ring-amber-400' : 'border-slate-800/80 hover:border-slate-700'
+              }`}
             >
               {/* Realistic Logistics Hub / Transport Terminal Banner Background */}
               <img
@@ -262,7 +306,8 @@ export const CompaniesPage: React.FC = () => {
               {/* Top Row: Floating Logo & Badges */}
               <div className="relative z-10 flex items-center justify-between gap-2">
                 <Link
-                  to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                  to={employerJobsLink}
+                  aria-label={`${t('View Jobs')} ${company.companyName}`}
                   className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 p-1 flex items-center justify-center shrink-0 hover:border-emerald-400 transition-colors overflow-hidden"
                 >
                   {company.logoUrl ? (
@@ -285,10 +330,10 @@ export const CompaniesPage: React.FC = () => {
               </div>
 
               {/* Middle Section: Company Title, Industry, Metadata, Description */}
-              <div className="relative z-10 space-y-2.5 pt-5 pb-3">
-                <div>
+              <div className="relative z-10 space-y-2.5 pt-5 pb-3 min-w-0">
+                <div className="min-w-0">
                   <Link
-                    to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
+                    to={employerJobsLink}
                     className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors truncate block"
                   >
                     {company.companyName}
@@ -298,22 +343,22 @@ export const CompaniesPage: React.FC = () => {
 
                 {/* Metadata */}
                 <div className="space-y-1.5 text-xs text-slate-300 py-2 border-t border-white/10">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{company.location || [company.city, company.state].filter(Boolean).join(', ') || 'Pan-India'}</span>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <span className="break-words min-w-0">{company.location || [company.city, company.state].filter(Boolean).join(', ') || 'Pan-India'}</span>
                   </div>
-                  {company.website && (
-                    <div className="flex items-center gap-2">
+                  {websiteUrl && (
+                    <div className="flex items-center gap-2 min-w-0">
                       <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <a href={company.website} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline truncate">
-                        {company.website.replace(/^https?:\/\//, '')}
+                      <a href={websiteUrl} target="_blank" rel="noopener noreferrer nofollow" className="text-emerald-400 hover:underline truncate min-w-0">
+                        {externalUrlLabel(websiteUrl)}
                       </a>
                     </div>
                   )}
                 </div>
 
                 {company.description && (
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed break-words">
                     {company.description}
                   </p>
                 )}
@@ -331,8 +376,8 @@ export const CompaniesPage: React.FC = () => {
                 </div>
 
                 <Link
-                  to={`/jobs?q=${encodeURIComponent(company.companyName)}`}
-                  className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white/90 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"
+                  to={employerJobsLink}
+                  className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-white/90 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm"
                   title={t('View Jobs')}
                   aria-label={`${t('View Jobs')} ${company.companyName}`}
                 >
@@ -348,17 +393,33 @@ export const CompaniesPage: React.FC = () => {
           {lang === 'kn' ? 'ನೈಜ ಸಮಯದ ಪಟ್ಟಿಯಿಂದ ಪರಿಶೀಲಿತ ಉದ್ಯೋಗದಾತರನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ…' : 'Loading verified employers from the live directory…'}
         </div>
       )}
-      {!loading && error && (
+      {!loading && error && directory.length === 0 && (
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">
           <p>{lang === 'kn' ? 'ಪರಿಶೀಲಿತ ಉದ್ಯೋಗದಾತರ ಪಟ್ಟಿಯನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. Supabase ಸಂಪರ್ಕ ಮತ್ತು ಸಾರ್ವಜನಿಕ ಓದು ನೀತಿಗಳನ್ನು ಪರಿಶೀಲಿಸಿ.' : error}</p>
-          <button onClick={() => void loadDirectory()} className="mt-3 font-bold underline">{lang === 'kn' ? 'ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ' : 'Try again'}</button>
+          <button onClick={() => void loadDirectory()} className="mt-3 min-h-[40px] font-bold underline">{lang === 'kn' ? 'ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ' : 'Try again'}</button>
         </div>
       )}
+      {error && directory.length > 0 && !loading && (
+        <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs text-red-800">
+          Could not refresh the directory. Showing the last loaded list. {error}
+        </p>
+      )}
       {!loading && !error && filtered.length === 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-600">
-          {search
-            ? (lang === 'kn' ? 'ನಿಮ್ಮ ಹುಡುಕಾಟಕ್ಕೆ ಹೊಂದುವ ಪರಿಶೀಲಿತ ಉದ್ಯೋಗದಾತರು ಸಿಗಲಿಲ್ಲ.' : 'No verified employers match your search.')
-            : (lang === 'kn' ? 'ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪರಿಶೀಲಿತ ಉದ್ಯೋಗದಾತರು ಪಟ್ಟಿಯಲ್ಲಿ ಇಲ್ಲ.' : 'No verified employers are currently listed.')}
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-600 space-y-3">
+          <p>
+            {search && hasLocationFilter
+              ? 'No verified employers match your search in the selected location.'
+              : search
+              ? (lang === 'kn' ? 'ನಿಮ್ಮ ಹುಡುಕಾಟಕ್ಕೆ ಹೊಂದುವ ಪರಿಶೀಲಿತ ಉದ್ಯೋಗದಾತರು ಸಿಗಲಿಲ್ಲ.' : 'No verified employers match your search.')
+              : hasLocationFilter
+              ? 'No verified employers are listed in the selected location. Try a wider area or clear the location filter.'
+              : (lang === 'kn' ? 'ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪರಿಶೀಲಿತ ಉದ್ಯೋಗದಾತರು ಪಟ್ಟಿಯಲ್ಲಿ ಇಲ್ಲ.' : 'No verified employers are currently listed.')}
+          </p>
+          {(search || hasLocationFilter) && (
+            <button type="button" onClick={clearFilters} className="min-h-[40px] px-4 text-xs font-bold text-blue-700 underline cursor-pointer">
+              Clear search and location
+            </button>
+          )}
         </div>
       )}
     </div>

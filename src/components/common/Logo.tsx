@@ -7,6 +7,8 @@ interface LogoProps {
   showTagline?: boolean;
   clickable?: boolean;
   className?: string;
+  /** Hide the tagline on very narrow phones so the header never overflows. */
+  hideTaglineOnMobile?: boolean;
 }
 
 export const Logo: React.FC<LogoProps> = ({
@@ -15,6 +17,7 @@ export const Logo: React.FC<LogoProps> = ({
   showTagline = true,
   clickable = true,
   className = '',
+  hideTaglineOnMobile = false,
 }) => {
   const sizeMap = {
     sm: { icon: 'w-7 h-7 rounded-lg', text: 'text-lg', tag: 'text-[9px]' },
@@ -51,7 +54,7 @@ export const Logo: React.FC<LogoProps> = ({
           </span>
         </div>
         {showTagline && (
-          <span className={`font-semibold tracking-wide mt-0.5 ${variant === 'dark' ? 'text-slate-300' : 'text-slate-500'} ${currentSize.tag}`}>
+          <span className={`font-semibold tracking-wide mt-0.5 ${hideTaglineOnMobile ? 'hidden min-[400px]:block' : ''} ${variant === 'dark' ? 'text-slate-300' : 'text-slate-500'} ${currentSize.tag}`}>
             Professional Recruitment Network
           </span>
         )}
@@ -61,7 +64,7 @@ export const Logo: React.FC<LogoProps> = ({
 
   if (clickable) {
     return (
-      <Link to="/" className="inline-block hover:opacity-95 transition-opacity">
+      <Link to="/" aria-label="Driver Hub home" className="inline-block hover:opacity-95 transition-opacity">
         {content}
       </Link>
     );

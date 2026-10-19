@@ -1538,7 +1538,7 @@ export const SupabaseSync = {
             driverPoliceVerified: detail ? Boolean(detail.police_verified) : undefined,
             driverExpectedSalary: detail?.expected_salary || undefined,
             coverMessage: row.cover_message || '', resumeUrl: row.resume_url || undefined,
-            status: row.status, appliedDate: row.applied_date || '', updatedDate: row.updated_date || row.applied_date || '',
+            status: row.status, appliedDate: (row.applied_date || '').slice(0, 10), updatedDate: (row.updated_date || row.applied_date || '').slice(0, 10),
             employerNotes: row.employer_notes || undefined, interviewDate: row.interview_date || undefined,
             interviewMode: row.interview_mode || undefined, interviewLocation: row.interview_location || undefined
           };

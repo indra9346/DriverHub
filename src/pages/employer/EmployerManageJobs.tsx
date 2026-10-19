@@ -375,7 +375,7 @@ export const EmployerManageJobs: React.FC = () => {
                     </div>
 
                     <p className="text-xs text-slate-500 break-words">
-                      {job.location} &nbsp;|&nbsp; {t('postedOn')} : {job.postedDate}
+                      {job.location} &nbsp;|&nbsp; {t('postedOn')} : {formatDate(job.postedDate)}
                       {job.postedBy ? <> &nbsp;|&nbsp; {job.postedBy}</> : null}
                       {job.status === 'active' && !expired && job.expiresAt ? <> &nbsp;|&nbsp; Live until {formatDate(job.expiresAt)}</> : null}
                     </p>
@@ -395,7 +395,7 @@ export const EmployerManageJobs: React.FC = () => {
                           title="Publish this draft (uses 1 job credit)"
                         >
                           {isBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wallet className="w-3 h-3" />}
-                          <span>{t('approveAndMakeLive')} (1 credit)</span>
+                          <span>{t('Publish')} (uses 1 credit)</span>
                         </button>
                         <Link
                           to={`/employer/jobs/${job.id}/edit`}

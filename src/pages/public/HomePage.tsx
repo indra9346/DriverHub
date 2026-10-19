@@ -5,14 +5,16 @@ import {
   ArrowRight, ArrowUpRight, CheckCircle2, Star, Sparkles, Building2, ChevronRight, 
   IndianRupee, Phone, Check, Clock, Zap, Shield, FileCheck, ChevronDown
 } from 'lucide-react';
-import { DataStore } from '../../services/store';
+import { DataStore, isJobOpenForApplications } from '../../services/store';
 import { SupabaseSync } from '../../services/supabaseSync';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { Job } from '../../types';
 import { JobCard } from '../../components/common/JobCard';
 import { useLanguage } from '../../services/i18n';
+import { categoryMatches, getSaveJobMode } from '../../services/publicApi';
+import { getLoginPathForRole } from '../../services/authRouting';
+import { canonicalStateName } from '../../services/indiaLocationService';
 import { 
-  ALL_INDIAN_STATES, 
   getSearchRoleSuggestions, 
   getSearchLocationSuggestions 
 } from '../../data/indiaLocations';
@@ -40,22 +42,19 @@ export const HomePage: React.FC = () => {
   const [trustedEmployersError, setTrustedEmployersError] = useState(false);
   const [appliedJobIds, setAppliedJobIds] = useState<string[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
-  const [verifiedEmployers, setVerifiedEmployers] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState(DataStore.getCurrentUser());
   const navigate = useNavigate();
 
   const [marketplaceStats, setMarketplaceStats] = useState<Awaited<ReturnType<typeof SupabaseSync.fetchPublicMarketplaceStats>>>(null);
 
   const loadData = () => {
-    const active = DataStore.getJobs().filter(j => j.status === 'active');
-    setAllActiveJobs(active);
-    setFeaturedJobs(active.slice(0, 6));
-
-    // Dynamic verified partners list (employers approved/verified by admin)
-    const allEmps = DataStore.getEmployers();
-    const verified = allEmps.filter(e => e.verified);
-    setVerifiedEmployers(verified.length > 0 ? verified : allEmps.slice(0, 8));
+    // Only jobs a driver can still apply to: live, not expired, deadline not passed.
+    const open = DataStore.getJobs().filter(isJobOpenForApplications);
+    setAllActiveJobs(open);
+    setFeaturedJobs(open.slice(0, 6));
 
     const user = DataStore.getCurrentUser();
+    setCurrentUser(user);
     if (user && user.role === 'driver') {
       const myApps = DataStore.getApplications().filter(a => a.driverId === user.id && a.status !== 'withdrawn');
       setAppliedJobIds(myApps.map(a => a.jobId));
@@ -254,15 +253,21 @@ export const HomePage: React.FC = () => {
     const params = new URLSearchParams();
     if (keyword.trim()) params.append('q', keyword.trim());
     if (category) params.append('category', category);
-    if (location.trim()) {
-      if (selectedHeroStructuredLoc && selectedHeroStructuredLoc.city?.toLowerCase() === location.trim().toLowerCase()) {
+    const typedLocation = location.trim();
+    if (typedLocation) {
+      if (/^\d{6}$/.test(typedLocation)) {
+        // Only a PIN the user typed becomes a PIN filter.
+        params.append('pincode', typedLocation);
+      } else if (selectedHeroStructuredLoc && selectedHeroStructuredLoc.city?.toLowerCase() === typedLocation.toLowerCase()) {
+        // A suggestion's PIN is only its first post office: searching by town
+        // must not hide that town's jobs at its other PINs.
         if (selectedHeroStructuredLoc.state) params.append('state', selectedHeroStructuredLoc.state);
         if (selectedHeroStructuredLoc.district) params.append('district', selectedHeroStructuredLoc.district);
         if (selectedHeroStructuredLoc.city) params.append('city', selectedHeroStructuredLoc.city);
-        if (selectedHeroStructuredLoc.pincode) params.append('pincode', selectedHeroStructuredLoc.pincode);
+      } else if (canonicalStateName(typedLocation)) {
+        params.append('state', canonicalStateName(typedLocation));
       } else {
-        params.append('city', location.trim());
-        params.append('location', location.trim());
+        params.append('city', typedLocation);
       }
     }
     navigate(`/jobs?${params.toString()}`);
@@ -272,7 +277,6 @@ export const HomePage: React.FC = () => {
     {
       label: 'Heavy Truck (HMV)',
       filter: 'HMV',
-      countKeys: ['hmv', 'heavy truck (hmv)', 'heavy truck', 'hmv-transport'],
       icon: '🚛',
       image: '/banners/heavy_freight_truck.jpg',
       alt: 'Heavy Commercial Multi-Axle Freight Truck on Indian Highway',
@@ -281,7 +285,6 @@ export const HomePage: React.FC = () => {
     {
       label: 'LMV Chauffeur',
       filter: 'LMV',
-      countKeys: ['lmv', 'lmv-transport', 'personal driver', 'personal chauffeur'],
       icon: '🚗',
       image: '/banners/executive_chauffeur_car.jpg',
       alt: 'Executive Sedan & Corporate LMV Chauffeur Vehicle',
@@ -290,7 +293,6 @@ export const HomePage: React.FC = () => {
     {
       label: 'Cab Driver',
       filter: 'Cab Driver',
-      countKeys: ['cab driver', 'cab'],
       icon: '🚕',
       image: '/banners/urban_cab_fleet.jpg',
       alt: 'Urban Ride-Hailing Cab & Airport Taxi Fleet',
@@ -299,7 +301,6 @@ export const HomePage: React.FC = () => {
     {
       label: 'Delivery Driver',
       filter: 'Delivery Driver',
-      countKeys: ['delivery driver', 'delivery'],
       icon: '📦',
       image: '/banners/electric_delivery_van.jpg',
       alt: 'E-Commerce Delivery Cargo Van & Last-Mile Logistics Fleet',
@@ -308,7 +309,6 @@ export const HomePage: React.FC = () => {
     {
       label: 'School / Staff Bus',
       filter: 'Bus Driver',
-      countKeys: ['bus driver', 'school bus driver', 'school / staff bus'],
       icon: '🚌',
       image: '/banners/school_bus_transit.jpg',
       alt: 'Yellow School Bus & Corporate Staff Transit Shuttle',
@@ -317,7 +317,6 @@ export const HomePage: React.FC = () => {
     {
       label: 'Tempo / Ace',
       filter: 'Tempo Driver',
-      countKeys: ['tempo driver', 'tempo / ace'],
       icon: '🚚',
       image: '/banners/tempo_delivery_truck.jpg',
       alt: 'Tata Ace Mini Cargo Tempo & Intra-City Logistics Pickup',
@@ -326,7 +325,6 @@ export const HomePage: React.FC = () => {
     {
       label: '40ft Trailer Driver',
       filter: 'Trailer Driver',
-      countKeys: ['trailer driver', '40ft trailer driver'],
       icon: '🚜',
       image: '/banners/container_trailer_truck.jpg',
       alt: '40ft Heavy Port Container Trailer Truck',
@@ -335,7 +333,6 @@ export const HomePage: React.FC = () => {
     {
       label: 'Commercial Driver',
       filter: 'Commercial Driver',
-      countKeys: ['commercial driver'],
       icon: '🚐',
       image: '/banners/intercity_passenger_coach.jpg',
       alt: 'Commercial Tour Operations & Outstation Passenger Coach',
@@ -343,33 +340,28 @@ export const HomePage: React.FC = () => {
     },
   ];
 
-  // Calculate live active vacancy count per category matching JobsPage.tsx filter semantics
-  const getLiveCategoryVacancies = (catFilter: string, countKeys: string[]): number => {
+  // Vacancies per category card, grouped exactly like the job search filter
+  // (categoryMatches), so each number equals what the card's link shows.
+  const getLiveCategoryVacancies = (catFilter: string): number => {
     if (isSupabaseConfigured && marketplaceStats) {
-      return countKeys.reduce((acc, key) => acc + (marketplaceStats.vacanciesByCategory[key] || 0), 0);
+      return Object.entries(marketplaceStats.vacanciesByCategory)
+        .filter(([category]) => categoryMatches(catFilter, category))
+        .reduce((sum, [, count]) => sum + count, 0);
     }
-
-    const matchingJobs = allActiveJobs.filter(job => {
-      const jobCat = (job.category || '').toLowerCase();
-      const target = catFilter.toLowerCase();
-      if (jobCat === target || jobCat.includes(target) || target.includes(jobCat)) return true;
-      if (catFilter === 'HMV' && ['hmv', 'hmv-transport', 'trailer driver', 'heavy truck'].some(c => jobCat.includes(c))) return true;
-      if (catFilter === 'LMV' && ['lmv', 'lmv-transport', 'personal driver', 'cab driver', 'tempo driver'].some(c => jobCat.includes(c))) return true;
-      if (catFilter === 'Commercial Driver' && ['commercial driver', 'bus driver', 'cab driver', 'lmv-transport'].some(c => jobCat.includes(c))) return true;
-      return false;
-    });
-
-    return matchingJobs.reduce((sum, j) => sum + Math.max(1, Number(j.vacancies) || 1), 0);
+    return allActiveJobs
+      .filter(job => categoryMatches(catFilter, job.category))
+      .reduce((sum, j) => sum + Math.max(1, Number(j.vacancies) || 1), 0);
   };
 
-  // Resolved hero statistics (live database stats with accurate store fallback only when Supabase is not configured)
+  // Hero statistics come from the live database. Until (or unless) they load,
+  // the cards show 0 rather than numbers from this device's cache.
   const resolvedStats = useMemo(() => {
-    if (isSupabaseConfigured && marketplaceStats) {
+    if (isSupabaseConfigured) {
       return {
-        verifiedDrivers: marketplaceStats.verifiedDrivers,
-        verifiedEmployers: marketplaceStats.verifiedEmployers,
-        activeVacancies: marketplaceStats.activeVacancies,
-        hires: marketplaceStats.hires,
+        verifiedDrivers: marketplaceStats?.verifiedDrivers ?? 0,
+        verifiedEmployers: marketplaceStats?.verifiedEmployers ?? 0,
+        activeVacancies: marketplaceStats?.activeVacancies ?? 0,
+        hires: marketplaceStats?.hires ?? 0,
       };
     }
 
@@ -385,6 +377,24 @@ export const HomePage: React.FC = () => {
       hires: storeHires,
     };
   }, [marketplaceStats, allActiveJobs]);
+
+  // Drivers save jobs; visitors are sent to the driver sign-in; employer and
+  // admin accounts get no save control.
+  const saveJobMode = getSaveJobMode(currentUser);
+  const handleToggleSave = async (jobId: string) => {
+    const user = DataStore.getCurrentUser();
+    if (!user || user.role !== 'driver') {
+      navigate(getLoginPathForRole('driver', `/jobs/${jobId}`));
+      return;
+    }
+    const wasSaved = savedJobIds.includes(jobId);
+    const saved = await DataStore.toggleFavorite(user.id, jobId);
+    if (saved === wasSaved) {
+      alert(t('Could not update saved jobs. Check your connection and try again.'));
+      return;
+    }
+    loadData();
+  };
 
   const siteAdCards = [
     {
@@ -560,7 +570,7 @@ export const HomePage: React.FC = () => {
                         setKeyword('');
                         setActiveKeywordIndex(-1);
                       }}
-                      className="text-slate-400 hover:text-slate-700 text-xs px-1 cursor-pointer"
+                      className="inline-flex items-center justify-center w-10 h-10 -my-2.5 -mr-2 shrink-0 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-xs cursor-pointer"
                     >
                       ✕
                     </button>
@@ -581,7 +591,7 @@ export const HomePage: React.FC = () => {
                         type="button"
                         aria-label="Close role suggestions"
                         onClick={() => setShowKeywordSuggestions(false)}
-                        className="text-slate-400 hover:text-slate-700 px-1 cursor-pointer"
+                        className="inline-flex items-center justify-center w-10 h-10 -my-3 -mr-3 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
                       >
                         ✕
                       </button>
@@ -718,7 +728,7 @@ export const HomePage: React.FC = () => {
                         type="button"
                         aria-label="Close category menu"
                         onClick={() => setShowCategoryDropdown(false)}
-                        className="text-slate-400 hover:text-slate-700 px-1 cursor-pointer"
+                        className="inline-flex items-center justify-center w-10 h-10 -my-3 -mr-3 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
                       >
                         ✕
                       </button>
@@ -829,7 +839,7 @@ export const HomePage: React.FC = () => {
                         setSelectedHeroStructuredLoc(null);
                         setActiveLocationIndex(-1);
                       }}
-                      className="text-slate-400 hover:text-slate-700 text-xs px-1 cursor-pointer"
+                      className="inline-flex items-center justify-center w-10 h-10 -my-2.5 -mr-2 shrink-0 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-xs cursor-pointer"
                     >
                       ✕
                     </button>
@@ -850,7 +860,7 @@ export const HomePage: React.FC = () => {
                         type="button"
                         aria-label="Close location suggestions"
                         onClick={() => setShowLocationSuggestions(false)}
-                        className="text-slate-400 hover:text-slate-700 px-1 cursor-pointer"
+                        className="inline-flex items-center justify-center w-10 h-10 -my-3 -mr-3 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
                       >
                         ✕
                       </button>
@@ -1009,7 +1019,7 @@ export const HomePage: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {categories.map((cat, idx) => {
-            const count = getLiveCategoryVacancies(cat.filter, cat.countKeys);
+            const count = getLiveCategoryVacancies(cat.filter);
             return (
               <Link
                 key={idx}
@@ -1081,10 +1091,15 @@ export const HomePage: React.FC = () => {
             to="/jobs"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline"
           >
-            {t('View All {count} Jobs', { count: DataStore.getJobs().length })} <ArrowRight className="w-4 h-4" />
+            {t('View All {count} Jobs', { count: allActiveJobs.length })} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
+        {featuredJobs.length === 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
+            No driver vacancies are open right now. Please check back soon.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {featuredJobs.map((job) => (
             <JobCard
@@ -1092,20 +1107,7 @@ export const HomePage: React.FC = () => {
               job={job}
               isApplied={appliedJobIds.includes(job.id)}
               isSaved={savedJobIds.includes(job.id)}
-              onToggleSave={async (jobId) => {
-                const user = DataStore.getCurrentUser();
-                if (!user) {
-                  alert(t('Please log in as a driver to save jobs.'));
-                  return;
-                }
-                const wasSaved = savedJobIds.includes(jobId);
-                const saved = await DataStore.toggleFavorite(user.id, jobId);
-                if (saved === wasSaved) {
-                  alert(t('Could not update saved jobs. Check your connection and try again.'));
-                  return;
-                }
-                loadData();
-              }}
+              onToggleSave={saveJobMode === 'hidden' ? undefined : handleToggleSave}
             />
           ))}
         </div>
@@ -1133,7 +1135,7 @@ export const HomePage: React.FC = () => {
             ).map((emp) => (
               <Link
                 key={emp.id}
-                to={`/jobs?q=${encodeURIComponent(emp.companyName)}`}
+                to={`/jobs?employer=${encodeURIComponent(emp.id)}`}
                 className="p-5 bg-white rounded-2xl border border-slate-200/90 text-center space-y-2.5 shadow-subtle hover:shadow-card hover:border-amber-400 transition-all group block cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-xl bg-slate-50 mx-auto overflow-hidden border border-slate-200 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -1144,12 +1146,14 @@ export const HomePage: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1">{emp.companyName}</h4>
+                  <h4 className="text-xs font-bold text-[#08233F] group-hover:text-blue-700 transition-colors line-clamp-1 break-words">{emp.companyName}</h4>
                   <p className="text-[11px] text-slate-400 truncate">{emp.industry}</p>
                 </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600" /> {t('Verified Partner')}
-                </span>
+                {emp.verified && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <ShieldCheck className="w-3 h-3 text-emerald-600" /> {t('Verified Partner')}
+                  </span>
+                )}
               </Link>
             ))}
           </div>

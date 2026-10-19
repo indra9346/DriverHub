@@ -61,8 +61,9 @@ export const App: React.FC = () => {
     // must not leave this tab showing the previous account.
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const cached = DataStore.getCurrentUser();
-      if (event === 'SIGNED_OUT' && cached) {
-        DataStore.clearSessionCaches();
+      if (event === 'SIGNED_OUT') {
+        if (cached) DataStore.clearSessionCaches();
+        // Reload the public listings for the now signed-out visitor.
         void SupabaseSync.fetchAndMergeRemoteData(DataStore).then(notify);
       } else if (session?.user && cached && cached.id !== session.user.id) {
         DataStore.clearSessionCaches();

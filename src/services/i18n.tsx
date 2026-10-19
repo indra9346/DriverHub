@@ -860,7 +860,22 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'Sign In as {role}': '{role} ಆಗಿ ಲಾಗಿನ್ ಮಾಡಿ',
   'Register as {role}': '{role} ಆಗಿ ನೋಂದಾಯಿಸಿ',
   'Years': 'ವರ್ಷಗಳು',
-  'Company profile incomplete': 'ಕಂಪನಿ ಪ್ರೊಫೈಲ್ ಅಪೂರ್ಣವಾಗಿದೆ'
+  'Company profile incomplete': 'ಕಂಪನಿ ಪ್ರೊಫೈಲ್ ಅಪೂರ್ಣವಾಗಿದೆ',
+
+  // Download / install the app
+  'Download App': 'ಆ್ಯಪ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ',
+  'Get the Driver Hub app': 'Driver Hub ಆ್ಯಪ್ ಪಡೆಯಿರಿ',
+  'Opens from your home screen like an app. Free, no Play Store needed.': 'ಹೋಮ್ ಸ್ಕ್ರೀನ್‌ನಿಂದ ಆ್ಯಪ್‌ನಂತೆ ತೆರೆಯುತ್ತದೆ. ಉಚಿತ, ಪ್ಲೇ ಸ್ಟೋರ್ ಬೇಕಾಗಿಲ್ಲ.',
+  'Install Driver Hub': 'Driver Hub ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ',
+  'Install on iPhone': 'ಐಫೋನ್‌ನಲ್ಲಿ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ',
+  'Tap the Share button at the bottom of Safari.': 'Safari ಯ ಕೆಳಭಾಗದಲ್ಲಿರುವ ಶೇರ್ ಬಟನ್ ಒತ್ತಿ.',
+  'Choose "Add to Home Screen".': '"Add to Home Screen" ಆಯ್ಕೆಮಾಡಿ.',
+  'Tap "Add". Driver Hub appears on your home screen.': '"Add" ಒತ್ತಿ. Driver Hub ನಿಮ್ಮ ಹೋಮ್ ಸ್ಕ್ರೀನ್‌ನಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.',
+  'Open the browser menu (⋮) at the top right.': 'ಮೇಲಿನ ಬಲಭಾಗದಲ್ಲಿರುವ ಬ್ರೌಸರ್ ಮೆನು (⋮) ತೆರೆಯಿರಿ.',
+  'Choose "Install app" or "Add to Home screen".': '"Install app" ಅಥವಾ "Add to Home screen" ಆಯ್ಕೆಮಾಡಿ.',
+  'Tap "Install". Driver Hub appears on your home screen.': '"Install" ಒತ್ತಿ. Driver Hub ನಿಮ್ಮ ಹೋಮ್ ಸ್ಕ್ರೀನ್‌ನಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.',
+  'Opened this link inside WhatsApp or another app? Open it in Chrome first.': 'ಈ ಲಿಂಕ್ ಅನ್ನು ವಾಟ್ಸ್‌ಆ್ಯಪ್ ಅಥವಾ ಬೇರೆ ಆ್ಯಪ್‌ನಲ್ಲಿ ತೆರೆದಿದ್ದೀರಾ? ಮೊದಲು ಅದನ್ನು Chrome ನಲ್ಲಿ ತೆರೆಯಿರಿ.',
+  'Opened this link inside WhatsApp or another app? Open it in Safari first.': 'ಈ ಲಿಂಕ್ ಅನ್ನು ವಾಟ್ಸ್‌ಆ್ಯಪ್ ಅಥವಾ ಬೇರೆ ಆ್ಯಪ್‌ನಲ್ಲಿ ತೆರೆದಿದ್ದೀರಾ? ಮೊದಲು ಅದನ್ನು Safari ಯಲ್ಲಿ ತೆರೆಯಿರಿ.'
 };
 
 // ============================================================================

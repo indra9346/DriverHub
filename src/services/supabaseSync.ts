@@ -1327,8 +1327,12 @@ export const SupabaseSync = {
           if (directoryError) throw directoryError;
 
           const driverByUserId = new Map((driverRows || []).map((row: any) => [row.user_id, row]));
+          // The profiles table is shared with other apps in this project, whose
+          // sign-ups get the column default role 'driver'. Only accounts with a
+          // DriverHub driver profile are DriverHub drivers.
+          const driverhubDriverAccounts = (driverAccounts || []).filter((account: any) => driverByUserId.has(account.id));
           // Admin RLS returns all documents; no id list in the URL.
-          const { data: adminDocumentRows, error: adminDocumentsError } = (driverAccounts || []).length
+          const { data: adminDocumentRows, error: adminDocumentsError } = driverhubDriverAccounts.length
             ? await supabase.from('driver_documents').select('*')
             : { data: [], error: null };
           if (adminDocumentsError) throw adminDocumentsError;
@@ -1343,7 +1347,7 @@ export const SupabaseSync = {
             });
             documentsByDriverId.set(row.driver_id, documents);
           }
-          const adminDrivers: DriverProfile[] = (driverAccounts || []).map((account: any) => {
+          const adminDrivers: DriverProfile[] = driverhubDriverAccounts.map((account: any) => {
             const row = driverByUserId.get(account.id) as any;
             const status = account.status === 'suspended' ? 'blocked' : account.status || 'active';
             const rawLoc = account.location || account.city || '';

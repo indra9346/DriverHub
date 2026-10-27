@@ -333,6 +333,8 @@ export const KANNADA_CATALOG: Record<string, string> = {
   // Recruitment Portals & Core Modules
   'Recruitment Portals': 'ನೇಮಕಾತಿ ಪೋರ್ಟಲ್‌ಗಳು',
   'Support Desk': 'ಬೆಂಬಲ ವಿಭಾಗ',
+  'Follow Us': 'ನಮ್ಮನ್ನು ಫಾಲೋ ಮಾಡಿ',
+  'Driver Hub on social media': 'ಸಾಮಾಜಿಕ ಮಾಧ್ಯಮದಲ್ಲಿ Driver Hub',
   'Privacy Policy': 'ಗೌಪ್ಯತಾ ನೀತಿ',
   'Terms of Service': 'ಸೇವಾ ನಿಯಮಗಳು',
   'Driver Welfare': 'ಚಾಲಕರ ಕಲ್ಯಾಣ',

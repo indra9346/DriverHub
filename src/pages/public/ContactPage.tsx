@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Phone, Mail, Clock, Send, ShieldAlert, Copy } from 'lucide-react';
 import { useLanguage } from '../../services/i18n';
+import { SocialLinks } from '../../components/common/SocialLinks';
 
 // The support address shown on this page. The form does not send anything
 // itself: it opens the visitor's email app with this address and their message.
@@ -109,6 +110,11 @@ export const ContactPage: React.FC = () => {
               <Clock className="w-4 h-4 text-amber-400 shrink-0" />
               <span>{lang === 'kn' ? 'ಸೋಮವಾರ - ಶನಿವಾರ (ಬೆಳಿಗ್ಗೆ 9:00 - ಸಂಜೆ 7:00 IST)' : 'Monday - Saturday (9:00 AM - 7:00 PM IST)'}</span>
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider font-display">{t('Follow Us')}</h4>
+            <SocialLinks />
           </div>
 
           <div className="pt-4 border-t border-white/10 space-y-1">

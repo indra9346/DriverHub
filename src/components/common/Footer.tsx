@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ShieldCheck, Phone, Mail, MapPin, Award, Heart } from 'lucide-react';
 import { Logo } from './Logo';
 import { InstallAppButton } from './InstallAppButton';
+import { SocialLinks } from './SocialLinks';
 import { useLanguage } from '../../services/i18n';
 
 export const Footer: React.FC = () => {
@@ -138,6 +139,11 @@ export const Footer: React.FC = () => {
                 <span className="text-[11px] text-slate-500 block">Mon - Sat: 9:00 AM - 7:00 PM IST</span>
               </div>
             </div>
+
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider mt-6 mb-3 font-display">
+              {t('Follow Us')}
+            </h4>
+            <SocialLinks />
           </div>
         </div>
 

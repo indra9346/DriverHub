@@ -36,7 +36,8 @@ const POLICY_PAGES: Record<'/privacy' | '/terms' | '/safety', PolicyPage> = {
           'Profile details you add, such as your name, location, licence category, experience, skills, expected salary and documents you upload.',
           'Job listings, applications, messages and saved jobs created through the portal.',
           'Place names, PIN codes or, if you choose "Use My Current Location", your device location used to fill in location fields.',
-          'Basic technical data needed to keep you signed in, stored in your browser.'
+          'Basic technical data needed to keep you signed in, stored in your browser.',
+          'Visit statistics from Google Analytics, which uses cookies to record the pages you open, your device and browser type and your approximate location.'
         ]
       },
       {
@@ -53,7 +54,8 @@ const POLICY_PAGES: Record<'/privacy' | '/terms' | '/safety', PolicyPage> = {
         points: [
           'Employers see the details in applications you send them, and employers with candidate database access may see driver profiles as described on the employer plans.',
           'Administrators can see account, listing and document information to run and protect the service.',
-          'Service providers that host the data or look up locations (for example the India Post PIN directory and OpenStreetMap) receive only what is needed for that lookup.'
+          'Service providers that host the data or look up locations (for example the India Post PIN directory and OpenStreetMap) receive only what is needed for that lookup.',
+          'Google receives the visit statistics described above so we can see how the site is used. You can block them with your browser\'s cookie settings or Google\'s Analytics opt-out add-on.'
         ]
       },
       {

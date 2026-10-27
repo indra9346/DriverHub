@@ -2,6 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2SYEGW4VVR"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-2SYEGW4VVR');
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/logo-icon.png" />
@@ -16,6 +25,30 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Business details for search engines (LocalBusiness structured data) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      "name": "Driver Hub",
+      "image": "https://driverhub.in/logo-icon.png",
+      "@id": "https://driverhub.in/#localbusiness",
+      "url": "https://driverhub.in/",
+      "telephone": "+91 80 2200 8899",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "DriverHub HQ, 2nd Floor, Phase 1, Electronic City",
+        "addressLocality": "Bengaluru",
+        "postalCode": "560100",
+        "addressCountry": "IN"
+      },
+      "sameAs": [
+        "https://www.facebook.com/profile.php?id=61595727698682",
+        "https://www.youtube.com/@driverhub123",
+        "https://www.instagram.com/info.driver_hub/"
+      ]
+    }
+    </script>
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased font-sans selection:bg-amber-400 selection:text-slate-900 min-h-screen flex flex-col">
     <div id="root" class="flex-1 flex flex-col"></div>

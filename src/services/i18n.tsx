@@ -87,7 +87,6 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'Dashboard': 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
   'Jobs': 'ಉದ್ಯೋಗಗಳು',
   // Support chat: call-back requests
-  'Want us to call you?': 'ನಾವು ನಿಮಗೆ ಕರೆ ಮಾಡಬೇಕೇ?',
   'Drop a message': 'ಸಂದೇಶ ಬಿಡಿ',
   'Request a call back': 'ಕರೆ ಮಾಡಲು ವಿನಂತಿಸಿ',
   'Leave your number and a short message. Our team will call you back.': 'ನಿಮ್ಮ ಸಂಖ್ಯೆ ಮತ್ತು ಸಣ್ಣ ಸಂದೇಶವನ್ನು ಬಿಡಿ. ನಮ್ಮ ತಂಡ ನಿಮಗೆ ಮರಳಿ ಕರೆ ಮಾಡುತ್ತದೆ.',

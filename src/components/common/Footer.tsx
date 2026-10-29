@@ -5,6 +5,7 @@ import { Logo } from './Logo';
 import { InstallAppButton } from './InstallAppButton';
 import { SocialLinks } from './SocialLinks';
 import { useLanguage } from '../../services/i18n';
+import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../../lib/supportContact';
 
 export const Footer: React.FC = () => {
   const { t } = useLanguage();
@@ -125,8 +126,8 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-                <a href="tel:+918022008899" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-white transition-colors break-all">
-                  +91 80 2200 8899
+                <a href={`tel:${SUPPORT_PHONE}`} className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-white transition-colors break-all">
+                  {SUPPORT_PHONE_DISPLAY}
                 </a>
               </div>
               <div className="flex items-center gap-2.5">

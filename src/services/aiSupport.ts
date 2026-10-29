@@ -1,6 +1,7 @@
 import { AIMessage } from '../types';
 import { AppLanguage } from './i18n';
 import { newId } from '../lib/ids';
+import { SUPPORT_PHONE_DISPLAY } from '../lib/supportContact';
 
 export function getBotWelcome(lang: AppLanguage): AIMessage {
   if (lang === 'kn') {
@@ -100,8 +101,8 @@ const SUPPORT_KNOWLEDGE_BASE: SupportEntry[] = [
   },
   {
     keywords: ['contact', 'human', 'support', 'helpline', 'call', 'phone', 'email', 'complaint', 'issue', 'problem', 'ಸಂಪರ್ಕ', 'ಫೋನ್', 'ಸಹಾಯವಾಣಿ', 'ಸಮಸ್ಯೆ', 'ಬೆಂಬಲ'],
-    answerEn: `📞 **DriverHub Support Team**\n\nOur support desk is available Monday to Saturday (9:00 AM – 7:00 PM IST).\n\n• **Helpline**: +91 80 2200 8899\n• **Driver Support**: support@driverhub.in\n• **Employer Desk**: support@driverhub.in\n• **Office**: Electronic City, Bengaluru, Karnataka`,
-    answerKn: `📞 **DriverHub ಬೆಂಬಲ ತಂಡ**\n\nನಮ್ಮ ಬೆಂಬಲ ಕೇಂದ್ರವು ಸೋಮವಾರದಿಂದ ಶನಿವಾರದವರೆಗೆ (ಬೆಳಿಗ್ಗೆ 9:00 ರಿಂದ ಸಂಜೆ 7:00 ರವರೆಗೆ) ಲಭ್ಯವಿದೆ.\n\n• **ಸಹಾಯವಾಣಿ**: +91 80 2200 8899\n• **ಚಾಲಕರ ಬೆಂಬಲ**: support@driverhub.in\n• **ಕಂಪನಿ ವಿಭಾಗ**: support@driverhub.in\n• **ಕಚೇರಿ**: ಎಲೆಕ್ಟ್ರಾನಿಕ್ ಸಿಟಿ, ಬೆಂಗಳೂರು, ಕರ್ನಾಟಕ`,
+    answerEn: `📞 **DriverHub Support Team**\n\nOur support desk is available Monday to Saturday (9:00 AM – 7:00 PM IST).\n\n• **Helpline**: ${SUPPORT_PHONE_DISPLAY}\n• **Driver Support**: support@driverhub.in\n• **Employer Desk**: support@driverhub.in\n• **Office**: Electronic City, Bengaluru, Karnataka`,
+    answerKn: `📞 **DriverHub ಬೆಂಬಲ ತಂಡ**\n\nನಮ್ಮ ಬೆಂಬಲ ಕೇಂದ್ರವು ಸೋಮವಾರದಿಂದ ಶನಿವಾರದವರೆಗೆ (ಬೆಳಿಗ್ಗೆ 9:00 ರಿಂದ ಸಂಜೆ 7:00 ರವರೆಗೆ) ಲಭ್ಯವಿದೆ.\n\n• **ಸಹಾಯವಾಣಿ**: ${SUPPORT_PHONE_DISPLAY}\n• **ಚಾಲಕರ ಬೆಂಬಲ**: support@driverhub.in\n• **ಕಂಪನಿ ವಿಭಾಗ**: support@driverhub.in\n• **ಕಚೇರಿ**: ಎಲೆಕ್ಟ್ರಾನಿಕ್ ಸಿಟಿ, ಬೆಂಗಳೂರು, ಕರ್ನಾಟಕ`,
     actionLinkEn: { text: 'Contact Us Form', url: '/contact' },
     actionLinkKn: { text: 'ಸಂಪರ್ಕ ಫಾರ್ಮ್ ತೆರೆಯಿರಿ', url: '/contact' },
     optionsEn: ['Browse Jobs', 'Go to Dashboard'],

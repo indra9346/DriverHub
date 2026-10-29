@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, User, Sparkles, PhoneCall, RefreshCw, ArrowLeft, CheckCircle2, LoaderCircle } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, Phone, RefreshCw, ArrowLeft, CheckCircle2, LoaderCircle } from 'lucide-react';
 import { AIMessage } from '../../types';
 import { getBotWelcome, getSupportResponse } from '../../services/aiSupport';
 import { useLanguage } from '../../services/i18n';
@@ -7,13 +7,19 @@ import { Link, useLocation } from 'react-router-dom';
 import { newId } from '../../lib/ids';
 import { DataStore } from '../../services/store';
 import { normaliseIndianMobile, requestCallback } from '../../services/callbackApi';
+import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../../lib/supportContact';
 
 // Full-screen chat pages where the floating launcher would cover the composer.
 const HIDDEN_ON_PATHS = ['/driver/messages', '/employer/messages'];
 
-/** Render **bold** and *italic* markers from the support answers as real emphasis. */
+const RICH_TEXT_PARTS = new RegExp(`(\\*\\*[^*]+\\*\\*|\\*[^*\\n]+\\*|${SUPPORT_PHONE_DISPLAY.replace(/[+]/g, '\\+')})`, 'g');
+
+/** Render **bold** and *italic* markers from the support answers as real emphasis, and the support number as a call link. */
 const renderRichText = (text: string): React.ReactNode[] =>
-  text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g).map((part, index) => {
+  text.split(RICH_TEXT_PARTS).map((part, index) => {
+    if (part === SUPPORT_PHONE_DISPLAY) {
+      return <a key={index} href={`tel:${SUPPORT_PHONE}`} className="font-semibold text-blue-600 hover:underline whitespace-nowrap">{part}</a>;
+    }
     if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) {
       return <strong key={index} className="font-bold">{part.slice(2, -2)}</strong>;
     }
@@ -400,11 +406,15 @@ export const AIChatbot: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Call-back strip: leave a message and the team calls back */}
+          {/* Support strip: call the helpline, or leave a message and the team calls back */}
           <div className="px-3 py-1 bg-slate-100 border-t border-slate-200 flex items-center justify-between gap-2 text-[11px] text-slate-600 shrink-0">
-            <span className="flex items-center gap-1 font-medium min-w-0">
-              <PhoneCall className="w-3 h-3 text-amber-600 shrink-0" /> <span className="truncate">{t('Want us to call you?')}</span>
-            </span>
+            <a
+              href={`tel:${SUPPORT_PHONE}`}
+              aria-label={`${t('callNow')} ${SUPPORT_PHONE_DISPLAY}`}
+              className="min-h-8 flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-600 min-w-0"
+            >
+              <Phone className="w-3 h-3 text-amber-600 shrink-0" /> <span className="truncate">{t('callNow')} {SUPPORT_PHONE_DISPLAY}</span>
+            </a>
             <button
               type="button"
               onClick={openCallback}

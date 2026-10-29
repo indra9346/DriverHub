@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MapPin, Phone, Mail, Clock, Send, ShieldAlert, Copy } from 'lucide-react';
 import { useLanguage } from '../../services/i18n';
 import { SocialLinks } from '../../components/common/SocialLinks';
+import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../../lib/supportContact';
 
 // The support address shown on this page. The form does not send anything
 // itself: it opens the visitor's email app with this address and their message.
@@ -96,8 +97,8 @@ export const ContactPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-3 min-w-0">
               <Phone className="w-4 h-4 text-amber-400 shrink-0" />
-              <a href="tel:+918022008899" className="inline-flex items-center min-h-[40px] hover:text-white font-semibold break-words">
-                +91 80 2200 8899
+              <a href={`tel:${SUPPORT_PHONE}`} className="inline-flex items-center min-h-[40px] hover:text-white font-semibold break-words">
+                {SUPPORT_PHONE_DISPLAY}
               </a>
             </div>
             <div className="flex items-center gap-3 min-w-0">

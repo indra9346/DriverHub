@@ -168,7 +168,7 @@ export const AIChatbot: React.FC = () => {
 
   return (
     // z-40: below modals, drawers and dropdowns (z-50), so it never covers their buttons.
-    <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40">
+    <div className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40">
       {/* Floating Trigger Button */}
       {!isOpen && (
         <button
@@ -195,7 +195,7 @@ export const AIChatbot: React.FC = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="w-[calc(100vw-2rem)] sm:w-[390px] max-w-[390px] h-[520px] max-h-[calc(100vh-10rem)] supports-[height:100dvh]:max-h-[calc(100dvh-10rem-env(safe-area-inset-bottom))] lg:max-h-[78vh] lg:supports-[height:100dvh]:max-h-[78vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="w-[calc(100vw-2rem)] sm:w-[390px] max-w-[390px] h-[520px] max-h-[calc(100vh-10.5rem)] supports-[height:100dvh]:max-h-[calc(100dvh-10.5rem-env(safe-area-inset-bottom))] lg:max-h-[78vh] lg:supports-[height:100dvh]:max-h-[78vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header */}
           <div className="bg-[#08233F] text-white pl-4 pr-2 py-2 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-3 min-w-0">

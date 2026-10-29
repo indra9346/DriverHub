@@ -333,7 +333,7 @@ export const MessagesPage: React.FC = () => {
 
         {/* Chat window: its own view on phones, with a fixed height */}
         <div
-          className={`${mobileView === 'list' ? 'hidden' : 'flex'} md:flex md:col-span-8 flex-col bg-slate-50/40 min-h-[340px] h-[calc(100vh-14rem)] supports-[height:100dvh]:h-[calc(100dvh-14rem-env(safe-area-inset-bottom))] md:h-auto md:supports-[height:100dvh]:h-auto md:min-h-0 md:overflow-hidden`}
+          className={`${mobileView === 'list' ? 'hidden' : 'flex'} md:flex md:col-span-8 flex-col bg-slate-50/40 min-h-[340px] h-[calc(100vh-16rem)] supports-[height:100dvh]:h-[calc(100dvh-16rem-env(safe-area-inset-bottom))] md:h-auto md:supports-[height:100dvh]:h-auto md:min-h-0 md:overflow-hidden`}
         >
           {activeThread ? (
             <>

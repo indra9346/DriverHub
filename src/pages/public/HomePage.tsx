@@ -1165,7 +1165,7 @@ export const HomePage: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden bg-gradient-to-r from-[#08233F] to-[#173E68] rounded-3xl p-8 sm:p-12 text-white shadow-elevated flex flex-col lg:flex-row items-center justify-between gap-8">
           <div className="space-y-3 max-w-xl text-center lg:text-left">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-display leading-tight">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-display text-white leading-tight">
               {lang === 'kn' ? 'ಇಂದೇ ಚಾಲಕರನ್ನು ನೇಮಿಸಿ ಅಥವಾ ಕೆಲಸ ಪ್ರಾರಂಭಿಸಿ' : 'Ready to Hire or Start Driving Today?'}
             </h2>
             <p className="text-slate-200 text-xs sm:text-sm leading-relaxed">

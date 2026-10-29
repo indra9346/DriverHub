@@ -115,7 +115,7 @@ export const DriverDashboard: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-amber text-xs font-bold uppercase tracking-wider">
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" /> {profile?.status === 'active' ? t('Driver account active') : t('Complete your driver profile')}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold font-display break-words">
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-white break-words">
             {t('Welcome back')}, {profile?.fullName || t('Driver')}!
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 break-words">

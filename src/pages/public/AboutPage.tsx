@@ -283,7 +283,7 @@ export const AboutPage: React.FC = () => {
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-amber-400 text-xs font-bold uppercase tracking-wider">
             {t('About Safety & Welfare')}
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold font-display">
+          <h2 className="text-2xl sm:text-3xl font-extrabold font-display text-white">
             {t('Why Choose DriverHub')}
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">

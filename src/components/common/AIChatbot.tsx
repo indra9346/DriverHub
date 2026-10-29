@@ -99,7 +99,7 @@ export const AIChatbot: React.FC = () => {
 
   return (
     // z-40: below modals, drawers and dropdowns (z-50), so it never covers their buttons.
-    <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40">
+    <div className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40">
       {/* Floating Trigger Button */}
       {!isOpen && (
         <button

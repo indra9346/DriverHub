@@ -140,7 +140,7 @@ export const DriverSavedJobs: React.FC = () => {
       {toast && (
         <div
           role="alert"
-          className="fixed z-50 left-1/2 -translate-x-1/2 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] lg:bottom-6 w-[calc(100%-2rem)] max-w-md flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-800 shadow-elevated"
+          className="fixed z-50 left-1/2 -translate-x-1/2 bottom-[calc(7rem+env(safe-area-inset-bottom))] lg:bottom-6 w-[calc(100%-2rem)] max-w-md flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-800 shadow-elevated"
         >
           <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
           <span className="min-w-0 flex-1 break-words">{toast}</span>

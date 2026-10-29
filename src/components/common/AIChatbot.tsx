@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Bot, User, Sparkles, PhoneCall, RefreshCw } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, PhoneCall, RefreshCw, ArrowLeft, CheckCircle2, LoaderCircle } from 'lucide-react';
 import { AIMessage } from '../../types';
 import { getBotWelcome, getSupportResponse } from '../../services/aiSupport';
 import { useLanguage } from '../../services/i18n';
 import { Link, useLocation } from 'react-router-dom';
 import { newId } from '../../lib/ids';
+import { DataStore } from '../../services/store';
+import { normaliseIndianMobile, requestCallback } from '../../services/callbackApi';
 
 // Full-screen chat pages where the floating launcher would cover the composer.
 const HIDDEN_ON_PATHS = ['/driver/messages', '/employer/messages'];
@@ -21,6 +23,16 @@ const renderRichText = (text: string): React.ReactNode[] =>
     return <React.Fragment key={index}>{part}</React.Fragment>;
   });
 
+/** Name and number from the signed-in account's profile, to prefill the call-back form. */
+const getSavedContact = (): { name: string; phone: string } => {
+  const user = DataStore.getCurrentUser();
+  if (!user) return { name: '', phone: '' };
+  const driver = user.role === 'driver' ? DataStore.getDriverById(user.id) : undefined;
+  const employer = user.role === 'employer' ? DataStore.getEmployerById(user.id) : undefined;
+  const name = driver?.fullName || employer?.contactPerson || '';
+  return { name: name.trim(), phone: (driver?.phone || employer?.phone || user.phone || '').trim() };
+};
+
 export const AIChatbot: React.FC = () => {
   const { lang, t } = useLanguage();
   const location = useLocation();
@@ -31,6 +43,12 @@ export const AIChatbot: React.FC = () => {
   const [hasUnread, setHasUnread] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<number | null>(null);
+  // "Drop a message": the visitor leaves a number and the team calls back.
+  const [view, setView] = useState<'chat' | 'callback'>('chat');
+  const [callbackForm, setCallbackForm] = useState({ name: '', phone: '', message: '' });
+  const [callbackError, setCallbackError] = useState('');
+  const [callbackSending, setCallbackSending] = useState(false);
+  const [callbackSentTo, setCallbackSentTo] = useState('');
 
   // When language changes: cancel any pending response and reset messages to current language
   useEffect(() => {
@@ -95,11 +113,62 @@ export const AIChatbot: React.FC = () => {
     setMessages([getBotWelcome(lang)]);
   };
 
+  const openCallback = () => {
+    const saved = getSavedContact();
+    setCallbackForm(current => ({
+      name: current.name || saved.name,
+      phone: current.phone || saved.phone,
+      message: current.message,
+    }));
+    setCallbackError('');
+    setCallbackSentTo('');
+    setView('callback');
+  };
+
+  const closeCallback = () => {
+    if (callbackSending) return;
+    setView('chat');
+    setCallbackError('');
+    setCallbackSentTo('');
+  };
+
+  const submitCallback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (callbackSending) return;
+    const name = callbackForm.name.trim();
+    const mobile = normaliseIndianMobile(callbackForm.phone);
+    if (!name) {
+      setCallbackError(t('Please enter your name.'));
+      return;
+    }
+    if (!mobile) {
+      setCallbackError(t('Please enter a valid 10-digit mobile number.'));
+      return;
+    }
+    setCallbackError('');
+    setCallbackSending(true);
+    const result = await requestCallback({
+      name,
+      phone: mobile,
+      message: callbackForm.message.trim(),
+      page: location.pathname,
+    });
+    setCallbackSending(false);
+    if (result === 'sent') {
+      setCallbackSentTo(`+91 ${mobile.slice(0, 5)} ${mobile.slice(5)}`);
+      setCallbackForm(current => ({ ...current, message: '' }));
+    } else {
+      setCallbackError(result === 'duplicate'
+        ? t('We already have your request. Our team will call you soon.')
+        : t('Could not send your request. Please try again.'));
+    }
+  };
+
   if (HIDDEN_ON_PATHS.some(path => location.pathname.startsWith(path))) return null;
 
   return (
     // z-40: below modals, drawers and dropdowns (z-50), so it never covers their buttons.
-    <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40">
+    <div className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6 z-40">
       {/* Floating Trigger Button */}
       {!isOpen && (
         <button
@@ -126,7 +195,7 @@ export const AIChatbot: React.FC = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="w-[calc(100vw-2rem)] sm:w-[390px] max-w-[390px] h-[520px] max-h-[calc(100vh-10rem)] supports-[height:100dvh]:max-h-[calc(100dvh-10rem-env(safe-area-inset-bottom))] lg:max-h-[78vh] lg:supports-[height:100dvh]:max-h-[78vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="w-[calc(100vw-2rem)] sm:w-[390px] max-w-[390px] h-[520px] max-h-[calc(100vh-10.5rem)] supports-[height:100dvh]:max-h-[calc(100dvh-10.5rem-env(safe-area-inset-bottom))] lg:max-h-[78vh] lg:supports-[height:100dvh]:max-h-[78vh] bg-white rounded-2xl shadow-modal border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header */}
           <div className="bg-[#08233F] text-white pl-4 pr-2 py-2 flex items-center justify-between gap-2 border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -135,7 +204,7 @@ export const AIChatbot: React.FC = () => {
                 <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-400 border-2 border-[#08233F] rounded-full" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-xs font-bold flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
                   {t('DriverHub Assistant')}
                   <span className="bg-amber-400/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                     {t('Online')}
@@ -167,6 +236,91 @@ export const AIChatbot: React.FC = () => {
             </div>
           </div>
 
+          {view === 'callback' ? (
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-50/70">
+              {callbackSentTo ? (
+                <div role="status" className="flex flex-col items-center gap-3 py-8 text-center">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+                  <p className="text-sm font-bold text-slate-900">{t('Thank you! We will call you soon.')}</p>
+                  <p className="text-xs text-slate-600">{t('callbackSentDetail', { phone: callbackSentTo })}</p>
+                  <button
+                    type="button"
+                    onClick={closeCallback}
+                    className="mt-1 min-h-10 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> {t('Back to chat')}
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={submitCallback} noValidate className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={closeCallback}
+                    className="-ml-1 min-h-8 inline-flex items-center gap-1 px-1 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> {t('Back to chat')}
+                  </button>
+                  <div>
+                    <h4 className="text-sm font-bold">{t('Request a call back')}</h4>
+                    <p className="mt-0.5 text-xs text-slate-600">{t('Leave your number and a short message. Our team will call you back.')}</p>
+                  </div>
+                  <div>
+                    <label htmlFor="callback-name" className="block text-[11px] font-semibold text-slate-700 mb-1">{t('Your name')}</label>
+                    <input
+                      id="callback-name"
+                      type="text"
+                      autoComplete="name"
+                      maxLength={80}
+                      value={callbackForm.name}
+                      onChange={(e) => setCallbackForm({ ...callbackForm, name: e.target.value })}
+                      className="w-full min-h-10 bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="callback-phone" className="block text-[11px] font-semibold text-slate-700 mb-1">{t('Mobile number')}</label>
+                    <div className="flex items-stretch rounded-xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-amber-400">
+                      <span className="flex items-center pl-3 pr-1 text-base sm:text-xs font-semibold text-slate-500">+91</span>
+                      <input
+                        id="callback-phone"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel-national"
+                        maxLength={16}
+                        placeholder="98765 43210"
+                        value={callbackForm.phone}
+                        onChange={(e) => setCallbackForm({ ...callbackForm, phone: e.target.value })}
+                        className="flex-1 min-w-0 min-h-10 bg-transparent rounded-xl px-2 py-2 text-base sm:text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="callback-message" className="block text-[11px] font-semibold text-slate-700 mb-1">{t('Message (optional)')}</label>
+                    <textarea
+                      id="callback-message"
+                      rows={3}
+                      maxLength={500}
+                      value={callbackForm.message}
+                      onChange={(e) => setCallbackForm({ ...callbackForm, message: e.target.value })}
+                      placeholder={t('How can we help you?')}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-base sm:text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    />
+                  </div>
+                  {callbackError && (
+                    <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{callbackError}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={callbackSending}
+                    className="w-full min-h-10 inline-flex items-center justify-center gap-2 rounded-xl bg-[#08233F] hover:bg-[#051626] disabled:opacity-60 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                  >
+                    {callbackSending ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5 text-amber-400" />}
+                    {t('Send request')}
+                  </button>
+                </form>
+              )}
+            </div>
+          ) : (
+          <>
           {/* Messages Feed */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/70">
             {messages.map((msg) => (
@@ -246,18 +400,18 @@ export const AIChatbot: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick FAQ footer strip */}
+          {/* Call-back strip: leave a message and the team calls back */}
           <div className="px-3 py-1 bg-slate-100 border-t border-slate-200 flex items-center justify-between gap-2 text-[11px] text-slate-600 shrink-0">
-            <span className="flex items-center gap-1 font-medium">
-              <PhoneCall className="w-3 h-3 text-amber-600" /> {t('Need live support?')}
+            <span className="flex items-center gap-1 font-medium min-w-0">
+              <PhoneCall className="w-3 h-3 text-amber-600 shrink-0" /> <span className="truncate">{t('Want us to call you?')}</span>
             </span>
-            <Link
-              to="/contact"
-              onClick={() => setIsOpen(false)}
-              className="min-h-8 inline-flex items-center text-blue-600 font-semibold hover:underline"
+            <button
+              type="button"
+              onClick={openCallback}
+              className="min-h-8 inline-flex items-center shrink-0 text-blue-600 font-semibold hover:underline cursor-pointer"
             >
-              +91 80 2200 8899
-            </Link>
+              {t('Drop a message')}
+            </button>
           </div>
 
           {/* Input Box */}
@@ -280,6 +434,8 @@ export const AIChatbot: React.FC = () => {
               <Send className="w-3.5 h-3.5" />
             </button>
           </div>
+          </>
+          )}
         </div>
       )}
     </div>

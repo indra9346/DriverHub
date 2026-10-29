@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, useNavigate, useLocation, Link, NavLink } from 'react-router-dom';
-import { 
-  Menu, LayoutDashboard, Search, FileText, FileCheck, User,
-  PlusCircle, Briefcase, Users, Building2, ShieldCheck
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import {
+  Menu, House, Search, FileText, FileCheck, User, MessageSquare,
+  Plus, Briefcase, Users, Building2, ShieldCheck
 } from 'lucide-react';
 import { PublicLayout } from './PublicLayout';
 import { NotFoundPage } from '../pages/public/NotFoundPage';
@@ -10,6 +10,7 @@ import { Navbar } from '../components/common/Navbar';
 import { Footer } from '../components/common/Footer';
 import { Sidebar, getNavLinks } from '../components/common/Sidebar';
 import { AIChatbot } from '../components/common/AIChatbot';
+import { MobileBottomNav } from '../components/common/MobileBottomNav';
 import { RoutePageBoundary } from '../components/common/RoutePageBoundary';
 import { DataStore } from '../services/store';
 import { supabase } from '../services/supabaseClient';
@@ -23,7 +24,7 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }) => {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [currentUser, setCurrentUser] = useState(DataStore.getCurrentUser());
   const [sessionReady, setSessionReady] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -193,36 +194,38 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
     || navLinks.find(link => location.pathname.startsWith(link.to) && link.to !== '/driver/dashboard' && link.to !== '/employer/dashboard' && link.to !== '/admin/dashboard');
   const currentSectionTitle = currentNav?.label || t('Dashboard');
 
-  // Bottom quick tabs for mobile. Short English labels so every tab fits on a
-  // 360px screen; Kannada uses the existing translations (truncated if long).
-  const tabLabel = (short: string, key: string) => (lang === 'kn' ? t(key) : short);
-  const getBottomTabs = (): { to: string; label: string; icon: React.ComponentType<{ className?: string }>; highlight?: boolean }[] => {
-    if (currentUser.role === 'driver') {
-      return [
-        { to: '/driver/dashboard', label: t('Home'), icon: LayoutDashboard },
-        { to: '/jobs', label: t('Jobs'), icon: Search },
-        { to: '/driver/applications', label: tabLabel('Applications', 'My Applications'), icon: FileText },
-        { to: '/driver/profile', label: tabLabel('Profile', 'My Profile'), icon: User },
-      ];
-    } else if (currentUser.role === 'employer') {
-      return [
-        { to: '/employer/dashboard', label: t('Home'), icon: LayoutDashboard },
-        { to: '/employer/post-job', label: tabLabel('Post Job', 'Post Vacancy'), icon: PlusCircle, highlight: true },
-        { to: '/employer/jobs', label: t('Jobs'), icon: Briefcase },
-        { to: '/employer/applications', label: tabLabel('Applicants', 'Applications Pipeline'), icon: FileText },
-      ];
-    } else {
-      return [
-        { to: '/admin/dashboard', label: t('Home'), icon: LayoutDashboard },
-        { to: '/admin/jobs', label: tabLabel('Jobs', 'Job Moderation Queue'), icon: ShieldCheck },
-        { to: '/admin/employers', label: tabLabel('Employers', 'Employer Verification'), icon: Building2 },
-        { to: '/admin/documents', label: tabLabel('Docs', 'Driver Document Reviews'), icon: FileCheck },
-        { to: '/admin/candidates', label: tabLabel('Drivers', 'Candidate Management'), icon: Users },
-      ];
-    }
-  };
-
-  const bottomTabs = getBottomTabs();
+  // Phone bottom bar: four tabs around a raised centre action, per role.
+  // The sticky header's Menu button opens every other section.
+  const bottomNav: Pick<React.ComponentProps<typeof MobileBottomNav>, 'items' | 'center'> =
+    currentUser.role === 'driver'
+      ? {
+          items: [
+            { to: '/driver/dashboard', label: t('Home'), icon: House },
+            { to: '/driver/applications', label: t('navApplied'), icon: FileText },
+            { to: '/driver/messages', label: t('navMessages'), icon: MessageSquare },
+            { to: '/driver/profile', label: t('navProfile'), icon: User, match: ['/driver/documents'] },
+          ],
+          center: { to: '/jobs', label: t('navFindJobs'), icon: Search, match: ['/driver/jobs'] },
+        }
+      : currentUser.role === 'employer'
+      ? {
+          items: [
+            { to: '/employer/dashboard', label: t('Home'), icon: House },
+            { to: '/employer/jobs', label: t('navJobs'), icon: Briefcase },
+            { to: '/employer/applications', label: t('navApplicants'), icon: FileText },
+            { to: '/employer/company', label: t('navCompany'), icon: Building2 },
+          ],
+          center: { to: '/employer/post-job', label: t('navPostJob'), icon: Plus },
+        }
+      : {
+          items: [
+            { to: '/admin/dashboard', label: t('Home'), icon: House },
+            { to: '/admin/employers', label: t('navEmployers'), icon: Building2 },
+            { to: '/admin/documents', label: t('navDocs'), icon: FileCheck },
+            { to: '/admin/candidates', label: t('navDrivers'), icon: Users },
+          ],
+          center: { to: '/admin/jobs', label: t('navReview'), icon: ShieldCheck },
+        };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
@@ -275,69 +278,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ requiredRole }
         </main>
       </div>
 
-      <div className="pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+      {/* On phones the footer runs on under the bottom bar. */}
+      <div className="bg-[#051626] pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
         <Footer />
       </div>
 
-      {/* Sleek Mobile Bottom Tab Bar */}
-      <nav
-        aria-label="Quick navigation"
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-elevated"
-      >
-        <div className="flex items-stretch justify-around gap-0.5">
-          {bottomTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <NavLink
-                key={tab.to}
-                to={tab.to}
-                end={tab.to.endsWith('dashboard')}
-                className={({ isActive }) => `
-                  flex-1 min-w-0 min-h-10 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl text-[10px] font-bold transition-all
-                  ${
-                    isActive
-                      ? 'text-[#08233F]'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }
-                `}
-              >
-                {({ isActive }) => (
-                  <>
-                    <div className={`p-1 rounded-lg transition-all ${
-                      isActive 
-                        ? 'bg-amber-400 text-slate-950 shadow-xs scale-105' 
-                        : tab.highlight 
-                        ? 'bg-amber-100 text-amber-900' 
-                        : 'text-slate-600'
-                    }`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className={`mt-0.5 leading-tight max-w-full truncate ${isActive ? 'font-extrabold text-[#08233F]' : ''}`}>
-                      {tab.label}
-                    </span>
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
-
-          {/* More / Menu Drawer Toggle in Bottom Bar */}
-          <button
-            type="button"
-            onClick={() => setIsMobileSidebarOpen(true)}
-            aria-label="More: open menu"
-            className="flex-1 min-w-0 min-h-10 flex flex-col items-center justify-center py-1 px-0.5 rounded-xl text-[10px] font-bold text-slate-500 hover:text-slate-900 cursor-pointer"
-          >
-            <div className="p-1 rounded-lg text-slate-600 relative">
-              <Menu className="w-4 h-4" />
-              {unreadNotifs > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full" />
-              )}
-            </div>
-            <span className="mt-0.5 leading-tight max-w-full truncate">More</span>
-          </button>
-        </div>
-      </nav>
+      <MobileBottomNav items={bottomNav.items} center={bottomNav.center} />
 
       <AIChatbot />
     </div>

@@ -57,7 +57,7 @@ export const EmployerDashboard: React.FC = () => {
               : <Clock className="w-3.5 h-3.5 text-amber-300" />}
             {company?.verified ? t('Verified Fleet Employer') : t('Verification pending')}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold font-display break-words">
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-white break-words">
             {company?.companyName || t('Employer Desk')}
           </h1>
           {companyMeta && (

@@ -67,6 +67,7 @@ export const getNavLinks = (role: UserRole, unreadCount: number = 0, t?: (key: s
     { to: '/admin/candidates', label: tr('Candidate Management'), icon: Users },
     { to: '/admin/employers', label: tr('Employer Verification'), icon: Building2 },
     { to: '/admin/applications', label: tr('Global Applications'), icon: FileText },
+    { to: '/admin/callbacks', label: tr('callbackRequests'), icon: PhoneCall },
     { to: '/admin/settings', label: tr('Admin Account & Access'), icon: Settings },
   ];
 

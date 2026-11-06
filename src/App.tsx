@@ -12,6 +12,8 @@ const JobDetailPage = React.lazy(() => import('./pages/public/JobDetailPage').th
 const CompaniesPage = React.lazy(() => import('./pages/public/CompaniesPage').then(module => ({ default: module.CompaniesPage })));
 const AboutPage = React.lazy(() => import('./pages/public/AboutPage').then(module => ({ default: module.AboutPage })));
 const ContactPage = React.lazy(() => import('./pages/public/ContactPage').then(module => ({ default: module.ContactPage })));
+const BlogPage = React.lazy(() => import('./pages/public/BlogPage').then(module => ({ default: module.BlogPage })));
+const BlogPostPage = React.lazy(() => import('./pages/public/BlogPostPage').then(module => ({ default: module.BlogPostPage })));
 const LoginPage = React.lazy(() => import('./pages/public/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = React.lazy(() => import('./pages/public/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const ForgotPasswordPage = React.lazy(() => import('./pages/public/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
@@ -96,6 +98,9 @@ export const App: React.FC = () => {
           <Route path="/safety" element={<AboutPage />} />
           <Route path="/help" element={<ContactPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/blogs" element={<BlogPage />} />
+          <Route path="/blogs/:slug" element={<BlogPostPage />} />
+          <Route path="/blog" element={<Navigate to="/blogs" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path={ADMIN_LOGIN_PATH} element={<LoginPage portal="admin" />} />
           <Route path="/register" element={<RegisterPage />} />

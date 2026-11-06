@@ -19,6 +19,18 @@ interface StaticPageMeta {
   canonical: string;
   ogType: 'website' | 'article';
   jsonLd: Record<string, unknown>;
+  /** Post slug, to find its cover photo among the built assets. */
+  slug?: string;
+}
+
+/** Built cover photo of a post (src/assets/blog/<slug>.jpg -> dist/assets/<slug>-<hash>.jpg). */
+function findBuiltCover(distDir: string, slug: string): string | undefined {
+  const assetsDir = path.join(distDir, 'assets');
+  if (!fs.existsSync(assetsDir)) return undefined;
+  const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`^${escaped}-[A-Za-z0-9_-]{8}\\.(jpe?g|png|webp)$`);
+  const file = fs.readdirSync(assetsDir).find(name => pattern.test(name));
+  return file ? `${SITE_URL}/assets/${file}` : undefined;
 }
 
 /** Blog pages get their own title, description, canonical, Open Graph and JSON-LD in the static HTML. */
@@ -36,11 +48,12 @@ const blogPageMeta: Record<string, StaticPageMeta> = {
     canonical: blogPostUrl(post.slug),
     ogType: 'article' as const,
     jsonLd: blogPostJsonLd(post),
+    slug: post.slug,
   }])),
 };
 
 /** Same tags as usePageMeta (src/lib/pageMeta.ts), marked data-page-meta so the app can replace them. */
-function withPageMeta(html: string, meta: StaticPageMeta): string {
+function withPageMeta(html: string, meta: StaticPageMeta, shareImage: string): string {
   const title = escapeHtml(meta.title);
   const description = escapeHtml(meta.description);
   const tags = [
@@ -50,7 +63,7 @@ function withPageMeta(html: string, meta: StaticPageMeta): string {
     `<meta property="og:title" content="${title}" data-page-meta>`,
     `<meta property="og:description" content="${description}" data-page-meta>`,
     `<meta property="og:url" content="${escapeHtml(meta.canonical)}" data-page-meta>`,
-    `<meta property="og:image" content="${SITE_URL}/logo-icon-1024.png" data-page-meta>`,
+    `<meta property="og:image" content="${escapeHtml(shareImage)}" data-page-meta>`,
     // "<" is escaped so the JSON can never close the script tag.
     `<script type="application/ld+json" data-page-meta>${JSON.stringify(meta.jsonLd).replace(/</g, '\\u003c')}</script>`,
   ];
@@ -171,7 +184,8 @@ function spaStaticFallbackPlugin(): Plugin {
         const routeDir = path.join(distDir, route);
         fs.mkdirSync(routeDir, { recursive: true });
         const meta = blogPageMeta[route];
-        fs.writeFileSync(path.join(routeDir, 'index.html'), meta ? withPageMeta(htmlContent, meta) : htmlContent, 'utf-8');
+        const shareImage = (meta?.slug && findBuiltCover(distDir, meta.slug)) || `${SITE_URL}/logo-icon-1024.png`;
+        fs.writeFileSync(path.join(routeDir, 'index.html'), meta ? withPageMeta(htmlContent, meta, shareImage) : htmlContent, 'utf-8');
       }
 
       // 3. Sitemap of the public pages and blog posts (robots.txt in public/ points to it)

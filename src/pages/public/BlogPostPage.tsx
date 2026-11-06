@@ -5,10 +5,11 @@ import { useLanguage } from '../../services/i18n';
 import { usePageMeta } from '../../lib/pageMeta';
 import {
   BlogBlock, blogPostJsonLd, blogPostTitle, blogPostUrl, getBlogPost, getReadingMinutes,
-  getSortedBlogPosts
+  getSortedBlogPosts, SITE_URL
 } from '../../data/blogPosts';
 import { AUDIENCE_LABELS, AUDIENCE_STYLES, formatBlogDate } from './BlogPage';
 import { BlogHelpBox } from './BlogHelpBox';
+import { BlogCover, getBlogCoverUrl } from './BlogCover';
 import { NotFoundPage } from './NotFoundPage';
 
 const Block: React.FC<{ block: BlogBlock }> = ({ block }) => {
@@ -70,7 +71,8 @@ export const BlogPostPage: React.FC = () => {
         description: post.description,
         canonical: blogPostUrl(post.slug),
         ogType: 'article',
-        jsonLd: blogPostJsonLd(post)
+        jsonLd: blogPostJsonLd(post),
+        image: getBlogCoverUrl(post.slug) ? new URL(getBlogCoverUrl(post.slug)!, SITE_URL).href : undefined
       }
     : {
         title: 'Guide not found | Driver Hub',
@@ -116,13 +118,7 @@ export const BlogPostPage: React.FC = () => {
           {lang === 'kn' && (
             <p className="text-xs font-semibold text-slate-500">{t('Guides are in English.')}</p>
           )}
-          <img
-            src={post.cover}
-            alt={post.coverAlt}
-            width={960}
-            height={320}
-            className="w-full aspect-[3/1] object-cover rounded-2xl border border-slate-200 bg-[#0A3157]"
-          />
+          <BlogCover post={post} className="rounded-2xl border border-slate-200" />
         </header>
 
         {post.sections.map(section => (

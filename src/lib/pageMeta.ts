@@ -27,6 +27,8 @@ export interface PageMeta {
   jsonLd?: Record<string, unknown>;
   /** For pages that should stay out of search results (e.g. a missing post). */
   noindex?: boolean;
+  /** Absolute URL of the picture shown when the page is shared. */
+  image?: string;
 }
 
 const MARK = 'data-page-meta';
@@ -54,7 +56,7 @@ const addTag = (tagName: 'meta' | 'link' | 'script', attributes: Record<string, 
 };
 
 export function usePageMeta(meta: PageMeta): void {
-  const { title, description, canonical, ogType = 'website', jsonLd, noindex } = meta;
+  const { title, description, canonical, ogType = 'website', jsonLd, noindex, image = DEFAULT_SHARE_IMAGE } = meta;
   const jsonLdText = jsonLd ? JSON.stringify(jsonLd) : '';
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export function usePageMeta(meta: PageMeta): void {
     addTag('meta', { property: 'og:title', content: title });
     addTag('meta', { property: 'og:description', content: description });
     if (canonical) addTag('meta', { property: 'og:url', content: canonical });
-    addTag('meta', { property: 'og:image', content: DEFAULT_SHARE_IMAGE });
+    addTag('meta', { property: 'og:image', content: image });
     if (jsonLdText) addTag('script', { type: 'application/ld+json' }, jsonLdText);
 
     return () => {
@@ -78,5 +80,5 @@ export function usePageMeta(meta: PageMeta): void {
       document.title = DEFAULT_PAGE_TITLE;
       setDescription(DEFAULT_PAGE_DESCRIPTION);
     };
-  }, [title, description, canonical, ogType, jsonLdText, noindex]);
+  }, [title, description, canonical, ogType, jsonLdText, noindex, image]);
 }

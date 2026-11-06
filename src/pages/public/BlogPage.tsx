@@ -8,6 +8,7 @@ import {
   blogIndexJsonLd, getReadingMinutes, getSortedBlogPosts
 } from '../../data/blogPosts';
 import { BlogHelpBox } from './BlogHelpBox';
+import { BlogCover } from './BlogCover';
 
 export const AUDIENCE_LABELS: Record<BlogAudience, string> = {
   Drivers: 'For drivers',
@@ -31,14 +32,7 @@ const BlogCard: React.FC<{ post: BlogPost }> = ({ post }) => {
   return (
     <article className="group bg-white rounded-2xl border border-slate-200 shadow-card hover:shadow-elevated hover:border-amber-300 transition-all duration-300 overflow-hidden flex flex-col min-w-0">
       <Link to={`/blogs/${post.slug}`} className="block" tabIndex={-1} aria-hidden="true">
-        <img
-          src={post.cover}
-          alt=""
-          width={960}
-          height={320}
-          loading="lazy"
-          className="w-full aspect-[3/1] object-cover bg-[#0A3157]"
-        />
+        <BlogCover post={post} lazy />
       </Link>
       <div className="p-5 sm:p-6 flex flex-col gap-3 flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[11px] font-semibold text-slate-500">

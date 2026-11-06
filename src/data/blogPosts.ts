@@ -40,7 +40,13 @@ export interface BlogPost {
   published: string;
   /** YYYY-MM-DD, when the post was last changed. */
   updated?: string;
-  cover: string;
+  /**
+   * Cover photo: src/assets/blog/<slug>.jpg (or .png / .webp). Until that file
+   * exists the pages show a neutral placeholder with this icon. See
+   * src/assets/blog/README.md for the file names and the picture prompts.
+   */
+  coverIcon: 'truck' | 'licence' | 'office' | 'phone';
+  /** Describes the cover photo for screen readers. */
   coverAlt: string;
   intro: string;
   sections: BlogSection[];
@@ -54,8 +60,8 @@ export const BLOG_POSTS: BlogPost[] = [
       'Create a driver account, search jobs by vehicle type, place and pay, apply with a short note to the employer and follow every application on Driver Hub.',
     audience: 'Drivers',
     published: '2026-11-06',
-    cover: '/card-banners/commercial.svg',
-    coverAlt: 'Illustration of a commercial truck',
+    coverIcon: 'truck',
+    coverAlt: 'A truck driver in his parked cab looking at job listings on his phone',
     intro:
       'Driver Hub lists driver vacancies posted by employers. This guide follows the steps on the site, from creating your account to following up on an application.',
     sections: [
@@ -156,8 +162,8 @@ export const BLOG_POSTS: BlogPost[] = [
       'Which documents drivers can upload on Driver Hub, the file types allowed, and what the Pending Review, Verified and Rejected statuses mean.',
     audience: 'Drivers',
     published: '2026-11-06',
-    cover: '/card-banners/license.svg',
-    coverAlt: 'Illustration of a driving licence card',
+    coverIcon: 'licence',
+    coverAlt: 'A driver photographing his driving licence with a phone on a car dashboard',
     intro:
       'Drivers can upload their driving licence and other documents to their Driver Hub account. A Driver Hub administrator reviews each one. This guide explains where to upload, what you can upload and what each status means.',
     sections: [
@@ -258,8 +264,8 @@ export const BLOG_POSTS: BlogPost[] = [
       'Create an employer account, fill in the four-step job form, then save a draft, send the job for review or publish it, and manage the drivers who apply.',
     audience: 'Employers',
     published: '2026-11-06',
-    cover: '/card-banners/delivery.svg',
-    coverAlt: 'Illustration of a delivery vehicle',
+    coverIcon: 'office',
+    coverAlt: 'A fleet manager at a laptop in a transport office, with delivery vans parked outside',
     intro:
       'Companies, fleet owners and private vehicle owners can list driver vacancies on Driver Hub. This guide follows the employer screens, from creating an account to choosing a driver.',
     sections: [
@@ -354,8 +360,8 @@ export const BLOG_POSTS: BlogPost[] = [
       'Add Driver Hub to the home screen of your Android phone or iPhone in a few taps. It is free and installs from the browser, not from an app store.',
     audience: 'Everyone',
     published: '2026-11-06',
-    cover: '/card-banners/notifications.svg',
-    coverAlt: 'Illustration of a phone with notifications',
+    coverIcon: 'phone',
+    coverAlt: 'A cab driver beside his car tapping an app on his phone home screen',
     intro:
       'Driver Hub can be installed on your phone straight from the browser. It then opens from its own icon on your home screen, like other apps, with the same Driver Hub account. It is free and no Play Store or App Store download is needed.',
     sections: [

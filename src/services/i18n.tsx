@@ -86,6 +86,25 @@ export const KANNADA_CATALOG: Record<string, string> = {
   'Sign out': 'ಲಾಗ್ ಔಟ್',
   'Dashboard': 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
   'Jobs': 'ಉದ್ಯೋಗಗಳು',
+  // Blog pages (the guides themselves are in English)
+  'Blogs': 'ಬ್ಲಾಗ್‌ಗಳು',
+  'Blogs & Guides': 'ಬ್ಲಾಗ್‌ಗಳು ಮತ್ತು ಮಾರ್ಗದರ್ಶಿಗಳು',
+  'Driver Hub Blog': 'ಡ್ರೈವರ್ ಹಬ್ ಬ್ಲಾಗ್',
+  'Guides for drivers and employers': 'ಚಾಲಕರು ಮತ್ತು ಉದ್ಯೋಗದಾತರಿಗೆ ಮಾರ್ಗದರ್ಶಿಗಳು',
+  'Step-by-step help for using Driver Hub: finding work, uploading documents, posting vacancies and installing the app.':
+    'ಡ್ರೈವರ್ ಹಬ್ ಬಳಸಲು ಹಂತ ಹಂತದ ಸಹಾಯ: ಕೆಲಸ ಹುಡುಕುವುದು, ದಾಖಲೆಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡುವುದು, ಖಾಲಿ ಹುದ್ದೆಗಳನ್ನು ಪ್ರಕಟಿಸುವುದು ಮತ್ತು ಆ್ಯಪ್ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವುದು.',
+  'Guides are in English.': 'ಮಾರ್ಗದರ್ಶಿಗಳು ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿವೆ.',
+  'For drivers': 'ಚಾಲಕರಿಗೆ',
+  'For employers': 'ಉದ್ಯೋಗದಾತರಿಗೆ',
+  'For everyone': 'ಎಲ್ಲರಿಗೂ',
+  'Read guide': 'ಮಾರ್ಗದರ್ಶಿ ಓದಿ',
+  '{count} min read': '{count} ನಿಮಿಷದ ಓದು',
+  'Updated {date}': 'ನವೀಕರಿಸಲಾಗಿದೆ: {date}',
+  'All blogs': 'ಎಲ್ಲಾ ಬ್ಲಾಗ್‌ಗಳು',
+  'More guides': 'ಇನ್ನಷ್ಟು ಮಾರ್ಗದರ್ಶಿಗಳು',
+  'Need help?': 'ಸಹಾಯ ಬೇಕೇ?',
+  'Call Driver Hub support, or open the support chat and tap "{button}" to ask for a call back.':
+    'ಡ್ರೈವರ್ ಹಬ್ ಬೆಂಬಲಕ್ಕೆ ಕರೆ ಮಾಡಿ, ಅಥವಾ ಬೆಂಬಲ ಚಾಟ್ ತೆರೆದು ಮರಳಿ ಕರೆಗಾಗಿ "{button}" ಒತ್ತಿ.',
   // Support chat: call-back requests
   'Drop a message': 'ಸಂದೇಶ ಬಿಡಿ',
   'Request a call back': 'ಕರೆ ಮಾಡಲು ವಿನಂತಿಸಿ',

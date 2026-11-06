@@ -61,7 +61,7 @@ export const BLOG_POSTS: BlogPost[] = [
     audience: 'Drivers',
     published: '2026-11-06',
     coverIcon: 'truck',
-    coverAlt: 'A truck driver in his parked cab looking at job listings on his phone',
+    coverAlt: 'A driver sitting in a parked car, looking at his phone',
     intro:
       'Driver Hub lists driver vacancies posted by employers. This guide follows the steps on the site, from creating your account to following up on an application.',
     sections: [
@@ -163,7 +163,7 @@ export const BLOG_POSTS: BlogPost[] = [
     audience: 'Drivers',
     published: '2026-11-06',
     coverIcon: 'licence',
-    coverAlt: 'A driver photographing his driving licence with a phone on a car dashboard',
+    coverAlt: 'A driver\'s papers, licence card and car key on a car dashboard',
     intro:
       'Drivers can upload their driving licence and other documents to their Driver Hub account. A Driver Hub administrator reviews each one. This guide explains where to upload, what you can upload and what each status means.',
     sections: [
@@ -265,7 +265,7 @@ export const BLOG_POSTS: BlogPost[] = [
     audience: 'Employers',
     published: '2026-11-06',
     coverIcon: 'office',
-    coverAlt: 'A fleet manager at a laptop in a transport office, with delivery vans parked outside',
+    coverAlt: 'Two men shaking hands in an office, with a white car parked outside the window',
     intro:
       'Companies, fleet owners and private vehicle owners can list driver vacancies on Driver Hub. This guide follows the employer screens, from creating an account to choosing a driver.',
     sections: [
@@ -361,7 +361,7 @@ export const BLOG_POSTS: BlogPost[] = [
     audience: 'Everyone',
     published: '2026-11-06',
     coverIcon: 'phone',
-    coverAlt: 'A cab driver beside his car tapping an app on his phone home screen',
+    coverAlt: 'A smiling driver in a navy uniform leaning on a white car and using his phone',
     intro:
       'Driver Hub can be installed on your phone straight from the browser. It then opens from its own icon on your home screen, like other apps, with the same Driver Hub account. It is free and no Play Store or App Store download is needed.',
     sections: [

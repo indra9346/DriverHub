@@ -11,6 +11,11 @@ a neutral placeholder for that post, so nothing appears broken.
 | How employers post a driver vacancy on Driver Hub | `post-a-driver-job-as-an-employer.jpg` |
 | Install the Driver Hub app on your phone | `install-driver-hub-app-on-your-phone.jpg` |
 
+All four files are here now (photorealistic Gemini pictures, 1600 x 900, made on
+6 Nov 2026). To change a cover, replace its file under the same name, update
+`coverAlt` for that post in `src/data/blogPosts.ts` so it describes the new
+picture, then rebuild and redeploy.
+
 - `.jpg` is best. `.jpeg`, `.png` and `.webp` also work.
 - Use a 16:9 landscape picture, about 1600 x 900. Keep each file under about 300 KB
   (compress big PNGs first), because phones load these on mobile data.
@@ -18,8 +23,8 @@ a neutral placeholder for that post, so nothing appears broken.
 
 ## Picture prompts (Gemini / Nano Banana)
 
-For each post, paste that post's prompt and then the shared style line, so all
-covers match.
+Use these to make a new or replacement cover. For each post, paste that post's
+prompt and then the shared style line, so all covers match.
 
 **Shared style line (add to every prompt):**
 

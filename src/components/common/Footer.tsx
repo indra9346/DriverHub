@@ -111,6 +111,11 @@ export const Footer: React.FC = () => {
                   {t('About Safety & Welfare')}
                 </Link>
               </li>
+              <li>
+                <Link to="/blogs" className="inline-flex items-center min-h-[40px] sm:min-h-0 hover:text-amber-400 transition-colors">
+                  {t('Blogs & Guides')}
+                </Link>
+              </li>
             </ul>
           </div>
 

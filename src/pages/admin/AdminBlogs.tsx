@@ -9,7 +9,7 @@ import {
   fetchAllBlogsForAdmin, isBlogSlugFree, removeBlogImage, RESERVED_BLOG_SLUGS, setBlogStatus, uniqueBlogSlug,
   updateBlog, updateBlogSeo, uploadBlogImage
 } from '../../services/blogApi';
-import { slugifyBlog } from '../../lib/blogHtml';
+import { blogSlugFromName, slugifyBlog } from '../../lib/blogHtml';
 import { getSortedBlogPosts } from '../../data/blogPosts';
 import { AdminModal, ConfirmDialog } from './AdminUi';
 import { BlogRichEditor } from './BlogRichEditor';
@@ -121,7 +121,7 @@ export const AdminBlogs: React.FC = () => {
   const shown = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const now = Date.now();
 
-  const newSlugPreview = editing ? editing.slug : (slugifyBlog(form.name) || '…');
+  const newSlugPreview = editing ? editing.slug : (form.name.trim() ? blogSlugFromName(form.name) : '…');
 
   const openAdd = () => {
     setEditing(null);
@@ -181,7 +181,7 @@ export const AdminBlogs: React.FC = () => {
     let uploaded: { url: string; path: string } | null = null;
     try {
       if (coverFile) uploaded = await uploadBlogImage(coverFile, 'covers');
-      const slug = editing ? editing.slug : await uniqueBlogSlug(slugifyBlog(form.name));
+      const slug = editing ? editing.slug : await uniqueBlogSlug(blogSlugFromName(form.name));
       const input: BlogInput = {
         slug,
         name: form.name,

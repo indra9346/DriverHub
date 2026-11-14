@@ -191,6 +191,18 @@ export function slugifyBlog(text: string): string {
     .replace(/-+$/, '');
 }
 
+/**
+ * Web address for a new blog from its name. The database needs 3 to 120
+ * characters, so very short names get "-blog" added ("AI" -> "ai-blog") and
+ * names without Latin letters or digits (e.g. only Kannada) get a dated one.
+ */
+export function blogSlugFromName(name: string, now: Date = new Date()): string {
+  const base = slugifyBlog(name);
+  if (base.length >= 3) return base;
+  if (base) return `${base}-blog`;
+  return `blog-${now.toISOString().slice(0, 10)}`;
+}
+
 /** Adds ids to the h2 headings so long posts can link to their sections. */
 export function headingsFromHtml(html: string): { html: string; headings: Array<{ id: string; label: string }> } {
   if (typeof DOMParser === 'undefined') return { html, headings: [] };

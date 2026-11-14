@@ -27,11 +27,15 @@ export const Logo: React.FC<LogoProps> = ({
   };
 
   const currentSize = sizeMap[size];
+  // The site header on narrow phones also carries Blogs, language, alerts and
+  // the menu: the mark and name get a little smaller there so nothing overlaps.
+  const compact = hideTaglineOnMobile && size === 'md';
+  const iconClass = compact ? 'w-9 h-9 min-[400px]:w-10 min-[400px]:h-10 rounded-xl' : currentSize.icon;
 
   const content = (
-    <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
+    <div className={`inline-flex items-center ${compact ? 'gap-2 min-[400px]:gap-2.5' : 'gap-2.5'} select-none ${className}`}>
       {/* 4-Side Curved Clean Logo Icon (trimmed corner white background, curved edges) */}
-      <div className={`relative overflow-hidden shrink-0 shadow-sm border border-slate-200/40 ${currentSize.icon} transition-transform hover:scale-105 duration-200`}>
+      <div className={`relative overflow-hidden shrink-0 shadow-sm border border-slate-200/40 ${iconClass} transition-transform hover:scale-105 duration-200`}>
         <img
           src="/logo-icon.png"
           alt="Driver Hub"
@@ -45,7 +49,7 @@ export const Logo: React.FC<LogoProps> = ({
 
       {/* Typography */}
       <div className="flex flex-col leading-none">
-        <div className="flex items-center tracking-tight font-extrabold font-display whitespace-nowrap">
+        <div className={`flex items-center tracking-tight font-extrabold font-display whitespace-nowrap ${compact ? 'text-[15px] min-[400px]:text-base' : ''}`}>
           <span className={variant === 'dark' ? 'text-white' : 'text-[#08233F]'}>
             DRIVER
           </span>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Menu, X, Briefcase, Building2, User, LogIn, LogOut, ChevronDown,
-  Shield, Heart, FileText, Settings, LayoutDashboard, PlusCircle, Sparkles, Globe
+  Shield, Heart, FileText, Settings, LayoutDashboard, PlusCircle, Sparkles, Globe, BookOpen
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { NotificationBell } from './NotificationBell';
@@ -95,8 +95,8 @@ export const Navbar: React.FC = () => {
       style={{ backgroundColor: '#ffffff' }}
       className="sticky top-0 z-50 w-full bg-white border-b border-slate-200 shadow-sm"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-3 min-[400px]:px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-2 h-16">
           {/* Brand Logo */}
           {/* Spacing is tighter from 1024 to 1279 px so the six links fit next to the account buttons. */}
           <div className="flex items-center gap-6 lg:gap-4 xl:gap-8 min-w-0">
@@ -396,7 +396,20 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center gap-1.5 min-[400px]:gap-2 lg:hidden shrink-0">
+          <div className="flex items-center gap-1 min-[400px]:gap-2 lg:hidden shrink-0">
+            {/* Blogs stays on the top bar on phones too, not only inside the menu. */}
+            <Link
+              to="/blogs"
+              aria-current={isActive('/blogs') ? 'page' : undefined}
+              className={`inline-flex items-center gap-1 min-h-[40px] rounded-full border px-2 min-[400px]:px-3 text-[10.5px] min-[400px]:text-[11px] font-extrabold uppercase tracking-tight shadow-xs ${
+                isActive('/blogs')
+                  ? 'bg-[#08233F] border-[#08233F] text-white'
+                  : 'bg-amber-50 border-amber-300 text-[#08233F] hover:bg-amber-100'
+              }`}
+            >
+              <BookOpen className="hidden min-[400px]:block w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
+              {t('Blogs')}
+            </Link>
             <button
               type="button"
               onClick={toggleLang}
@@ -418,7 +431,7 @@ export const Navbar: React.FC = () => {
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-navigation"
-              className="inline-flex items-center justify-center w-11 h-11 text-slate-700 hover:text-[#08233F] rounded-xl hover:bg-slate-100"
+              className="inline-flex items-center justify-center w-10 h-10 min-[400px]:w-11 min-[400px]:h-11 text-slate-700 hover:text-[#08233F] rounded-xl hover:bg-slate-100"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>

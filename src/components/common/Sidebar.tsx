@@ -5,7 +5,7 @@ import {
   Settings, LogOut, PlusCircle, Briefcase, Users, Building2, 
   ShieldCheck, ChevronRight, ChevronDown, Sparkles, X, BarChart3, 
   CreditCard, Receipt, Gift, HelpCircle, PhoneCall, MessageSquare, 
-  Database, Coins
+  Database, Coins, BookOpen
 } from 'lucide-react';
 import { DataStore } from '../../services/store';
 import { supabase } from '../../services/supabaseClient';
@@ -68,6 +68,7 @@ export const getNavLinks = (role: UserRole, unreadCount: number = 0, t?: (key: s
     { to: '/admin/employers', label: tr('Employer Verification'), icon: Building2 },
     { to: '/admin/applications', label: tr('Global Applications'), icon: FileText },
     { to: '/admin/callbacks', label: tr('callbackRequests'), icon: PhoneCall },
+    { to: '/admin/blogs', label: tr('Blog Management'), icon: BookOpen },
     { to: '/admin/settings', label: tr('Admin Account & Access'), icon: Settings },
   ];
 

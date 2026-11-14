@@ -212,8 +212,8 @@ export const AIChatbot: React.FC = () => {
           aria-busy={turning || undefined}
           className="dh-wheel-launcher group relative flex items-center gap-3 rounded-full cursor-pointer transition-transform duration-200 hover:-translate-y-0.5 sm:bg-gradient-to-r sm:from-[#0d2f55] sm:via-[#08233F] sm:to-[#051626] sm:pl-1.5 sm:pr-4 sm:py-1.5 sm:border sm:border-slate-600/50 sm:shadow-elevated"
         >
-          <span className={`relative flex items-center justify-center rounded-full bg-gradient-to-br from-[#163e69] to-[#04111f] p-1 ${turning ? '' : 'dh-wheel-halo'}`}>
-            <SteeringWheelAI size={54} stalk motion={turning ? 'turn' : 'idle'} onTurnEnd={finishTurn} />
+          <span className={`dh-wheel-plate relative flex items-center justify-center rounded-full p-[3px] ${turning ? '' : 'dh-wheel-halo'}`}>
+            <SteeringWheelAI size={66} stalk motion={turning ? 'turn' : 'idle'} onTurnEnd={finishTurn} />
             {hasUnread && !turning && (
               <span className="absolute top-0.5 right-0.5 flex h-3 w-3">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />

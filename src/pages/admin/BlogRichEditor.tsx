@@ -283,7 +283,11 @@ export const BlogRichEditor: React.FC<Props> = ({ initialHtml, onChange, onError
       {codeView ? (
         <textarea
           value={code}
-          onChange={event => setCode(event.target.value)}
+          onChange={event => {
+            // Keep the form in step, so saving straight from HTML view keeps these edits.
+            setCode(event.target.value);
+            onChange(event.target.value);
+          }}
           spellCheck={false}
           aria-label="Blog HTML"
           className={`w-full resize-y bg-slate-900 p-4 font-mono text-xs leading-relaxed text-slate-100 outline-none ${fullscreen ? 'flex-1 rounded-b-xl' : 'min-h-[320px]'}`}

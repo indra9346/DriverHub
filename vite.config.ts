@@ -163,6 +163,7 @@ function spaStaticFallbackPlugin(): Plugin {
     'admin/applications',
     'admin/documents',
     'admin/reports',
+    'admin/blogs',
     'admin/settings',
   ];
 

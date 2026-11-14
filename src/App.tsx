@@ -42,6 +42,7 @@ const AdminApplications = React.lazy(() => import('./pages/admin/AdminApplicatio
 const AdminDocuments = React.lazy(() => import('./pages/admin/AdminDocuments').then(module => ({ default: module.AdminDocuments })));
 const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings').then(module => ({ default: module.AdminSettings })));
 const AdminCallbacks = React.lazy(() => import('./pages/admin/AdminCallbacks').then(module => ({ default: module.AdminCallbacks })));
+const AdminBlogs = React.lazy(() => import('./pages/admin/AdminBlogs').then(module => ({ default: module.AdminBlogs })));
 
 import { ScrollToTop } from './components/common/ScrollToTop';
 import { SupabaseSync } from './services/supabaseSync';
@@ -162,6 +163,7 @@ export const App: React.FC = () => {
           <Route path="documents" element={<AdminDocuments />} />
           <Route path="reports" element={<AdminDashboard />} />
           <Route path="callbacks" element={<AdminCallbacks />} />
+          <Route path="blogs" element={<AdminBlogs />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
 
